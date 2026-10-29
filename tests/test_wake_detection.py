@@ -113,3 +113,20 @@ class TestFrenchStopDefaults:
 
         assert loaded == custom
         assert not is_stop_command("arrête", loaded)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(("heard", "expected"), [
+    ("ATLAS", True),
+    ("Atlas.", True),
+    ("atlas ?", True),
+    ("Atlasse!", True),
+    ("Atlas, ouvre le dossier", False),
+    ("Un atlas géographique", False),
+    ("Atlassement", False),
+    ("Atla", False),
+    ("", False),
+])
+def test_exact_standalone_wake_name_only(heard, expected):
+    from jarvis.listening.wake_detection import is_standalone_wake_word
+    assert is_standalone_wake_word(heard, "atlas", ["atlasse"]) is expected
