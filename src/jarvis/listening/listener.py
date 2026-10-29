@@ -1060,7 +1060,7 @@ class VoiceListener(threading.Thread):
         self._clear_audio_buffers()
 
         from jarvis.activity import get_jarvis_state, JarvisState
-        from ..reply.engine import run_reply_engine
+        from ..reply.engine import run_reply_engine, FRENCH_FALLBACK_REPLY
         from ..daemon import query_lock
 
         manager = get_jarvis_state()
@@ -1096,7 +1096,7 @@ class VoiceListener(threading.Thread):
                 print(f"\n  ❌ Reply engine error: {exc}", flush=True)
                 debug_log(f'Reply engine exception: {exc}', 'voice')
                 failed = True
-                reply = 'Sorry, I encountered an error processing your request.'
+                reply = FRENCH_FALLBACK_REPLY
 
             self._stop_thinking_tune()
             if not self._transcription_is_current(generation):
