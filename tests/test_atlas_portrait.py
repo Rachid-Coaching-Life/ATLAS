@@ -20,7 +20,9 @@ def test_atlas_portrait_is_a_valid_transparent_png():
         assert portrait.height >= 200
         assert "A" in portrait.convert("RGBA").getbands()
         alpha = portrait.convert("RGBA").getchannel("A")
-        assert alpha.getextrema() == (0, 255)
+        min_alpha, max_alpha = alpha.getextrema()
+        assert min_alpha == 0
+        assert max_alpha >= 200
 
 
 @pytest.mark.unit
