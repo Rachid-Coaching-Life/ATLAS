@@ -1,14 +1,15 @@
-"""A quiet, translucent amber face and shared desktop animation state."""
+"""ATLAS desktop portrait and legacy animated-face fallback."""
 
 from __future__ import annotations
 import math
 import random
 import time as _time
 from typing import Optional
+from pathlib import Path
 from enum import Enum
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QApplication, QMenu
-from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QPainterPathStroker, QRadialGradient, QRegion
-from PyQt6.QtCore import Qt, QTimer, QPointF, pyqtSignal
+from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QPainterPathStroker, QRadialGradient, QRegion, QPixmap
+from PyQt6.QtCore import Qt, QTimer, QPointF, QRectF, pyqtSignal
 
 from jarvis.activity import JarvisState, get_jarvis_state
 from jarvis.debug import debug_log
@@ -49,6 +50,7 @@ class FaceWidget(QWidget):
         self.setMinimumSize(160, 208)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self._portrait = QPixmap(str(Path(__file__).resolve().parent / "desktop_assets" / "atlas_portrait.png"))
         self._state_manager = get_jarvis_state()
         self._jarvis_state = JarvisState.ASLEEP
         self._expression = Expression.NEUTRAL
@@ -175,7 +177,48 @@ class FaceWidget(QWidget):
                 self._glance_started_at = None
                 self._next_glance_at = now + random.uniform(9.0, 15.0)
 
+    def _paint_portrait(self, painter: QPainter) -> None:
+        """Render the supplied ATLAS portrait with a discreet state cue."""
+        side = min(self.width(), self.height())
+        center_x = self.width() / 2
+        center_y = self.height() / 2
+        scale = 1.0 + 0.006 * math.sin(self._elapsed * math.tau / 7.5) * self._activation_level
+        target = QRectF(center_x - side * scale / 2, center_y - side * scale / 2,
+                        side * scale, side * scale)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        painter.drawPixmap(target, self._portrait, QRectF(self._portrait.rect()))
+
+        # The listening/thinking/speaking indicator is below the facial details.
+        active = max(self._listening, self._thinking, self._speaking, self._dictating)
+        if active > 0.01:
+            colour = QColor("#36c8ff" if self._dictating < 0.5 else "#ffad61")
+            colour.setAlphaF(min(0.9, 0.25 + 0.65 * active))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(colour)
+            pulse = 3.0 + active * (1.5 + math.sin(self._elapsed * 5) * 0.8)
+            painter.drawEllipse(QPointF(center_x, center_y + side * 0.445),
+                                pulse, pulse)
+
+    def portrait_input_region(self, width: int, height: int) -> QRegion:
+        """Mask transparent portrait pixels without clipping hair or shoulders."""
+        side = min(width, height)
+        scaled = self._portrait.scaled(
+            side, side,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        region = QRegion(scaled.mask())
+        region.translate((width - scaled.width()) // 2,
+                         (height - scaled.height()) // 2)
+        return region
+
     def paintEvent(self, event):
+        if not self._portrait.isNull():
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            self._paint_portrait(painter)
+            painter.end()
+            return
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         scale = min(self.width() / self.DESIGN_WIDTH, self.height() / self.DESIGN_HEIGHT)
@@ -363,11 +406,11 @@ class FaceWidget(QWidget):
 
 
 class FaceWindow(QWidget):
-    """A standalone window containing the Jarvis face."""
+    """A standalone window showing the ATLAS portrait or legacy face."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("🤖 Jarvis")
+        self.setWindowTitle("🤖 ATLAS")
         self.setMinimumSize(160, 208)
         self.resize(FaceWidget.DESIGN_WIDTH, FaceWidget.DESIGN_HEIGHT)
         self.setWindowFlags(
@@ -380,8 +423,8 @@ class FaceWindow(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setAttribute(Qt.WidgetAttribute.WA_MacAlwaysShowToolWindow)
         self.setStyleSheet("background: transparent;")
-        self.setAccessibleName("Jarvis face")
-        self.setToolTip("Drag to move. Right-click for Jarvis controls.")
+        self.setAccessibleName("Visage d’ATLAS")
+        self.setToolTip("Déplacer avec la souris. Clic droit pour les commandes ATLAS.")
         self._tray_menu: Optional[QMenu] = None
         self._drag_offset = None
 
@@ -390,6 +433,9 @@ class FaceWindow(QWidget):
         layout.setSpacing(0)
         self.face = FaceWidget()
         layout.addWidget(self.face)
+        if not self.face._portrait.isNull():
+            self.setMinimumSize(200, 200)
+            self.resize(280, 280)
         self.face.state_observed.connect(self._update_presence)
         self._update_presence(self.face._state_manager.state.value)
 
@@ -428,7 +474,10 @@ class FaceWindow(QWidget):
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
-        self.setMask(FaceWidget.input_region(self.width(), self.height()))
+        if not self.face._portrait.isNull():
+            self.setMask(self.face.portrait_input_region(self.width(), self.height()))
+        else:
+            self.setMask(FaceWidget.input_region(self.width(), self.height()))
 
     def mousePressEvent(self, event) -> None:
         self._drag_offset = None
