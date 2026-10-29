@@ -1819,6 +1819,9 @@ class ATLASSystemTray:
         # Note: Creating the face window also initializes the SpeakingState singleton
         # in the main thread, which is important for cross-thread signal delivery
         self.face_window = FaceWindow()
+        # Keep conversation preview on the GUI thread, using the same
+        # line stream already displayed by the optional log viewer.
+        self.log_signals.new_log.connect(self.face_window.ingest_log)
 
         # Create dictation history window (hidden by default)
         from desktop_app.dictation_history import DictationHistoryWindow
@@ -2234,16 +2237,11 @@ class ATLASSystemTray:
                 show_update_error_dialog(str(e))
 
     def show_launch_windows(self) -> None:
-        """Open the log viewer and face window once at app launch.
+        """Show the unified ATLAS projection; keep diagnostic logs available.
 
-        Starting or stopping the assistant never changes window visibility
-        (start_daemon/stop_daemon leave it untouched), so the
-        launch windows are opened here explicitly instead of inside
-        start_daemon.
+        The former detached log viewer no longer opens automatically over
+        the assistant. It remains accessible from the system tray.
         """
-        self.log_viewer.show()
-        self.log_viewer.raise_()
-        self.log_viewer.activateWindow()
         self.face_window.show()
         self.face_window.raise_()
 
