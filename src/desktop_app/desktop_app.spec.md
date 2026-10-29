@@ -164,9 +164,12 @@ geometric amber face described below is only a fallback if the portrait
 cannot be loaded. While the shared Piper playback state is `SPEAKING`,
 the portrait draws an animated aperture and moving lip contours at the
 artwork's mouth coordinates. Piper precomputes a 40ms RMS audio-energy
-timeline from the actual synthesised PCM, then atomically publishes it in
-a small temporary file before starting playback. The desktop samples that
-timeline using its playback start timestamp. Both processes share only
+timeline from the actual synthesised PCM, then atomically publishes it
+from the TTS worker after the first PortAudio output callback, using that
+callback's timestamp as the actual audio onset. The desktop samples that
+timeline using its measured playback start timestamp (rather than stream
+construction time), without applying the visual-state easing delay. Both
+processes share only
 standard-library JSON/file facilities; PortAudio's real-time callback
 never writes files or touches Qt. Silence closes the mouth, audible syllables
 open it, and the file is cleared on completion or interruption. Other TTS
