@@ -25,8 +25,8 @@ from ..utils.audio_lock import portaudio_lock
 # Piper TTS Model Configuration
 # ============================================================================
 # Default voice model for automatic download
-# en_GB-alan-medium: Good quality, ~60MB, British English male
-PIPER_DEFAULT_VOICE = "en_GB-alan-medium"
+# fr_FR-tom-medium: French male voice, medium quality (~64 MB)
+PIPER_DEFAULT_VOICE = "fr_FR-tom-medium"
 _PIPER_DOWNLOAD_MAX_RETRIES = 4
 PIPER_VOICE_BASE_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0"
 
