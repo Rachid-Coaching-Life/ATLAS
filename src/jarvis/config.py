@@ -555,7 +555,7 @@ def get_default_config() -> Dict[str, Any]:
         # Piper TTS
         "tts_piper_model_path": None,  # Path to .onnx voice model
         "tts_piper_speaker": None,  # Speaker ID for multi-speaker models
-        "tts_piper_length_scale": 0.65,  # Speed: <1.0 faster, >1.0 slower (0.65 = ~30% faster)
+        "tts_piper_length_scale": 1.0,  # Normal speech rate, validated on ATLAS GTR7
         "tts_piper_noise_scale": 0.8,  # Audio variation (higher = more expressive)
         "tts_piper_noise_w": 1.0,  # Phoneme width variation (higher = more lively)
         "tts_piper_sentence_silence": 0.2,  # Post-sentence silence in seconds
@@ -774,7 +774,7 @@ def load_settings() -> Settings:
         tts_piper_speaker = None if tts_piper_speaker_val in (None, "", "null") else int(tts_piper_speaker_val)
     except Exception:
         tts_piper_speaker = None
-    tts_piper_length_scale = float(merged.get("tts_piper_length_scale", 0.65))
+    tts_piper_length_scale = float(merged.get("tts_piper_length_scale", 1.0))
     tts_piper_noise_scale = float(merged.get("tts_piper_noise_scale", 0.8))
     tts_piper_noise_w = float(merged.get("tts_piper_noise_w", 1.0))
     tts_piper_sentence_silence = float(merged.get("tts_piper_sentence_silence", 0.2))
