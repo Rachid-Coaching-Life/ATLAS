@@ -86,11 +86,11 @@ _SYSTEM_PROMPT_TEMPLATE: str = (
 )
 
 
-def build_system_prompt(assistant_name: str = "Jarvis") -> str:
+def build_system_prompt(assistant_name: str = "ATLAS") -> str:
     """Render the persona prompt with the configured assistant name.
 
     The name comes from the user's wake word (capitalised); defaults to
-    "Jarvis" when no config is available (tests, eval harnesses).
+    "ATLAS" when no config is available (tests, eval harnesses).
     """
-    name = (assistant_name or "Jarvis").strip() or "Jarvis"
+    name = (assistant_name or "ATLAS").strip() or "ATLAS"
     return _SYSTEM_PROMPT_TEMPLATE.format(name=name)
