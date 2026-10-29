@@ -1628,7 +1628,7 @@ class TestStandaloneWakeWordWithoutLLM:
         listener._dispatch_query.assert_not_called()
         assert not listener.state_manager.is_collecting()
 
-    def test_wake_plus_full_request_still_uses_judge(self):
+    def test_wake_plus_request_without_address_comma_still_uses_judge(self):
         listener, _ = _create_listener()
         listener.cfg.wake_word = "atlas"
         judge = _install_intent_judge(
@@ -1636,7 +1636,7 @@ class TestStandaloneWakeWordWithoutLLM:
         )
 
         _process_transcript(
-            listener, "Atlas, explique-moi la météo.", utterance_energy=0.01,
+            listener, "Atlas explique-moi la météo.", utterance_energy=0.01,
         )
 
         judge.judge.assert_called_once()
