@@ -163,10 +163,18 @@ priority when present. Qt retains its aspect ratio and alpha mask; the
 geometric amber face described below is only a fallback if the portrait
 cannot be loaded. While the shared Piper playback state is `SPEAKING`,
 the portrait draws an animated aperture and moving lip contours at the
-artwork's mouth coordinates. During IDLE, LISTENING and THINKING the mouth
-remains closed. Animation is playback-state-driven, not phoneme-accurate:
-there is no Piper viseme/amplitude feed today. The animation must remain
-lightweight, without networking, LLM calls or new multimedia dependencies.
+artwork's mouth coordinates. Piper precomputes a 40ms RMS audio-energy
+timeline from the actual synthesised PCM, then atomically publishes it in
+a small temporary file before starting playback. The desktop samples that
+timeline using its playback start timestamp. Both processes share only
+standard-library JSON/file facilities; PortAudio's real-time callback
+never writes files or touches Qt. Silence closes the mouth, audible syllables
+open it, and the file is cleared on completion or interruption. Other TTS
+backends can still use a gentle legacy speaking rhythm when no Piper
+envelope exists. During IDLE, LISTENING and THINKING the mouth remains
+closed. RMS-based motion is audio-synchronised but NOT phoneme/viseme
+aligned: it cannot form distinct lip shapes for individual consonants.
+No LLM, network or new multimedia dependency is involved.
 
 Legacy fallback: The face is a compact frameless, translucent tool window, always on top without
 accepting focus or activating when shown. macOS keeps the tool window visible
