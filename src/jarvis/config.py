@@ -570,8 +570,8 @@ def get_default_config() -> Dict[str, Any]:
         "voice_max_collect_seconds": 180.0,
 
         # Wake Word Detection
-        "wake_word": "jarvis",
-        "wake_aliases": ["joris", "charis", "chavis", "jar is", "jaivis", "jervis", "jarvus", "jarviz", "javis", "jairus", "jarryst", "chyrus"],
+        "wake_word": "atlas",
+        "wake_aliases": ["atlasse"],
         "wake_fuzzy_ratio": 0.78,
 
         # Whisper Speech Recognition
@@ -783,7 +783,7 @@ def load_settings() -> Settings:
     voice_device = None if voice_device_val in (None, "", "default", "system") else str(voice_device_val)
     voice_collect_seconds = float(merged.get("voice_collect_seconds", 2.5))
     voice_max_collect_seconds = float(merged.get("voice_max_collect_seconds", 60.0))
-    wake_word = str(merged.get("wake_word", "jarvis")).strip().lower()
+    wake_word = str(merged.get("wake_word", "atlas")).strip().lower()
     wake_aliases = [a.strip().lower() for a in _ensure_list(merged.get("wake_aliases")) if a.strip()]
     wake_fuzzy_ratio = float(merged.get("wake_fuzzy_ratio", 0.78))
     whisper_model = _expand_model_reference(merged.get("whisper_model")) or "medium"
