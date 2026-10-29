@@ -57,7 +57,7 @@ def _start_tts_engine(tts) -> None:
     if tts.enabled:
         print("✅ TTS engine started", flush=True)
     else:
-        print("  ⚠️ Speech output unavailable. Check the voice model settings and restart Jarvis.", flush=True)
+        print("  ⚠️ Speech output unavailable. Check the voice model settings and restart ATLAS.", flush=True)
 
 
 # Global instances for coordination between modules
@@ -484,7 +484,7 @@ def submit_text_query(
                 logged_reply = "\n".join(
                     "  " + line for line in scrub_secrets(reply).splitlines()
                 )
-                print(f"\n🤖 Jarvis\n{logged_reply}\n", flush=True)
+                print(f"\n🤖 ATLAS\n{logged_reply}\n", flush=True)
             _notify_chat("complete", reply, callbacks=callbacks, use_ipc=use_ipc)
         except Exception as exc:
             debug_log(f"chat query worker error: {exc}", "chat")
@@ -870,12 +870,12 @@ def main(smoke_test: bool = False) -> None:
         pid = lock_holder_pid()
         print(
             f"⚠️ Another Jarvis daemon is already running{f' (pid {pid})' if pid else ''}. "
-            "Stop it before starting Jarvis again.",
+            "Stop it before starting ATLAS again.",
             flush=True,
         )
         debug_log("daemon start refused: another daemon holds the lock", "jarvis")
         if smoke_test:
-            raise RuntimeError("Another Jarvis daemon is already running; smoke initialisation was not performed")
+            raise RuntimeError("Another ATLAS daemon is already running; smoke initialisation was not performed")
         return
     try:
         _run_daemon(smoke_test)
@@ -898,7 +898,7 @@ def _run_daemon(smoke_test: bool = False) -> None:
 
     from . import get_version
     version, release_channel = get_version()
-    print(f"📦 Jarvis {version} ({release_channel})", flush=True)
+    print(f"📦 ATLAS {version} ({release_channel})", flush=True)
 
     cfg = load_settings()
     db = Database(cfg.db_path, cfg.sqlite_vss_path)
