@@ -151,6 +151,32 @@ Window visibility is user-controlled: starting or stopping the assistant never s
 
 ### Desktop face presence
 
+The installed desktop application uses `FaceWindow(hologram=True)` as its
+unified floating visual surface: the original transparent ATLAS portrait is
+joined to one live translucent blue/amber Qt HUD through a luminous circuit
+bridge, all inside the **same native tool window**. The panel reflects real
+shared `JarvisState` values (asleep, idle, listening, thinking, speaking,
+dictating); the already-existing desktop `LogSignals.new_log` channel feeds
+the latest heard text and the publicly emitted ATLAS reply on the GUI thread.
+The output labels are plain text, not interpreted as HTML. This is a display
+for existing speech events, not a new command-execution path.
+
+On wide screens the panel is immediately left of the portrait. Below 740
+logical screen pixels it stacks beneath the portrait with a vertical circuit
+connection; available screen geometry bounds its initial footprint. The
+entire surface can be dragged as one unit, stays on top and does not steal
+keyboard focus. The full log viewer, chat, tasks, and tray actions remain
+available separately; only the **automatic opening** of the detached log
+viewer is removed. `FaceWindow()` without the flag retains the previously
+tested isolated silhouette, mask and snapshot behavior.
+
+This phase does not claim 3-D facial rigging or phoneme-aligned visemes.
+Piper currently supplies a timed audio-energy envelope (described below);
+properly articulated mouth shapes require a separate prepared facial rig
+or texture layers and reliable timed phoneme output. Desktop performance
+and screen-layout correctness must be validated on Windows before marking
+this phase complete.
+
 [Shared assistant activity](../jarvis/activity.spec.md) owns the activity enum
 and file-backed state manager.
 It uses only the standard library, so core speech, listening, dictation and
