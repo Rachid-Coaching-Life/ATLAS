@@ -1,7 +1,7 @@
 """
 💬 Chat Window
 
-A text chat interface for Jarvis, alongside the existing voice path. Voice
+A text chat interface for ATLAS, alongside the existing voice path. Voice
 and text share one conversation (the daemon's global dialogue memory). See
 ``chat_window.spec.md`` for the full contract.
 
@@ -87,13 +87,13 @@ class ChatTitleBar(QWidget):
                 window.showMaximized()
 
 
-class JarvisOrb(QWidget):
+class ATLASOrb(QWidget):
     """Resolution-independent amber core, with no external image assets."""
 
     def __init__(self, size: int, parent=None):
         super().__init__(parent)
         self.setFixedSize(size, size)
-        self.setAccessibleName('Jarvis')
+        self.setAccessibleName('ATLAS')
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
@@ -275,7 +275,7 @@ _HEADER_STATUS_STYLE = f"""
 """
 
 # SMS-style bubbles: the user's messages sit on the right in the accent
-# colour, Jarvis's replies on the left in a dark bubble. The corner nearest
+# colour, ATLAS's replies on the left in a dark bubble. The corner nearest
 # the sender is squared off, like a speech bubble.
 _BUBBLE_STYLES = {
     "user": f"""
@@ -313,18 +313,18 @@ _MESSAGE_TEXT_STYLES = {
 }
 
 _DAEMON_STATUS_MESSAGES = {
-    "starting": "Starting Jarvis...",
-    "stopping": "Stopping Jarvis...",
+    "starting": "Starting ATLAS...",
+    "stopping": "Stopping ATLAS...",
     "stopped": "Start Listening from the tray to use chat.",
-    "crashed": "Jarvis stopped unexpectedly. Start Listening to reconnect.",
+    "crashed": "ATLAS stopped unexpectedly. Start Listening to reconnect.",
 }
 
 _DAEMON_STATUS_PLACEHOLDERS = {
-    "starting": "Jarvis is starting",
-    "stopping": "Jarvis is stopping",
+    "starting": "ATLAS is starting",
+    "stopping": "ATLAS is stopping",
     "stopped": "Start Listening from the tray to use chat",
     "crashed": "Start Listening from the tray to reconnect chat",
-    "running": "Message Jarvis…",
+    "running": "Message ATLAS…",
 }
 
 _HEADER_STATUS_TEXTS = {
@@ -359,7 +359,7 @@ class ChatWindow(QMainWindow):
         control_fn: Optional[Callable[[str, Optional[dict]], None]] = None,
     ) -> None:
         super().__init__()
-        self.setWindowTitle("Jarvis Chat")
+        self.setWindowTitle("ATLAS Chat")
         self.setObjectName('chatWindow')
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -437,11 +437,11 @@ class ChatWindow(QMainWindow):
         # Contact header, like the top of an SMS thread.
         header = QHBoxLayout()
         header.setSpacing(10)
-        avatar = JarvisOrb(60)
+        avatar = ATLASOrb(60)
         header.addWidget(avatar)
         name_col = QVBoxLayout()
         name_col.setSpacing(3)
-        name_label = QLabel("Jarvis")
+        name_label = QLabel("ATLAS")
         name_label.setObjectName('chatName')
         name_col.addWidget(name_label)
         self._header_status = QLabel("")
@@ -460,7 +460,7 @@ class ChatWindow(QMainWindow):
         empty_layout.setContentsMargins(8, 0, 8, 0)
         empty_layout.setSpacing(12)
         empty_layout.addStretch()
-        empty_layout.addWidget(JarvisOrb(120), alignment=Qt.AlignmentFlag.AlignCenter)
+        empty_layout.addWidget(ATLASOrb(120), alignment=Qt.AlignmentFlag.AlignCenter)
         for text, name in (
             ('A little space to think.', 'chatEmptyTitle'),
             ('Ask a question. Follow a thought.\nPick up where your voice left off.', 'chatEmptyDetail'),
@@ -506,7 +506,7 @@ class ChatWindow(QMainWindow):
         self.input_widget = QPlainTextEdit()
         self.input_widget.setPlaceholderText(_DAEMON_STATUS_PLACEHOLDERS["running"])
         self.input_widget.setFixedHeight(58)
-        self.input_widget.setAccessibleName('Message Jarvis')
+        self.input_widget.setAccessibleName('Message ATLAS')
         self.input_widget.setToolTip('Enter to send. Shift+Enter for a new line.')
         self.input_widget.setStyleSheet(_INPUT_STYLE)
         self.input_widget.keyPressEvent = self._input_key_press  # type: ignore[method-assign]
@@ -702,7 +702,7 @@ class ChatWindow(QMainWindow):
 
     def _on_busy(self) -> None:
         self._set_thinking(False)
-        self._append_system("Jarvis is busy with another query already.")
+        self._append_system("ATLAS is busy with another query already.")
 
     # --- Subprocess IPC entry point --------------------------------------
 
@@ -915,7 +915,7 @@ class ChatWindow(QMainWindow):
 
     def _refresh_status_label(self) -> None:
         if self._query_in_flight:
-            self._status_label.setText("  Jarvis is thinking…")
+            self._status_label.setText("  ATLAS is thinking…")
             self._status_label.setVisible(True)
             return
 
