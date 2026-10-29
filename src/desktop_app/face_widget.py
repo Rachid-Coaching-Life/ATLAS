@@ -210,9 +210,12 @@ class FaceWidget(QWidget):
     def _paint_portrait_mouth(self, painter: QPainter, bounds: QRectF) -> None:
         """Open the lips over the portrait using Piper's actual audio energy."""
         if self._mouth_envelope is not None:
-            opening = envelope_level(self._mouth_envelope) * self._speaking
+            # Do not smooth the PCM amplitude by the visual state's
+            # 180ms ease-in/out; that delay desynchronises the lips.
+            opening = (envelope_level(self._mouth_envelope)
+                       if self._jarvis_state == JarvisState.SPEAKING else 0.0)
         else:
-            # Legacy voice backends do not currently publish PCM levels.
+            # Legacy TTS backends do not publish a PCM envelope.
             opening = self._speech_mouth_opening(self._elapsed, self._speaking)
         if opening <= 0.02 or bounds.isEmpty():
             return
