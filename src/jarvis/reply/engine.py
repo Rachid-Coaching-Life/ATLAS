@@ -134,13 +134,13 @@ def _is_atlas_self_introduction_request(query: str) -> bool:
 
     clean = unicodedata.normalize("NFC", query or "").casefold().strip()
     # Whisper sometimes keeps the spoken address in the same segment.
-    clean = re.sub(r"^(?:atlas|atlasse)\\s*,\\s*", "", clean)
-    clean = re.sub(r"[.!?\\s]+$", "", clean).strip()
+    clean = re.sub(r"^(?:atlas|atlasse)\s*,\s*", "", clean)
+    clean = re.sub(r"[.!?\s]+$", "", clean).strip()
     return bool(re.fullmatch(
         r"(?:présente[ -]toi|"
-        r"(?:tu\\s+peux|peux[ -]tu|pourrais[ -]tu)\\s+te\\s+présenter|"
-        r"qui\\s+es[ -]tu)"
-        r"(?:\\s+en\\s+français)?",
+        r"(?:tu\s+peux|peux[ -]tu|pourrais[ -]tu)\s+te\s+présenter|"
+        r"qui\s+es[ -]tu)"
+        r"(?:\s+en\s+français)?",
         clean,
     ))
 
@@ -1059,7 +1059,7 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
             return None
         reply = _ATLAS_SELF_INTRO_RESPONSE
         if not quiet:
-            print(f"\\n🤖 ATLAS\\n  {_indent_text(reply)}\\n", flush=True)
+            print(f"\n🤖 ATLAS\n  {_indent_text(reply)}\n", flush=True)
         if tts is not None and tts.enabled:
             tts.speak(reply)
         if dialogue_memory is not None:
