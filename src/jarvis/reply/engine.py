@@ -113,8 +113,13 @@ _UNEXECUTED_ACTION_HINT = (
     "guess missing arguments."
 ) + _NON_COMPLETION_HINT
 
+FRENCH_FALLBACK_REPLY = (
+    "Je n'ai pas réussi à traiter votre demande. Pouvez-vous réessayer ?"
+)
+
 _UNEXECUTED_ACTION_REPLY = (
-    "I couldn't execute the requested action. Please try again or provide the missing details."
+    "Je n'ai pas pu effectuer cette action. "
+    "Veuillez réessayer ou préciser les informations manquantes."
 )
 
 _FAILED_TOOL_FOLLOWUP_HINT = (
@@ -2854,7 +2859,7 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
             )
             reply = last_candidate_reply
     if not reply or not reply.strip():
-        reply = "Sorry, I had trouble processing that. Could you try again?"
+        reply = FRENCH_FALLBACK_REPLY
         debug_log("no reply generated, returning error message", "planning")
 
         # Print error message
@@ -2881,7 +2886,7 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
         return None
     safe_reply = reply.strip()
     if not safe_reply:
-        safe_reply = "Sorry, I had trouble processing that. Could you try again?"
+        safe_reply = FRENCH_FALLBACK_REPLY
         reply = safe_reply
     if safe_reply:
         # Quiet callers own delivery and activity logging of the reply.
