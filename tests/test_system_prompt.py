@@ -26,3 +26,10 @@ class TestBuildSystemPrompt:
         assert "named Jarvis" in build_system_prompt("")
         assert "named Jarvis" in build_system_prompt("   ")
         assert "named Jarvis" in build_system_prompt(None)  # type: ignore[arg-type]
+
+    def test_atlas_explicitly_replies_in_french_for_every_input_language(self):
+        prompt = build_system_prompt("Atlas")
+        assert "Always answer in French" in prompt
+        assert "even if the user speaks or writes another language" in prompt
+        assert "Keep code, identifiers, file paths, proper names, URLs, and exact quotations unchanged" in prompt
+        assert "phrased naturally in the user's language" not in prompt
