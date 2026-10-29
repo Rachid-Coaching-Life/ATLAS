@@ -13,7 +13,7 @@ This specification documents only the reply flow that begins when a valid user q
 Design principles enforced by the engine:
 - Unified System Prompt: A single prompt with adaptive guidance handles all topics; no per-profile routing.
 - Tool Response Flow: Tools return raw data; formatting/personality is handled by the LLM through the engine's loop. The system prompt explicitly instructs the model to use tool results to fulfill the user's original request, not to describe the structure or format of the tool response.
-- Language-Agnostic Design: Prompts and ASR guidance avoid language-specific phrasing.
+- French-only responses: The unified persona prompt requests French text and spoken answers regardless of input language, while preserving literal code, paths, URLs, names, and quotations. Speech recognition and tool routing still accept other languages.
 - Data Privacy: Inputs are redacted and logging is concise and purposeful via `debug_log`.
 
 ### Entry and Inputs
