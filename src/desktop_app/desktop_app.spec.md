@@ -167,8 +167,13 @@ connection; available screen geometry bounds its initial footprint. The
 entire surface can be dragged as one unit, stays on top and does not steal
 keyboard focus. The full log viewer, chat, tasks, and tray actions remain
 available separately; only the **automatic opening** of the detached log
-viewer is removed. `FaceWindow()` without the flag retains the previously
-tested isolated silhouette, mask and snapshot behavior.
+viewer is removed. `FaceWindow()` keeps the official PNG portrait as
+the standalone default, while `FaceWindow(hologram=True)` joins that same
+portrait to the HUD. Only `FaceWindow(portrait=False)` explicitly selects
+the original 220×280 geometric vector fallback, whose historical golden
+images, alpha-mask behaviour, and proportions are still covered by the
+legacy visual regression tests. The vector tests must not accidentally
+compare the production robot portrait to the old geometric fixtures.
 
 This phase does not claim 3-D facial rigging or phoneme-aligned visemes.
 Piper currently supplies a timed audio-energy envelope (described below);
