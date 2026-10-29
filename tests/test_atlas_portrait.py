@@ -49,14 +49,8 @@ def test_face_window_has_atlas_identity_and_portrait(qapp):
         assert window.windowTitle() == "🤖 ATLAS"
         assert not window.face._portrait.isNull()
         image = window.face._portrait
-        assert window.face.width() > 0
-        assert window.face.height() > 0
-        assert abs(window.face.width() / window.face.height()
-                   - image.width() / image.height()) < 0.08
-        assert window.width() >= window.hologram.width()
-        assert window.face.parent() is window
-        assert window.hologram.parent() is window
-        assert window.bridge.parent() is window
+        assert window.width() == max(200, round(280 * image.width() / image.height()))
+        assert window.height() == 280
     finally:
         window.close()
 
@@ -189,3 +183,20 @@ def test_portrait_lips_follow_real_pcm_level_not_timer(qapp, monkeypatch):
         assert frame() == silent_frame  # no ghost articulation after playback
     finally:
         face.close()
+
+
+@pytest.mark.unit
+def test_live_atlas_holographic_mode_keeps_single_window_and_original_portrait(qapp):
+    from desktop_app.face_widget import FaceWindow
+
+    window = FaceWindow(hologram=True)
+    try:
+        assert window.windowTitle() == "🤖 ATLAS"
+        assert window.face.parent() is window
+        assert window.hologram.parent() is window
+        assert window.bridge.parent() is window
+        assert window.face.width() > 0
+        assert window.hologram.width() > 0
+        assert not window.face._portrait.isNull()
+    finally:
+        window.close()
