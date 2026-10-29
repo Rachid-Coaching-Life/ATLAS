@@ -36,20 +36,9 @@
   "voice_min_energy": 0.02,
   "voice_collect_seconds": 4.5,
   "voice_max_collect_seconds": 180.0,
-  "wake_word": "jarvis",
+  "wake_word": "atlas",
   "wake_aliases": [
-    "joris",
-    "charis",
-    "chavis",
-    "jar is",
-    "jaivis",
-    "jervis",
-    "jarvus",
-    "jarviz",
-    "javis",
-    "jairus",
-    "jarryst",
-    "chyrus"
+    "atlasse"
   ],
   "wake_fuzzy_ratio": 0.78,
   "whisper_model": "medium",
