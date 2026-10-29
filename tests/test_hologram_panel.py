@@ -138,3 +138,21 @@ def test_mask_updates_are_coalesced_before_event_loop_runs(qapp, monkeypatch):
         assert window._mask_refresh_queued is False
     finally:
         window.close()
+
+
+def test_holographic_mask_never_converts_alpha_bitmap(qapp, monkeypatch):
+    """The joined HUD uses cheap widget hit regions; portrait pixels stay RGBA."""
+    from desktop_app.face_widget import FaceWindow
+
+    window = FaceWindow(hologram=True)
+    try:
+        monkeypatch.setattr(
+            window.face, "portrait_input_region",
+            lambda *_args: (_ for _ in ()).throw(AssertionError("expensive alpha mask")),
+        )
+        window._refresh_mask()
+        region = window.mask()
+        assert not region.isEmpty()
+        assert region.contains(window.hologram.geometry().center())
+    finally:
+        window.close()
