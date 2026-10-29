@@ -1691,3 +1691,80 @@ class TestExplicitWakeAddressWithoutLLM:
 
         judge.judge.assert_called_once()
         assert not listener.state_manager.is_collecting()
+
+
+@pytest.mark.unit
+class TestCompletedSpeechLatency:
+    """Completed sentences should not pay the full collection timeout."""
+
+    def test_complete_quiet_sentence_dispatches_after_short_pause(self):
+        listener, _ = _create_listener()
+        listener._dispatch_query = MagicMock()
+        listener.state_manager.start_collection(
+            "Atlas, ouvre mon dossier.", language="fr",
+        )
+        listener.state_manager._last_voice_time -= 1.4
+
+        listener._check_query_timeout()
+
+        listener._dispatch_query.assert_called_once_with(
+            "Atlas, ouvre mon dossier.", language="fr",
+            generation=listener._capture_generation,
+        )
+        assert not listener.state_manager.is_collecting()
+
+    @pytest.mark.parametrize("unfinished", [
+        "Atlas", "Atlas ouvre", "Atlas, ouvre le dossier et",
+        "Atlas, explique ceci...",
+    ])
+    def test_unfinished_speech_keeps_original_silence_timeout(self, unfinished):
+        listener, _ = _create_listener()
+        listener._dispatch_query = MagicMock()
+        listener.state_manager.start_collection(unfinished, language="fr")
+        listener.state_manager._last_voice_time -= 1.4
+
+        listener._check_query_timeout()
+
+        listener._dispatch_query.assert_not_called()
+        assert listener.state_manager.is_collecting()
+
+    def test_active_speech_prevents_short_timeout(self):
+        listener, _ = _create_listener()
+        listener._dispatch_query = MagicMock()
+        listener.state_manager.start_collection("Atlas, ouvre le dossier.", language="fr")
+        listener.state_manager._last_voice_time -= 1.4
+        listener.is_speech_active = True
+
+        listener._check_query_timeout()
+
+        listener._dispatch_query.assert_not_called()
+        listener.is_speech_active = False
+        listener._check_query_timeout()
+        listener._dispatch_query.assert_called_once()
+
+    def test_queued_transcription_prevents_short_timeout(self):
+        listener, _ = _create_listener()
+        listener._dispatch_query = MagicMock()
+        listener.state_manager.start_collection("Atlas, ouvre le dossier.", language="fr")
+        listener.state_manager._last_voice_time -= 1.4
+        queued = object()
+        listener._transcription_jobs_q.put_nowait(queued)
+
+        listener._check_query_timeout()
+
+        listener._dispatch_query.assert_not_called()
+        assert listener.state_manager.is_collecting()
+        assert listener._transcription_jobs_q.get_nowait() is queued
+        listener._check_query_timeout()
+        listener._dispatch_query.assert_called_once()
+
+    def test_empty_standalone_name_does_not_dispatch(self):
+        listener, _ = _create_listener()
+        listener._dispatch_query = MagicMock()
+        listener.state_manager.start_collection("", language="fr")
+        listener.state_manager._last_voice_time -= 1.4
+
+        listener._check_query_timeout()
+
+        listener._dispatch_query.assert_not_called()
+        assert listener.state_manager.is_collecting()
