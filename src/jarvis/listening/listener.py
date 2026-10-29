@@ -1359,10 +1359,33 @@ class VoiceListener(threading.Thread):
         return False
 
     def _check_query_timeout(self) -> None:
-        """Check if there's a pending query that has timed out, and check hot window expiry."""
+        """Dispatch completed speech after silence, retaining fragmented requests."""
         generation = self._capture_generation
         self.apply_capture_pause_reset()
-        if self.state_manager.check_collection_timeout():
+
+        pending = self.state_manager.get_pending_query().strip()
+        # Whisper has completed a punctuated sentence and no further speech
+        # is being captured or decoded. Avoid waiting the full configurable
+        # collection timeout (4.5 seconds by default) in this common case.
+        # Keep the original timeout for unfinished phrases and queued speech.
+        complete_sentence = (
+            len(pending.split()) >= 3
+            and pending.endswith((".", "?", "!"))
+            and not pending.endswith("...")
+        )
+        idle_and_drained = (
+            not self.is_speech_active
+            and self._transcription_jobs_q.empty()
+            and self._transcription_results_q.empty()
+        )
+        if complete_sentence and idle_and_drained:
+            timed_out = self.state_manager.check_collection_timeout(
+                silence_override_sec=1.25,
+            )
+        else:
+            timed_out = self.state_manager.check_collection_timeout()
+
+        if timed_out:
             query = self.state_manager.clear_collection()
             if query.text.strip():
                 self._dispatch_query(query.text, language=query.language, generation=generation)
