@@ -7,7 +7,7 @@ import time as _time
 from typing import Optional
 from pathlib import Path
 from enum import Enum
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QApplication, QMenu
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QBoxLayout, QApplication, QMenu
 from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QPainterPathStroker, QRadialGradient, QRegion, QPixmap
 from PyQt6.QtCore import Qt, QTimer, QPointF, QRectF, pyqtSignal
 
@@ -15,6 +15,7 @@ from jarvis.activity import JarvisState, get_jarvis_state
 from jarvis.debug import debug_log
 from jarvis.output.lip_sync import read_envelope, envelope_level
 from desktop_app.themes import COLORS, apply_theme
+from desktop_app.hologram_panel import HologramPanel, ProjectionBridge
 
 
 class Expression(Enum):
@@ -512,22 +513,68 @@ class FaceWindow(QWidget):
         self._tray_menu: Optional[QMenu] = None
         self._drag_offset = None
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        self.face = FaceWidget()
-        layout.addWidget(self.face)
-        if not self.face._portrait.isNull():
-            self.setMinimumSize(200, 208)
-            # Portraits are not always square; size the floating window to
-            # the image, not the other way around.
-            image = self.face._portrait
-            self.resize(max(200, round(280 * image.width() / image.height())), 280)
+        # One physical Qt window holds the portrait, projection circuitry and
+        # live HUD. No separately drifting panel or secondary renderer.
+        self.hologram = HologramPanel(self)
+        self.bridge = ProjectionBridge(self)
+        self.face = FaceWidget(self)
+        self._compact = False
+        self._configure_projection()
         self.face.state_observed.connect(self._update_presence)
         self._update_presence(self.face._state_manager.state.value)
 
         # Position on the right side of the screen
         self._position_on_right()
+
+    def _configure_projection(self) -> None:
+        """Keep the HUD attached to the robot on wide and narrow displays."""
+        screen = QApplication.primaryScreen()
+        available = screen.availableGeometry() if screen is not None else None
+        width = available.width() if available is not None else 1280
+        height = available.height() if available is not None else 800
+        self._compact = width < 740
+        direction = (
+            QBoxLayout.Direction.TopToBottom if self._compact
+            else QBoxLayout.Direction.LeftToRight
+        )
+        layout = QBoxLayout(direction, self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        image = self.face._portrait
+        ratio = (image.width() / image.height()
+                 if not image.isNull() and image.height() else 0.83)
+        if self._compact:
+            portrait_h = max(208, min(242, height // 3))
+            portrait_w = max(160, round(portrait_h * ratio))
+            panel_w = max(210, min(342, width - 24))
+            panel_h = max(190, min(245, height - portrait_h - 48))
+            self.face.setFixedSize(portrait_w, portrait_h)
+            self.hologram.setFixedSize(panel_w, panel_h)
+            self.bridge.set_vertical(True)
+            self.bridge.setFixedSize(panel_w, 28)
+            layout.addWidget(self.face, alignment=Qt.AlignmentFlag.AlignHCenter)
+            layout.addWidget(self.bridge)
+            layout.addWidget(self.hologram)
+            self.setMinimumSize(panel_w, portrait_h + 28 + panel_h)
+            self.resize(panel_w, portrait_h + 28 + panel_h)
+        else:
+            portrait_h = max(240, min(330, height - 38))
+            portrait_w = max(190, round(portrait_h * ratio))
+            panel_w = max(265, min(375, width // 3))
+            self.face.setFixedSize(portrait_w, portrait_h)
+            self.hologram.setFixedSize(panel_w, portrait_h)
+            self.bridge.set_vertical(False)
+            self.bridge.setFixedSize(47, portrait_h)
+            layout.addWidget(self.hologram)
+            layout.addWidget(self.bridge)
+            layout.addWidget(self.face)
+            total = panel_w + 47 + portrait_w
+            self.setMinimumSize(total, portrait_h)
+            self.resize(total, portrait_h)
+
+    def ingest_log(self, line: str) -> None:
+        """Project real daemon speech and replies via the existing Qt log bus."""
+        self.hologram.ingest_log(line)
 
     def _position_on_right(self):
         """Position the window on the right side of the screen, vertically centered."""
@@ -554,18 +601,32 @@ class FaceWindow(QWidget):
         """Keep resting states quiet and active interaction clearly visible."""
         state = JarvisState(state_value)
         opacity = (
-            0.45 if state == JarvisState.ASLEEP
-            else 0.72 if state == JarvisState.IDLE else 0.96
+            0.84 if state == JarvisState.ASLEEP
+            else 0.94 if state == JarvisState.IDLE else 1.0
         )
         self.setWindowOpacity(opacity)
+        self.hologram.set_activity(state_value)
+        self.bridge.set_activity(state_value)
+
+    def _refresh_mask(self) -> None:
+        """Limit pointer interception to the combined projected silhouette."""
+        if not getattr(self, "face", None) or not getattr(self, "hologram", None):
+            return
+        image_region = self.face.portrait_input_region(
+            self.face.width(), self.face.height()
+        ).translated(self.face.pos())
+        projected = QRegion(self.hologram.geometry())
+        connector = QRegion(self.bridge.geometry())
+        self.setMask(projected.united(connector).united(image_region))
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        QTimer.singleShot(0, self._refresh_mask)
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
-        # Qt can deliver a resize before the child FaceWidget is constructed.
-        if getattr(self, "face", None) is not None and not self.face._portrait.isNull():
-            self.setMask(self.face.portrait_input_region(self.width(), self.height()))
-        else:
-            self.setMask(FaceWidget.input_region(self.width(), self.height()))
+        if getattr(self, "face", None) is not None:
+            QTimer.singleShot(0, self._refresh_mask)
 
     def mousePressEvent(self, event) -> None:
         self._drag_offset = None
@@ -592,7 +653,7 @@ class FaceWindow(QWidget):
         menu = QMenu(self)
         menu.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         apply_theme(menu)
-        menu.addAction("👤 Hide Face", self.hide)
+        menu.addAction("👤 Masquer ATLAS", self.hide)
         if self._tray_menu is not None:
             menu.addSeparator()
             menu.addActions(self._tray_menu.actions())
