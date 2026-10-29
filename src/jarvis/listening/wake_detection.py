@@ -33,6 +33,25 @@ def normalise_wake_aliases(text: str, aliases: List[str], assistant_name: str) -
     return pattern.sub(lambda match: assistant_name, canonical) if pattern else text
 
 
+def is_standalone_wake_word(text: str, wake_word: str, aliases: List[str]) -> bool:
+    """Recognise only a full, literal assistant name with optional ending punctuation.
+
+    Unlike normal wake detection this deliberately excludes fuzzy matches and
+    phrases mentioning the assistant: only a clear isolated address can bypass
+    the LLM intent judge to arm listening for a following command.
+    """
+    candidate = unicodedata.normalize("NFC", text).strip()
+    while candidate and unicodedata.category(candidate[-1]).startswith("P"):
+        candidate = candidate[:-1].rstrip()
+    if not candidate:
+        return False
+    names = (wake_word, *aliases)
+    return any(
+        candidate.casefold() == unicodedata.normalize("NFC", name.strip()).casefold()
+        for name in names if name and name.strip()
+    )
+
+
 def is_wake_word_detected(text_lower: str, wake_word: str, aliases: List[str], fuzzy_ratio: float = 0.78) -> bool:
     """Accept whole configured names or a close primary-name token."""
     if not text_lower or not text_lower.strip():
