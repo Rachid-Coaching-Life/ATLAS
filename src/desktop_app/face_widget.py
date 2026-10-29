@@ -663,7 +663,10 @@ class FaceWindow(QWidget):
         # regions). The three tight widget rectangles form a sufficient
         # native hit region for the new combined desktop surface.
         portrait_region = QRegion(self.face.geometry())
-        projected = QRegion(self.hologram.geometry())
+        # Match the new glass sculpture's actual polygon, not its old
+        # rectangular widget box. This leaves its cut-away corners clickable
+        # through to the desktop. The portrait's geometry is untouched.
+        projected = self.hologram.input_region().translated(self.hologram.pos())
         connector = QRegion(self.bridge.geometry())
         self._last_composite_mask_geometry = geometry
         self.setMask(projected.united(connector).united(portrait_region))
