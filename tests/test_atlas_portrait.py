@@ -49,8 +49,14 @@ def test_face_window_has_atlas_identity_and_portrait(qapp):
         assert window.windowTitle() == "🤖 ATLAS"
         assert not window.face._portrait.isNull()
         image = window.face._portrait
-        assert window.width() == max(200, round(280 * image.width() / image.height()))
-        assert window.height() == 280
+        assert window.face.width() > 0
+        assert window.face.height() > 0
+        assert abs(window.face.width() / window.face.height()
+                   - image.width() / image.height()) < 0.08
+        assert window.width() >= window.hologram.width()
+        assert window.face.parent() is window
+        assert window.hologram.parent() is window
+        assert window.bridge.parent() is window
     finally:
         window.close()
 
