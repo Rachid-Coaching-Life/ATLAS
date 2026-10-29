@@ -1,7 +1,7 @@
 """
-Jarvis Desktop App - System Tray Application
+ATLAS Desktop App - System Tray Application
 
-A cross-platform system tray app for controlling the Jarvis voice assistant.
+A cross-platform system tray app for controlling the ATLAS voice assistant.
 Supports Windows, Ubuntu (Linux), and macOS.
 """
 
@@ -254,7 +254,7 @@ def _format_runtime_status(snapshot: RuntimeStatusSnapshot) -> str:
 
 
 class RuntimeStatusDialog(QDialog):
-    """Themed diagnostic summary of Jarvis' active runtime.
+    """Themed diagnostic summary of ATLAS' active runtime.
 
     Renders the collected snapshot as a structured dialog: emoji section
     headers, aligned key/value rows (secondary-colour keys, monospace
@@ -541,7 +541,7 @@ def setup_crash_logging():
             import faulthandler
             faulthandler.enable(file=log_handle)
 
-            print(f"=== Jarvis Desktop App Crash Log ===", flush=True)
+            print(f"=== ATLAS Desktop App Crash Log ===", flush=True)
             print(f"Timestamp: {__import__('datetime').datetime.now()}", flush=True)
             print(f"Platform: {sys.platform}", flush=True)
             print(f"Python: {sys.version}", flush=True)
@@ -752,7 +752,7 @@ def show_crash_report_dialog(crash_content: str) -> None:
             def __init__(self, crash_info: str):
                 super().__init__()
                 self.crash_info = crash_info
-                self.setWindowTitle("🐛 Jarvis Crash Report")
+                self.setWindowTitle("🐛 ATLAS Crash Report")
                 self.setMinimumSize(600, 450)
                 self.setStyleSheet(JARVIS_THEME_STYLESHEET)
                 self._setup_ui()
@@ -762,7 +762,7 @@ def show_crash_report_dialog(crash_content: str) -> None:
                 layout.setSpacing(16)
 
                 # Header
-                header = QLabel("😵 Jarvis crashed in the previous session")
+                header = QLabel("😵 ATLAS crashed in the previous session")
                 header.setStyleSheet("font-size: 18px; font-weight: bold; color: #f87171;")
                 layout.addWidget(header)
 
@@ -930,7 +930,7 @@ class UnsupportedModelDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(16)
         layout.setContentsMargins(24, 24, 24, 24)
-        header = QLabel("Your models are outside Jarvis's recommended list")
+        header = QLabel("Your models are outside ATLAS's recommended list")
         header.setWordWrap(True)
         layout.addWidget(header)
         lines = [
@@ -998,7 +998,7 @@ def get_lock_file_path() -> Path:
 
 
 def get_existing_instance_pid() -> Optional[int]:
-    """Read the PID of the existing Jarvis instance from the lock file."""
+    """Read the PID of the existing ATLAS instance from the lock file."""
     lock_file = get_lock_file_path()
     try:
         if lock_file.exists():
@@ -1012,7 +1012,7 @@ def get_existing_instance_pid() -> Optional[int]:
 
 def kill_existing_instance(pid: int) -> bool:
     """
-    Terminate an existing Jarvis instance by PID.
+    Terminate an existing ATLAS instance by PID.
 
     Returns True if the process was terminated, False otherwise.
     """
@@ -1021,10 +1021,10 @@ def kill_existing_instance(pid: int) -> bool:
         # Verify it's actually a Jarvis process (safety check)
         proc_name = process.name().lower()
         if "jarvis" not in proc_name and "python" not in proc_name:
-            debug_log(f"PID {pid} doesn't look like Jarvis (name: {proc_name}), not killing", "desktop")
+            debug_log(f"PID {pid} doesn't look like ATLAS (name: {proc_name}), not killing", "desktop")
             return False
 
-        debug_log(f"Terminating existing Jarvis instance (PID {pid})", "desktop")
+        debug_log(f"Terminating existing ATLAS instance (PID {pid})", "desktop")
         process.terminate()
 
         # Wait up to 5 seconds for graceful shutdown
@@ -1055,8 +1055,8 @@ def show_instance_conflict_dialog() -> bool:
     from PyQt6.QtGui import QIcon
 
     msg = QMessageBox()
-    msg.setWindowTitle("Jarvis Already Running")
-    msg.setText("Another instance of Jarvis is already running.")
+    msg.setWindowTitle("ATLAS Already Running")
+    msg.setText("Another instance of ATLAS is already running.")
     msg.setInformativeText("Would you like to close the existing instance and start a new one?")
     msg.setIcon(QMessageBox.Icon.Question)
 
@@ -1158,11 +1158,11 @@ class LogSignals(QObject):
 
 
 class LogViewerWindow(QMainWindow):
-    """Window for viewing Jarvis logs in real-time."""
+    """Window for viewing ATLAS logs in real-time."""
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("📝 Jarvis Logs")
+        self.setWindowTitle("📝 ATLAS Logs")
         self.setGeometry(100, 100, 900, 650)
 
         # Apply theme
@@ -1187,7 +1187,7 @@ class LogViewerWindow(QMainWindow):
         title_layout.setContentsMargins(0, 0, 0, 0)
         title_layout.setSpacing(4)
 
-        title = QLabel("📝 Jarvis Logs")
+        title = QLabel("📝 ATLAS Logs")
         title.setObjectName("title")
         title.setStyleSheet("font-size: 20px; font-weight: 600; color: #fbbf24;")
         title_layout.addWidget(title)
@@ -1421,7 +1421,7 @@ class MemoryViewerWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("🧠 Jarvis Memory")
+        self.setWindowTitle("🧠 ATLAS Memory")
         self.setGeometry(150, 150, 1200, 900)
 
         # Apply theme
@@ -1665,7 +1665,7 @@ class MemoryViewerWindow(QMainWindow):
             self.web_view.setHtml(error_html)
         else:
             from PyQt6.QtWidgets import QMessageBox
-            QMessageBox.warning(None, "🧠 Jarvis Memory", message)
+            QMessageBox.warning(None, "🧠 ATLAS Memory", message)
 
     def showEvent(self, event) -> None:
         """Called when window is shown."""
@@ -1710,7 +1710,7 @@ class MemoryViewerWindow(QMainWindow):
 
 
 class DaemonThread(KeepAliveWorker):
-    """QThread that runs the Jarvis daemon inside the bundled app.
+    """QThread that runs the ATLAS daemon inside the bundled app.
 
     Inherits ``KeepAliveWorker`` so the object stays referenced in the
     registry until its OS thread has fully finished: ``_on_daemon_finished``
@@ -1739,7 +1739,7 @@ class DaemonThread(KeepAliveWorker):
             try:
                 # Import and run the daemon
                 from jarvis.daemon import main as daemon_main
-                self.log_signals.new_log.emit("🚀 Jarvis daemon started\n")
+                self.log_signals.new_log.emit("🚀 ATLAS daemon started\n")
                 self.log_signals.new_log.emit("📋 Initializing daemon components...\n")
 
                 # Run daemon - this should run the main loop
@@ -1773,8 +1773,8 @@ class DaemonThread(KeepAliveWorker):
                 print(error_msg, file=old_stderr)
 
 
-class JarvisSystemTray:
-    """System tray application for Jarvis voice assistant."""
+class ATLASSystemTray:
+    """System tray application for ATLAS voice assistant."""
 
     def __init__(
         self,
@@ -1796,7 +1796,7 @@ class JarvisSystemTray:
             ollama_runtime_ownership or OllamaRuntimeOwnership()
         )
 
-        # Kill any orphaned Jarvis processes from previous sessions
+        # Kill any orphaned ATLAS processes from previous sessions
         self.cleanup_orphaned_processes()
 
         # Create log viewer window (hidden by default)
@@ -1880,14 +1880,14 @@ class JarvisSystemTray:
         debug_log("desktop app initialized", "desktop")
 
     def cleanup_orphaned_processes(self) -> None:
-        """Kill any orphaned Jarvis daemon processes from previous sessions."""
+        """Kill any orphaned ATLAS daemon processes from previous sessions."""
         try:
             current_pid = os.getpid()
             for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
                 try:
                     cmdline = proc.info.get('cmdline', [])
                     if cmdline and 'jarvis.main' in ' '.join(cmdline):
-                        # This is a Jarvis daemon process
+                        # This is a ATLAS daemon process
                         if proc.pid != current_pid:
                             debug_log(f"killing orphaned jarvis process: {proc.pid}", "desktop")
                             proc.terminate()
@@ -2053,7 +2053,7 @@ class JarvisSystemTray:
             "Reinstall GPU libraries",
             (
                 "This will download cuBLAS and cuDNN (~1.1 GB) and install them "
-                "into the Jarvis program folder. You'll see a UAC prompt. "
+                "into the ATLAS program folder. You'll see a UAC prompt. "
                 "Continue?"
             ),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
@@ -2079,7 +2079,7 @@ class JarvisSystemTray:
             "Reinstall GPU libraries",
             (
                 "The CUDA installer is running. Once it finishes, restart "
-                f"Jarvis to use GPU acceleration. See {action_spec.target_dir / 'install.log'} "
+                f"ATLAS to use GPU acceleration. See {action_spec.target_dir / 'install.log'} "
                 "for details."
             ),
         )
@@ -2121,7 +2121,7 @@ class JarvisSystemTray:
         if result == QDialog.DialogCode.Accepted and self.is_listening:
             reply = QMessageBox.question(
                 None, "🔄 Restart?",
-                "Settings saved. Restart Jarvis now to apply changes?",
+                "Settings saved. Restart ATLAS now to apply changes?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.Yes,
             )
@@ -2140,7 +2140,7 @@ class JarvisSystemTray:
         )
 
     def show_runtime_status(self) -> None:
-        """Show a compact diagnostic summary of Jarvis' active runtime.
+        """Show a compact diagnostic summary of ATLAS' active runtime.
 
         The snapshot is collected on a worker thread and delivered back
         through a signal, the same marshalling this app already uses for
@@ -2265,7 +2265,7 @@ class JarvisSystemTray:
             from jarvis.daemon import submit_task
             return submit_task(prompt)
         if self.daemon_process is None or self.daemon_process.stdin is None:
-            raise RuntimeError("Start Jarvis before submitting a task")
+            raise RuntimeError("Start ATLAS before submitting a task")
         import json
         self.daemon_process.stdin.write(
             f"TASK:{json.dumps({'action': 'submit', 'prompt': prompt, 'request_id': request_id}, ensure_ascii=False)}\n"
@@ -2279,7 +2279,7 @@ class JarvisSystemTray:
             from jarvis.daemon import cancel_task
             return cancel_task(task_id)
         if self.daemon_process is None or self.daemon_process.stdin is None:
-            raise RuntimeError("Start Jarvis before cancelling a task")
+            raise RuntimeError("Start ATLAS before cancelling a task")
         import json
         self.daemon_process.stdin.write(
             f"TASK:{json.dumps({'action': 'cancel', 'id': task_id})}\n"
@@ -2454,7 +2454,7 @@ class JarvisSystemTray:
         """Reset the face to asleep so it doesn't look ready while the daemon is down."""
         try:
             from jarvis.activity import JarvisState, get_jarvis_state
-            get_jarvis_state().set_state(JarvisState.ASLEEP)
+            get_jarvis_state().set_state(ATLASState.ASLEEP)
         except Exception:
             pass
 
@@ -2513,7 +2513,7 @@ class JarvisSystemTray:
                 self.daemon_process.stdin.flush()
         except Exception as exc:
             debug_log(f"voice pause control failed ({type(exc).__name__})", "desktop")
-            self._voice_pause_unknown("Voice listening could not confirm the change. Try again or restart Jarvis.")
+            self._voice_pause_unknown("Voice listening could not confirm the change. Try again or restart ATLAS.")
 
     def _on_voice_pause_status(self, owner, line: str) -> None:
         import json
@@ -2537,7 +2537,7 @@ class JarvisSystemTray:
                 or not isinstance(status.get('available'), bool)):
             return
         if not status['available']:
-            self._voice_pause_unknown("Voice listening is unavailable. Try again after startup or restart Jarvis.")
+            self._voice_pause_unknown("Voice listening is unavailable. Try again after startup or restart ATLAS.")
             return
         if not isinstance(status.get('paused'), bool):
             return
@@ -2547,7 +2547,7 @@ class JarvisSystemTray:
         self.voice_pause_action.setText("▶️ Resume Voice Listening" if status['paused'] else "⏸️ Pause Voice Listening")
         self.voice_pause_action.setEnabled(True)
         self.status_action.setText("🟠 Status: Voice paused (chat available)" if status['paused'] else "🟢 Status: Listening")
-        self.tray_icon.setToolTip("Jarvis: voice paused" if status['paused'] else "Jarvis: listening")
+        self.tray_icon.setToolTip("ATLAS: voice paused" if status['paused'] else "ATLAS: listening")
         self.log_signals.new_log.emit("⏸️ Voice listening paused. Text chat and dictation remain available.\n"
                                       if status['paused'] else "🎤 Voice listening resumed.\n")
         debug_log(f"voice pause confirmed: {status['paused']}", "desktop")
@@ -2559,15 +2559,15 @@ class JarvisSystemTray:
         self.voice_pause_action.setText("⏸️ Pause Voice Listening")
         self.voice_pause_action.setEnabled(self.is_listening and not self._daemon_stop_expected)
         self.status_action.setText("⚠️ Status: Voice state unknown")
-        self.tray_icon.setToolTip("Jarvis: voice state unknown")
+        self.tray_icon.setToolTip("ATLAS: voice state unknown")
         self.log_signals.new_log.emit(f"⚠️ {message}\n")
 
     def _voice_pause_timed_out(self) -> None:
         if self._voice_pause_request_id is not None:
-            self._voice_pause_unknown("Voice listening did not confirm the change. Try again or restart Jarvis.")
+            self._voice_pause_unknown("Voice listening did not confirm the change. Try again or restart ATLAS.")
 
     def toggle_listening(self) -> None:
-        """Toggle the Jarvis daemon on/off."""
+        """Toggle the ATLAS daemon on/off."""
         if self.is_listening:
             self.stop_daemon()
         else:
@@ -2584,7 +2584,7 @@ class JarvisSystemTray:
         return process is not None and process.poll() is None
 
     def start_daemon(self) -> None:
-        """Start the Jarvis daemon."""
+        """Start the ATLAS daemon."""
         # A retained owner or active shutdown blocks replacement.
         if self._daemon_alive():
             if getattr(self, "_daemon_stuck", False):
@@ -2592,7 +2592,7 @@ class JarvisSystemTray:
                     "⚠️ The previous daemon is still shutting down. Wait for it to finish before starting again.\n"
                 )
             else:
-                self.log_signals.new_log.emit("ℹ️ Jarvis is already running.\n")
+                self.log_signals.new_log.emit("ℹ️ ATLAS is already running.\n")
             debug_log("start_daemon ignored: a daemon is still alive", "desktop")
             return
         self._daemon_stuck = False
@@ -2728,7 +2728,7 @@ class JarvisSystemTray:
                 )
                 log_thread.start()
                 self.log_reader_threads.append(log_thread)
-                self.log_signals.new_log.emit("🚀 Jarvis daemon started\n")
+                self.log_signals.new_log.emit("🚀 ATLAS daemon started\n")
 
             self.is_listening = True
             self.toggle_action.setText("⏻ Turn Off")
@@ -2737,7 +2737,7 @@ class JarvisSystemTray:
             self._set_chat_daemon_status("running")
 
             self.tray_icon.showMessage(
-                "Jarvis Started",
+                "ATLAS Started",
                 "Voice assistant is now listening",
                 QSystemTrayIcon.MessageIcon.Information,
                 2000
@@ -2751,7 +2751,7 @@ class JarvisSystemTray:
             self._set_chat_daemon_status("crashed")
             self.log_signals.new_log.emit(f"❌ Failed to start: {str(e)}\n{traceback.format_exc()}\n")
             self.tray_icon.showMessage(
-                "Error Starting Jarvis",
+                "Error Starting ATLAS",
                 f"Failed to start: {str(e)}",
                 QSystemTrayIcon.MessageIcon.Critical,
                 3000
@@ -2829,7 +2829,7 @@ class JarvisSystemTray:
         self,
         show_diary_dialog: bool = True,
     ) -> None:
-        """Stop the Jarvis daemon.
+        """Stop the ATLAS daemon.
 
         Args:
             show_diary_dialog: If True (and bundled), shows a dialog with live diary update progress.
@@ -2856,7 +2856,7 @@ class JarvisSystemTray:
             if self.is_bundled and worker:
                 # When running in a QThread, use the stop flag for graceful shutdown
                 # This ensures the daemon's finally block runs (for diary update)
-                self.log_signals.new_log.emit("⏸️ Stopping Jarvis daemon...\n")
+                self.log_signals.new_log.emit("⏸️ Stopping ATLAS daemon...\n")
 
                 # Show diary update dialog for bundled app
                 if show_diary_dialog:
@@ -3071,13 +3071,13 @@ class JarvisSystemTray:
             self._set_face_asleep()
 
             self.tray_icon.showMessage(
-                "Jarvis Stopped",
+                "ATLAS Stopped",
                 "Voice assistant is no longer listening",
                 QSystemTrayIcon.MessageIcon.Information,
                 2000
             )
 
-            self.log_signals.new_log.emit("⏸️ Jarvis daemon stopped\n")
+            self.log_signals.new_log.emit("⏸️ ATLAS daemon stopped\n")
             debug_log("daemon stopped from desktop app", "desktop")
 
         except Exception as e:
@@ -3099,7 +3099,7 @@ class JarvisSystemTray:
                 self._on_daemon_finished(worker)
                 if unexpected:
                     self.tray_icon.showMessage(
-                        "Jarvis Stopped",
+                        "ATLAS Stopped",
                         "Voice assistant process ended unexpectedly",
                         QSystemTrayIcon.MessageIcon.Warning,
                         3000
@@ -3122,7 +3122,7 @@ class JarvisSystemTray:
                     self._set_face_asleep()
 
                     self.tray_icon.showMessage(
-                        "Jarvis Stopped",
+                        "ATLAS Stopped",
                         "Voice assistant process ended unexpectedly",
                         QSystemTrayIcon.MessageIcon.Warning,
                         3000
@@ -3178,7 +3178,7 @@ def _ollama_runtime_flags(cfg) -> tuple[bool, bool]:
 def _check_openai_compat_reachable(cfg, timeout_sec: float = 4.0) -> bool:
     """True when the configured OpenAI-compatible server answers its model
     listing. Used at startup to warn the user early if their local server
-    isn't running, since (unlike Ollama) Jarvis cannot start it for them."""
+    isn't running, since (unlike Ollama) ATLAS cannot start it for them."""
     try:
         from jarvis.llm import get_llm_backend
         return bool(get_llm_backend(cfg).list_models(timeout_sec=timeout_sec))
@@ -3191,9 +3191,9 @@ def _build_unreachable_message(cfg) -> str:
     without Qt dependencies so tests can verify it directly."""
     base = (getattr(cfg, "llm_base_url", "") or "").strip() or "your configured server"
     return (
-        f"⚠️ Jarvis couldn't reach a ready LLM server at {base}.\n\n"
+        f"⚠️ ATLAS couldn't reach a ready LLM server at {base}.\n\n"
         "Make sure your local server (for example LM Studio, Ollama, llama.cpp, "
-        "vLLM) is running with a model loaded, and Jarvis will connect "
+        "vLLM) is running with a model loaded, and ATLAS will connect "
         "automatically.\n\n"
         "You can open the Setup Wizard to change your server, or close and "
         "adjust Settings later via the tray menu \u2192 LLM Provider."
@@ -3205,7 +3205,7 @@ def _show_openai_unreachable_dialog(cfg, splash: QWidget) -> None:
     from PyQt6.QtWidgets import QMessageBox
 
     dialog = QMessageBox()
-    dialog.setWindowTitle("Jarvis")
+    dialog.setWindowTitle("ATLAS")
     dialog.setText(_build_unreachable_message(cfg))
     dialog.setIcon(QMessageBox.Icon.Warning)
     open_wizard_btn = dialog.addButton("🔧 Open Setup Wizard", QMessageBox.ButtonRole.ActionRole)
@@ -3397,7 +3397,7 @@ def main() -> int:
     # Single-instance check
     # This prevents multiple tray icons and log windows from spawning
     if not acquire_single_instance_lock():
-        print("⚠️ Another instance of Jarvis Desktop is already running.", flush=True)
+        print("⚠️ Another instance of ATLAS Desktop is already running.", flush=True)
 
         # Create a minimal QApplication for the dialog
         from PyQt6.QtWidgets import QApplication
@@ -3446,7 +3446,7 @@ def main() -> int:
     # Register clean exit handler
     atexit.register(mark_session_clean_exit)
 
-    print("Starting Jarvis Desktop App...", flush=True)
+    print("Starting ATLAS Desktop App...", flush=True)
     print(f"Python executable: {sys.executable}", flush=True)
     print(f"Working directory: {os.getcwd()}", flush=True)
     print(f"__file__: {__file__}", flush=True)
@@ -3571,7 +3571,7 @@ def main() -> int:
                 print("⚠️ LLM server not reachable at startup", flush=True)
                 _show_openai_unreachable_dialog(_provider_cfg, splash)
 
-        # Default ownership: not started by us. Re-assigned below if Jarvis
+        # Default ownership: not started by us. Re-assigned below if ATLAS
         # launches its own Ollama server process.
         ollama_runtime_ownership = OllamaRuntimeOwnership()
 
@@ -3812,16 +3812,16 @@ def main() -> int:
                 splash.set_status("Model check complete!")
                 app.processEvents()
 
-        splash.set_status("Loading Jarvis...")
-        print("Initializing JarvisSystemTray...", flush=True)
-        tray_instance = JarvisSystemTray(
+        splash.set_status("Loading ATLAS...")
+        print("Initializing ATLASSystemTray...", flush=True)
+        tray_instance = ATLASSystemTray(
             ollama_runtime_ownership=ollama_runtime_ownership,
         )
-        print("JarvisSystemTray initialized successfully", flush=True)
+        print("ATLASSystemTray initialized successfully", flush=True)
 
         # Always auto-start listening
         splash.set_status("Starting voice assistant...")
-        print("🚀 Auto-starting Jarvis listener...", flush=True)
+        print("🚀 Auto-starting ATLAS listener...", flush=True)
         tray_instance.start_daemon()
 
         # Close splash screen
@@ -3837,7 +3837,7 @@ def main() -> int:
             # Show notification with log file location
             from PyQt6.QtWidgets import QSystemTrayIcon
             tray_instance.tray_icon.showMessage(
-                "Jarvis Started",
+                "ATLAS Started",
                 f"Crash logs available at:\n{crash_log_file}",
                 QSystemTrayIcon.MessageIcon.Information,
                 3000
@@ -3858,8 +3858,8 @@ def main() -> int:
 
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Icon.Critical)
-            msg.setWindowTitle("Jarvis Desktop App Error")
-            msg.setText("Failed to start Jarvis Desktop App")
+            msg.setWindowTitle("ATLAS Desktop App Error")
+            msg.setText("Failed to start ATLAS Desktop App")
             msg.setDetailedText(str(e) + "\n\n" + traceback.format_exc())
             if crash_log_file:
                 msg.setInformativeText(f"Check log file at:\n{crash_log_file}")
