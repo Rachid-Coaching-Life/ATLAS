@@ -1818,7 +1818,7 @@ class ATLASSystemTray:
         # Create face window (hidden by default)
         # Note: Creating the face window also initializes the SpeakingState singleton
         # in the main thread, which is important for cross-thread signal delivery
-        self.face_window = FaceWindow()
+        self.face_window = FaceWindow(hologram=True)
         # Keep conversation preview on the GUI thread, using the same
         # line stream already displayed by the optional log viewer.
         self.log_signals.new_log.connect(self.face_window.ingest_log)
