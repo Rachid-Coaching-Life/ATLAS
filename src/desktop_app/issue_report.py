@@ -9,7 +9,7 @@ import urllib.parse
 import webbrowser
 
 from PyQt6.QtWidgets import (
-    QApplication, QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit,
+    QApplication, QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit, QLayout,
     QPlainTextEdit, QPushButton, QScrollArea, QStackedWidget, QTextBrowser,
     QSizePolicy, QVBoxLayout, QWidget,
 )
@@ -36,6 +36,10 @@ class IssueReportDialog(QDialog):
         self._version = f'{version[0]} ({version[1]})'
         self._metadata = dict(metadata)
         layout = QVBoxLayout(self)
+        # Both pages use scroll areas. Qt must not enlarge this dialog to
+        # satisfy the size hints of long, unbroken log lines or French labels.
+        # Scrollable contents remain accessible at the requested window width.
+        layout.setSizeConstraint(QLayout.SizeConstraint.SetNoConstraint)
         self.pages = QStackedWidget()
         # Both pages may contain very long, unbroken report text.  Do not
         # let their size hints silently force the top-level window wider.
@@ -155,6 +159,8 @@ class IssueReportDialog(QDialog):
         scroll.setMinimumWidth(0)
         scroll.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Expanding)
         content = QWidget()
+        content.setMinimumWidth(0)
+        content.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Expanding)
         form = QVBoxLayout(content)
         scroll.setWidget(content)
         return scroll, form
@@ -180,6 +186,7 @@ class IssueReportDialog(QDialog):
         field.setObjectName(name)
         field.setPlaceholderText(placeholder)
         field.setAccessibleName(label)
+        field.setWordWrapMode(QTextOption.WrapMode.WrapAnywhere)
         field.setMinimumHeight(80)
         field.setMaximumHeight(110)
         field_label = QLabel(label)
