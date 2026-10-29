@@ -1075,6 +1075,12 @@ class PiperTTS(_QueuedSpeech):
             if request.duration_callback is not None:
                 _call_speech_callback(request.duration_callback, (exact_duration,), 'duration')
 
+            # Prepare actual audio-energy frames outside PortAudio's callback.
+            # The desktop reads a single compact timeline from a shared temp
+            # file, so lip motion can follow audible speech across processes.
+            from .lip_sync import make_envelope, publish_envelope, clear_envelope
+            mouth_levels = make_envelope(full_audio, self._sample_rate)
+
             # Play audio with streaming for interruption support
             play_position = [0]
             blocksize = 1024  # Small blocks for responsive interruption
@@ -1118,6 +1124,10 @@ class PiperTTS(_QueuedSpeech):
                     )
                 if not self._begin_playback(request, exact_duration):
                     return False
+                try:
+                    publish_envelope(mouth_levels, start_time=time.time())
+                except OSError as exc:
+                    debug_log(f"Piper mouth signal unavailable: {type(exc).__name__}", "tts")
                 with self._lifecycle_lock, self._audio_lock:
                     if self._stop.is_set() or request.abandoned:
                         return False
@@ -1151,6 +1161,11 @@ class PiperTTS(_QueuedSpeech):
             debug_log(f"Piper TTS error: {e}", "tts")
             print(f"  ⚠️ Piper TTS error: {e}", flush=True)
         finally:
+            try:
+                from .lip_sync import clear_envelope
+                clear_envelope()
+            except Exception as exc:
+                debug_log(f"Piper mouth cleanup failed: {type(exc).__name__}", "tts")
             self._is_speaking.clear()
         return False
 
