@@ -48,7 +48,8 @@ def test_face_window_has_atlas_identity_and_portrait(qapp):
     try:
         assert window.windowTitle() == "🤖 ATLAS"
         assert not window.face._portrait.isNull()
-        assert window.width() == 280
+        image = window.face._portrait
+        assert window.width() == max(200, round(280 * image.width() / image.height()))
         assert window.height() == 280
     finally:
         window.close()
@@ -64,3 +65,16 @@ def test_splash_screen_displays_atlas_identity(qapp):
         assert "ATLAS" in [label.text() for label in splash.findChildren(QLabel)]
     finally:
         splash.close_splash()
+
+
+@pytest.mark.unit
+def test_non_square_portrait_does_not_stretch(qapp):
+    """A tall official portrait must retain its aspect ratio in the Qt canvas."""
+    from desktop_app.face_widget import FaceWidget
+
+    result = FaceWidget._portrait_bounds(240, 280, 1145, 1373)
+    assert result.width() <= 240
+    assert result.height() <= 280
+    assert abs(result.width() / result.height() - 1145 / 1373) < 0.0001
+    assert abs(result.center().x() - 120) < 0.0001
+    assert abs(result.center().y() - 140) < 0.0001
