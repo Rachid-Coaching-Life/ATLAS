@@ -123,9 +123,11 @@ def test_mask_updates_are_coalesced_before_event_loop_runs(qapp, monkeypatch):
 
     window = FaceWindow(hologram=True)
     scheduled = []
+    # Patch the module's timer factory, not the Qt C++ wrapper type itself.
+    # Qt static methods can be read-only on some PyQt6 Windows builds.
     monkeypatch.setattr(
-        face_widget.QTimer, "singleShot",
-        lambda delay, callback: scheduled.append((delay, callback)),
+        face_widget, "QTimer",
+        SimpleNamespace(singleShot=lambda delay, callback: scheduled.append((delay, callback))),
     )
     try:
         window._queue_mask_refresh()
