@@ -200,3 +200,21 @@ def test_live_atlas_holographic_mode_keeps_single_window_and_original_portrait(q
         assert not window.face._portrait.isNull()
     finally:
         window.close()
+
+
+@pytest.mark.unit
+def test_explicit_legacy_vector_mode_does_not_replace_production_portrait(qapp):
+    """Golden mask tests use vector fallback; the normal ATLAS portrait stays on."""
+    from desktop_app.face_widget import FaceWindow, FaceWidget
+
+    modern = FaceWindow()
+    legacy = FaceWindow(portrait=False)
+    try:
+        assert not modern.face._portrait.isNull()
+        assert legacy.face._portrait.isNull()
+        assert legacy.width() == FaceWidget.DESIGN_WIDTH
+        assert legacy.height() == FaceWidget.DESIGN_HEIGHT
+        assert modern.windowTitle() == legacy.windowTitle() == "🤖 ATLAS"
+    finally:
+        legacy.close()
+        modern.close()
