@@ -158,7 +158,17 @@ reply paths publish state without importing the desktop or Qt. The face
 observes that state during animation in both bundled and subprocess modes.
 
 
-The face is a compact frameless, translucent tool window, always on top without
+The official ATLAS portrait (`desktop_assets/atlas_portrait.png`) takes
+priority when present. Qt retains its aspect ratio and alpha mask; the
+geometric amber face described below is only a fallback if the portrait
+cannot be loaded. While the shared Piper playback state is `SPEAKING`,
+the portrait draws an animated aperture and moving lip contours at the
+artwork's mouth coordinates. During IDLE, LISTENING and THINKING the mouth
+remains closed. Animation is playback-state-driven, not phoneme-accurate:
+there is no Piper viseme/amplitude feed today. The animation must remain
+lightweight, without networking, LLM calls or new multimedia dependencies.
+
+Legacy fallback: The face is a compact frameless, translucent tool window, always on top without
 accepting focus or activating when shown. macOS keeps the tool window visible
 when another application is active. It paints an angular amber mask made from
 straight connected light beams, small illuminated junctions, diamond eyes,
