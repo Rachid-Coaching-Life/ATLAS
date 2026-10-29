@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+
+from PyQt6.QtGui import QTextOption
 from html import escape
 import urllib.parse
 import webbrowser
@@ -9,7 +11,7 @@ import webbrowser
 from PyQt6.QtWidgets import (
     QApplication, QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit,
     QPlainTextEdit, QPushButton, QScrollArea, QStackedWidget, QTextBrowser,
-    QVBoxLayout, QWidget,
+    QSizePolicy, QVBoxLayout, QWidget,
 )
 
 from jarvis.debug import debug_log
@@ -35,6 +37,10 @@ class IssueReportDialog(QDialog):
         self._metadata = dict(metadata)
         layout = QVBoxLayout(self)
         self.pages = QStackedWidget()
+        # Both pages may contain very long, unbroken report text.  Do not
+        # let their size hints silently force the top-level window wider.
+        self.pages.setMinimumWidth(0)
+        self.pages.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Expanding)
         layout.addWidget(self.pages, 1)
 
         form_scroll, form = self._scroll_page()
@@ -76,6 +82,9 @@ class IssueReportDialog(QDialog):
         self.preview.setOpenLinks(False)
         self.preview.setMinimumHeight(200)
         self.preview.setAccessibleName('Votre rapport')
+        self.preview.setMinimumWidth(0)
+        self.preview.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Expanding)
+        self.preview.setWordWrapMode(QTextOption.WrapMode.WrapAnywhere)
         review.addWidget(self.preview, 1)
         self.include_logs = QCheckBox('Joindre les informations techniques au rapport')
         self.include_logs.setChecked(True)
@@ -92,32 +101,45 @@ class IssueReportDialog(QDialog):
         self.technical_preview.setReadOnly(True)
         self.technical_preview.setMinimumHeight(160)
         self.technical_preview.setAccessibleName('Informations techniques')
+        self.technical_preview.setMinimumWidth(0)
+        self.technical_preview.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Expanding)
+        self.technical_preview.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+        self.technical_preview.setWordWrapMode(QTextOption.WrapMode.WrapAnywhere)
         self.technical_preview.hide()
         review.addWidget(self.technical_preview)
         self.pages.addWidget(review_scroll)
         self.status = QLabel()
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
-        buttons = QHBoxLayout()
+        # French action labels and the long-report button cannot fit beside
+        # Cancel/Back on a 440px window. Keep the two groups in separate
+        # compact rows instead of allowing Qt to enlarge the dialog.
+        buttons = QVBoxLayout()
+        navigation = QHBoxLayout()
         cancel = QPushButton('Annuler')
         cancel.clicked.connect(self.reject)
-        buttons.addWidget(cancel)
+        navigation.addWidget(cancel)
         self.back_button = QPushButton('Retour')
         self.back_button.clicked.connect(lambda: self._show_page(0))
-        buttons.addWidget(self.back_button)
-        buttons.addStretch()
+        navigation.addWidget(self.back_button)
+        navigation.addStretch()
+        buttons.addLayout(navigation)
+
+        actions = QHBoxLayout()
+        actions.addStretch()
         self.review_button = QPushButton('Vérifier le rapport')
         self.review_button.setObjectName('review_report')
         self.review_button.clicked.connect(lambda: self._show_page(1))
-        buttons.addWidget(self.review_button)
+        actions.addWidget(self.review_button)
         self.copy_button = QPushButton('Copier')
         self.copy_button.setToolTip('Copier le rapport vérifié')
         self.copy_button.clicked.connect(self._copy_report)
-        buttons.addWidget(self.copy_button)
+        actions.addWidget(self.copy_button)
         self.open_button = QPushButton('Ouvrir GitHub')
         self.open_button.setObjectName('open_github')
         self.open_button.clicked.connect(self._open_github)
-        buttons.addWidget(self.open_button)
+        actions.addWidget(self.open_button)
+        buttons.addLayout(actions)
         layout.addLayout(buttons)
         self.title_input.textChanged.connect(self._update_preview)
         for field in (self.problem_input, self.expected_input, self.steps_input):
@@ -130,6 +152,8 @@ class IssueReportDialog(QDialog):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        scroll.setMinimumWidth(0)
+        scroll.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Expanding)
         content = QWidget()
         form = QVBoxLayout(content)
         scroll.setWidget(content)
@@ -148,7 +172,7 @@ class IssueReportDialog(QDialog):
     def _show_diagnostics(self, visible):
         self.technical_preview.setVisible(visible and self.include_logs.isChecked())
         self.details_button.setText('Masquer les informations techniques' if visible
-                                    else 'View troubleshooting details')
+                                    else 'Afficher les informations techniques')
 
     @staticmethod
     def _add_field(form, label, placeholder, name):
@@ -158,7 +182,9 @@ class IssueReportDialog(QDialog):
         field.setAccessibleName(label)
         field.setMinimumHeight(80)
         field.setMaximumHeight(110)
-        form.addWidget(QLabel(label))
+        field_label = QLabel(label)
+        field_label.setWordWrap(True)
+        form.addWidget(field_label)
         form.addWidget(field)
         return field
 
@@ -219,7 +245,7 @@ class IssueReportDialog(QDialog):
         self.open_button.setEnabled(valid and reviewing)
         self.copy_button.setEnabled(valid and reviewing)
         long_report = len(self._report_url(self._prepared_report)) > _URL_LIMIT
-        self.open_button.setText('Copier + ouvrir GitHub' if long_report else 'Open GitHub')
+        self.open_button.setText('Copier + GitHub' if long_report else 'Ouvrir GitHub')
         self.status.setText('Ce rapport est trop long pour être ouvert directement. Il sera copié afin que vous puissiez '
                             'le coller dans GitHub avant de l’envoyer.' if long_report and reviewing else '')
 
