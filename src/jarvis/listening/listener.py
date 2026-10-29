@@ -1127,6 +1127,7 @@ class VoiceListener(threading.Thread):
 
         try:
             failed = False
+            reply_started = time.monotonic()
             try:
                 # Voice and text share one conversation and reply-engine lock.
                 with query_lock():
@@ -1143,6 +1144,11 @@ class VoiceListener(threading.Thread):
                 failed = True
                 reply = FRENCH_FALLBACK_REPLY
 
+            print(
+                f"  ⏱️ Traitement de la demande (attente, modèle et outils) : "
+                f"{time.monotonic() - reply_started:.2f} s",
+                flush=True,
+            )
             self._stop_thinking_tune()
             if not self._transcription_is_current(generation):
                 debug_log('Discarded voice reply after generation invalidation', 'voice')
@@ -1483,9 +1489,12 @@ class VoiceListener(threading.Thread):
             if not self._transcription_is_current(job.capture_generation):
                 continue
             if text or low_confidence_events:
+                decode_sec = time.monotonic() - decode_started
                 self._report_transcription_performance(
-                    len(job.audio) / self._samplerate, time.monotonic() - decode_started,
+                    len(job.audio) / self._samplerate, decode_sec,
                 )
+                if text:
+                    print(f"  ⏱️ Transcription Whisper : {decode_sec:.2f} s", flush=True)
             result = _TranscriptionResult(
                 text=text, language=language, low_confidence_events=low_confidence_events,
                 start_time=job.start_time, end_time=job.end_time, energy=job.energy,
