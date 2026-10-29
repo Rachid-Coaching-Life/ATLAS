@@ -1083,6 +1083,7 @@ class PiperTTS(_QueuedSpeech):
 
             # Play audio with streaming for interruption support
             play_position = [0]
+            first_audio_block_at = [0.0]
             blocksize = 1024  # Small blocks for responsive interruption
 
             drained = threading.Event()
@@ -1094,6 +1095,10 @@ class PiperTTS(_QueuedSpeech):
                         raise sd.CallbackAbort()
 
                     start = play_position[0]
+                    if start == 0:
+                        # The PortAudio callback owns the actual playback
+                        # onset timestamp. It does no file I/O or GUI work.
+                        first_audio_block_at[0] = time.time()
                     end = start + frames
                     chunk = full_audio[start:end]
 
@@ -1124,10 +1129,6 @@ class PiperTTS(_QueuedSpeech):
                     )
                 if not self._begin_playback(request, exact_duration):
                     return False
-                try:
-                    publish_envelope(mouth_levels, start_time=time.time())
-                except OSError as exc:
-                    debug_log(f"Piper mouth signal unavailable: {type(exc).__name__}", "tts")
                 with self._lifecycle_lock, self._audio_lock:
                     if self._stop.is_set() or request.abandoned:
                         return False
@@ -1135,12 +1136,24 @@ class PiperTTS(_QueuedSpeech):
                     with portaudio_lock:
                         stream.start()
 
+                mouth_published = False
                 while stream.active:
+                    # Publish from the TTS worker, not the real-time audio
+                    # callback. Use the first callback's timestamp to align
+                    # lip motion to the samples actually being played.
+                    if not mouth_published and first_audio_block_at[0] > 0:
+                        try:
+                            publish_envelope(
+                                mouth_levels, start_time=first_audio_block_at[0],
+                            )
+                        except OSError as exc:
+                            debug_log(f"Piper mouth signal unavailable: {type(exc).__name__}", "tts")
+                        mouth_published = True
                     if self._should_interrupt.is_set():
                         with portaudio_lock:
                             stream.abort()
                         break
-                    time.sleep(0.05)
+                    time.sleep(0.02)
             finally:
                 with self._audio_lock:
                     if self._audio_stream is stream:
