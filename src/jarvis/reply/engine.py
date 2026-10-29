@@ -117,6 +117,34 @@ FRENCH_FALLBACK_REPLY = (
     "Je n'ai pas réussi à traiter votre demande. Pouvez-vous réessayer ?"
 )
 
+_ATLAS_SELF_INTRO_RESPONSE = (
+    "Je suis ATLAS, votre assistant personnel local. "
+    "Je peux discuter avec vous en français et vous aider à accomplir des "
+    "tâches sur cet ordinateur lorsque les outils nécessaires sont disponibles."
+)
+
+
+def _is_atlas_self_introduction_request(query: str) -> bool:
+    """Only the full, unambiguous French self-introduction request.
+
+    This narrow no-tool shortcut avoids costly routing and planning, without
+    intercepting compound requests or actions that need real tools.
+    """
+    import unicodedata
+
+    clean = unicodedata.normalize("NFC", query or "").casefold().strip()
+    # Whisper sometimes keeps the spoken address in the same segment.
+    clean = re.sub(r"^(?:atlas|atlasse)\\s*,\\s*", "", clean)
+    clean = re.sub(r"[.!?\\s]+$", "", clean).strip()
+    return bool(re.fullmatch(
+        r"(?:présente[ -]toi|"
+        r"(?:tu\\s+peux|peux[ -]tu|pourrais[ -]tu)\\s+te\\s+présenter|"
+        r"qui\\s+es[ -]tu)"
+        r"(?:\\s+en\\s+français)?",
+        clean,
+    ))
+
+
 _UNEXECUTED_ACTION_REPLY = (
     "Je n'ai pas pu effectuer cette action. "
     "Veuillez réessayer ou préciser les informations manquantes."
@@ -1022,6 +1050,25 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
     redacted = redact(text)
     transcript_context = speech_context.render() if speech_context else ""
     context_signature = sha256(transcript_context.encode()).hexdigest() if transcript_context else ""
+
+    # A purely personal self-introduction never requires tools, memory
+    # retrieval or model inference. Keep it deterministic so even a slow or
+    # unavailable Ollama backend can introduce ATLAS promptly in French.
+    if _is_atlas_self_introduction_request(redacted):
+        if cancel_event is not None and cancel_event.is_set():
+            return None
+        reply = _ATLAS_SELF_INTRO_RESPONSE
+        if not quiet:
+            print(f"\\n🤖 ATLAS\\n  {_indent_text(reply)}\\n", flush=True)
+        if tts is not None and tts.enabled:
+            tts.speak(reply)
+        if dialogue_memory is not None:
+            try:
+                dialogue_memory.add_message("user", redacted)
+                dialogue_memory.add_message("assistant", reply)
+            except Exception as exc:
+                debug_log(f"self-introduction memory write failed: {exc}", "memory")
+        return reply
 
     # Step 2: Check for recent dialogue context
     recent_messages = []
@@ -2865,7 +2912,7 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
         # Print error message
         try:
             if not quiet:
-                print(f"\n⚠️ Jarvis\n  {_indent_text(reply)}\n", flush=True)
+                print(f"\n⚠️ ATLAS\n  {_indent_text(reply)}\n", flush=True)
         except Exception as e:
             debug_log(f"error reply formatting failed: {e}", "planning")
 
@@ -2892,9 +2939,9 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
         # Quiet callers own delivery and activity logging of the reply.
         try:
             if not quiet and not getattr(cfg, "voice_debug", False):
-                print(f"\n🤖 Jarvis\n  {_indent_text(safe_reply)}\n", flush=True)
+                print(f"\n🤖 ATLAS\n  {_indent_text(safe_reply)}\n", flush=True)
             elif not quiet:
-                print(f"\n[jarvis]\n  {_indent_text(safe_reply)}\n", flush=True)
+                print(f"\n[ATLAS]\n  {_indent_text(safe_reply)}\n", flush=True)
         except Exception as e:
             debug_log(f"reply formatting failed: {e}", "planning")
 
