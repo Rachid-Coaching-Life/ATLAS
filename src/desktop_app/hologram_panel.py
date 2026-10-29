@@ -9,7 +9,7 @@ from __future__ import annotations
 import math
 import time
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, QRectF
 from PyQt6.QtGui import QColor, QFont, QLinearGradient, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
@@ -129,8 +129,10 @@ class HologramPanel(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        bounds = self.rect().adjusted(4, 4, -4, -4)
+        # QLinearGradient requires QPointF endpoints, not QRect's QPoint.
+        bounds = QRectF(self.rect()).adjusted(4, 4, -4, -4)
         if bounds.width() <= 0 or bounds.height() <= 0:
+            painter.end()
             return
         bg = QLinearGradient(bounds.topLeft(), bounds.bottomRight())
         bg.setColorAt(0, QColor(5, 21, 35, 232))
