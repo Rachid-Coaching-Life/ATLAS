@@ -16,6 +16,16 @@ Design principles enforced by the engine:
 - French-only responses: The unified persona prompt requests French text and spoken answers regardless of input language, while preserving literal code, paths, URLs, names, and quotations. Speech recognition and tool routing still accept other languages.
 - Data Privacy: Inputs are redacted and logging is concise and purposeful via `debug_log`.
 
+### French failure replies
+
+When reply generation produces no usable answer, the reply engine returns a
+short French retry message rather than a fixed English apology. The same
+French message is used by the voice listener when the reply engine raises an
+exception, without opening a successful follow-up listening window. When an
+action was not executed, the final non-completion reply is also French and
+must not imply that the action succeeded. Internal tool protocol instructions
+and technical diagnostics remain unchanged.
+
 ### Entry and Inputs
 - Entry point: the reply engine receives a user query from the ingestion layer.
 - Inputs:
