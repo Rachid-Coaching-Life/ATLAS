@@ -25,7 +25,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
     ("Quelles sont mes capacités ?", False),
     ("Quelles sont tes fonctions et ouvre mon dossier", False),
     ("Ce que tu peux faire avec mon calendrier", False),
-    ("Atlas, tu peux me dire si tu veux faire ?", False),
+    # Observed Whisper substitution of "ce que tu peux" by "si tu veux".
+    ("Atlas, tu peux me dire si tu veux faire ?", True),
 ])
 def test_capability_phrase_is_strict_and_not_an_execution_request(utterance, expected):
     assert engine._is_atlas_capabilities_request(utterance) is expected
