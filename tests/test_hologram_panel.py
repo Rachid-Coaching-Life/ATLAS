@@ -83,3 +83,58 @@ def test_screen_geometry_keeps_projected_interface_onscreen(qapp):
             assert window.bridge.width() > 0
         finally:
             window.close()
+
+
+def test_repeated_hologram_mask_refresh_is_idempotent(qapp, monkeypatch):
+    """Repeated Qt geometry events must not endlessly reapply native masks."""
+    from unittest.mock import MagicMock
+    from desktop_app.face_widget import FaceWindow
+
+    window = FaceWindow(hologram=True)
+    native_mask = MagicMock()
+    monkeypatch.setattr(window, "setMask", native_mask)
+    try:
+        window._refresh_mask()
+        assert native_mask.call_count == 1
+        window._refresh_mask()
+        assert native_mask.call_count == 1
+
+        # Simulate a native resize notification while applying that mask.
+        window._last_composite_mask_geometry = None
+        nested = False
+
+        def resize_during_mask(region):
+            nonlocal nested
+            if not nested:
+                nested = True
+                window._refresh_mask()
+
+        native_mask.side_effect = resize_during_mask
+        window._refresh_mask()
+        assert native_mask.call_count == 2
+    finally:
+        window.close()
+
+
+def test_mask_updates_are_coalesced_before_event_loop_runs(qapp, monkeypatch):
+    """At most one zero-delay Qt callback is queued for a burst of resizes."""
+    from desktop_app import face_widget
+    from desktop_app.face_widget import FaceWindow
+
+    window = FaceWindow(hologram=True)
+    scheduled = []
+    monkeypatch.setattr(
+        face_widget.QTimer, "singleShot",
+        lambda delay, callback: scheduled.append((delay, callback)),
+    )
+    try:
+        window._queue_mask_refresh()
+        window._queue_mask_refresh()
+        window._queue_mask_refresh()
+        assert len(scheduled) == 1
+        assert scheduled[0][0] == 0
+        # A hidden window does not apply a native mask.
+        scheduled[0][1]()
+        assert window._mask_refresh_queued is False
+    finally:
+        window.close()
