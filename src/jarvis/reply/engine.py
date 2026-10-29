@@ -123,6 +123,32 @@ _ATLAS_SELF_INTRO_RESPONSE = (
     "tâches sur cet ordinateur lorsque les outils nécessaires sont disponibles."
 )
 
+_ATLAS_CAPABILITIES_RESPONSE = (
+    "Je peux discuter avec vous en français, répondre à des questions et "
+    "vous aider à réaliser des tâches sur cet ordinateur quand les outils "
+    "nécessaires sont disponibles. Dites-moi ce que vous voulez faire : "
+    "je vérifierai ce que je peux réellement exécuter."
+)
+
+
+def _is_atlas_capabilities_request(query: str) -> bool:
+    """Only a direct question about ATLAS's own abilities, never an action."""
+    import unicodedata
+
+    clean = unicodedata.normalize("NFC", query or "").casefold().strip()
+    clean = re.sub(r"^(?:atlas|atlasse)\\s*[,.:!?]\\s*", "", clean)
+    clean = re.sub(r"[.!?\\s]+$", "", clean).strip()
+    return bool(re.fullmatch(
+        r"(?:(?:là|alors)[, ]*)?"
+        r"(?:(?:(?:tu\\s+)?peux[ -]tu|tu\\s+peux|est[ -]ce\\s+que\\s+tu\\s+peux)"
+        r"\\s+(?:me\\s+)?dire\\s+)?"
+        r"(?:(?:ce\\s+que\\s+tu\\s+peux\\s+faire)|"
+        r"(?:quelles?\\s+sont\\s+tes\\s+(?:capacités|fonctions))|"
+        r"(?:à\\s+quoi\\s+sers[ -]tu)|"
+        r"(?:que\\s+sais[ -]tu\\s+faire))",
+        clean,
+    ))
+
 
 def _is_atlas_self_introduction_request(query: str) -> bool:
     """Only the full, unambiguous French self-introduction request.
@@ -1054,10 +1080,15 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
     # A purely personal self-introduction never requires tools, memory
     # retrieval or model inference. Keep it deterministic so even a slow or
     # unavailable Ollama backend can introduce ATLAS promptly in French.
-    if _is_atlas_self_introduction_request(redacted):
+    if (_is_atlas_self_introduction_request(redacted)
+            or _is_atlas_capabilities_request(redacted)):
         if cancel_event is not None and cancel_event.is_set():
             return None
-        reply = _ATLAS_SELF_INTRO_RESPONSE
+        reply = (
+            _ATLAS_SELF_INTRO_RESPONSE
+            if _is_atlas_self_introduction_request(redacted)
+            else _ATLAS_CAPABILITIES_RESPONSE
+        )
         if not quiet:
             print(f"\n🤖 ATLAS\n  {_indent_text(reply)}\n", flush=True)
         if tts is not None and tts.enabled:
