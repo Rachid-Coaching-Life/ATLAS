@@ -2343,11 +2343,9 @@ class VoiceListener(threading.Thread):
             # Show ready message only after stream is confirmed active
             wake_word = getattr(self.cfg, "wake_word", "jarvis").lower()
             wake_title = wake_word.title()
-            print(f"\n{'─' * 50}\n🎙️  Listening! Try:", flush=True)
-            print(f"      {self._weather_example(wake_title)}", flush=True)
-            print(f"      \"I just ate a Big Mac, {wake_title}.\"", flush=True)
-            print(f"      \"What are you thinking, {wake_title}?\"", flush=True)
-            print(f"      \"What do you know about me, {wake_title}?\"", flush=True)
+            print(f"\n{'─' * 50}\n🎙️  Microphone initialisé. ATLAS prépare son annonce vocale.", flush=True)
+            print(f"      Pour l'appeler : \"{wake_title}, puis votre demande.\"", flush=True)
+            print(f"      Exemple : \"{wake_title}, présente-toi en français.\"", flush=True)
 
             # Small-model disclaimer: SMALL models can't infer your intent
             # from vague prompts, but they can still execute complex flows
