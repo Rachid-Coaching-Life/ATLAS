@@ -1373,7 +1373,7 @@ class VoiceListener(threading.Thread):
             and pending.endswith((".", "?", "!"))
             and not pending.endswith("...")
         )
-        idle_and_drained = (
+        idle_and_drained = complete_sentence and (
             not self.is_speech_active
             and self._transcription_jobs_q.empty()
             and self._transcription_results_q.empty()
