@@ -651,13 +651,16 @@ class FaceWindow(QWidget):
         )
         if geometry == self._last_composite_mask_geometry:
             return
-        image_region = self.face.portrait_input_region(
-            self.face.width(), self.face.height()
-        ).translated(self.face.pos())
+        # The portrait remains visually transparent through Qt's existing
+        # WA_TranslucentBackground. A pixel-perfect QBitmap-to-QRegion mask
+        # is expensive (and can stall Qt on Windows when unioned with HUD
+        # regions). The three tight widget rectangles form a sufficient
+        # native hit region for the new combined desktop surface.
+        portrait_region = QRegion(self.face.geometry())
         projected = QRegion(self.hologram.geometry())
         connector = QRegion(self.bridge.geometry())
         self._last_composite_mask_geometry = geometry
-        self.setMask(projected.united(connector).united(image_region))
+        self.setMask(projected.united(connector).united(portrait_region))
 
     def _queue_mask_refresh(self) -> None:
         """Coalesce Qt resize/show events into one post-layout mask update."""
