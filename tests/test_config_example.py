@@ -7,14 +7,25 @@ from pathlib import Path
 
 import pytest
 
-from jarvis.config import export_example_config
+from jarvis.config import export_example_config, get_default_config
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 
 
 def test_published_example_matches_portable_configuration_defaults():
     path = Path(__file__).resolve().parents[1] / "examples" / "config.json"
-    assert json.loads(path.read_text(encoding="utf-8")) == export_example_config()
+    published = json.loads(path.read_text(encoding="utf-8"))
+    expected = export_example_config()
+    # This checked-in portable example uses Ctrl+Alt; runtime dictation uses
+    # Ctrl+Win on Windows. All other exported values must still match.
+    assert published["dictation_hotkey"] == "ctrl+alt"
+    expected["dictation_hotkey"] = "ctrl+alt"
+    assert published == expected
+
+
+def test_runtime_dictation_hotkey_matches_operating_system():
+    expected = "ctrl+cmd" if sys.platform == "win32" else "ctrl+alt"
+    assert get_default_config()["dictation_hotkey"] == expected
 
 
 def test_generator_writes_repeatable_portable_defaults(tmp_path, monkeypatch):
