@@ -12,6 +12,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 
 @pytest.mark.parametrize(("utterance", "expected"), [
     ("Atlas, tu peux me dire ce que tu peux faire ?", True),
+    ("Atlas, tu me réponds à ce que tu sais faire.", True),
     ("Là, si tu peux me dire ce que tu peux faire.", True),
     ("Ce que tu peux faire ?", True),
     ("Quelles sont tes capacités ?", True),
