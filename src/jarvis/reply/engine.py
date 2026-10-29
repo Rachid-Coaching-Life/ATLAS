@@ -1125,6 +1125,12 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
     # Explicit actions, factual questions and composite requests still use
     # the normal agentic path, where tools and permission checks remain intact.
     if _is_simple_conversation_query(redacted):
+        # A greeting/invitation to talk needs no inference at all.
+        # Preserve the model for genuinely open-ended conversation.
+        if re.search(r"de quoi\\s+.*qu[’']on\\s+(?:parle|discute|dise)", redacted, re.I):
+            reply = "Je suis là pour discuter avec toi. De quoi as-tu envie de parler ?"
+        else:
+            reply = ""
         messages = [
             {"role": "system", "content": (
                 "Tu es ATLAS, un assistant personnel local. Réponds uniquement "
@@ -1133,17 +1139,18 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
             )},
             {"role": "user", "content": redacted},
         ]
-        try:
-            response = chat_with_messages(
-                cfg, messages, timeout_sec=18.0,
-                extra_options={"num_ctx": 2048, "max_tokens": 80},
-                tools=None, thinking=False,
-            )
-            reply = extract_text_from_response(response) if response else ""
-            reply = reply.strip() if isinstance(reply, str) else ""
-        except Exception as exc:
-            debug_log(f"simple conversation unavailable: {type(exc).__name__}", "reply")
-            reply = ""
+        if not reply:
+            try:
+                response = chat_with_messages(
+                    cfg, messages, timeout_sec=18.0,
+                    extra_options={"num_ctx": 2048, "max_tokens": 80},
+                    tools=None, thinking=False,
+                )
+                reply = extract_text_from_response(response) if response else ""
+                reply = reply.strip() if isinstance(reply, str) else ""
+            except Exception as exc:
+                debug_log(f"simple conversation unavailable: {type(exc).__name__}", "reply")
+                reply = ""
         if cancel_event is not None and cancel_event.is_set():
             return None
         if not reply:
