@@ -158,3 +158,29 @@ def test_holographic_mask_never_converts_alpha_bitmap(qapp, monkeypatch):
         assert region.contains(window.hologram.geometry().center())
     finally:
         window.close()
+
+
+def test_hologram_panel_paints_gradient_with_qt_float_geometry(qapp):
+    """Regression: QPoint endpoints once crashed Qt inside paintEvent."""
+    from PyQt6.QtGui import QImage
+    from desktop_app.hologram_panel import HologramPanel, ProjectionBridge
+
+    panel = HologramPanel()
+    bridge = ProjectionBridge()
+    try:
+        panel.resize(320, 270)
+        canvas = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        canvas.fill(0)
+        # Render the real Qt widget, not a mocked paintEvent; PyQt6 overload
+        # mismatches raise only when QWidget actually paints.
+        panel.render(canvas)
+        assert canvas.pixelColor(20, 20).alpha() > 0
+
+        bridge.resize(47, 270)
+        link = QImage(bridge.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        link.fill(0)
+        bridge.render(link)
+        assert not link.isNull()
+    finally:
+        panel.close()
+        bridge.close()
