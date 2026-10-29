@@ -159,18 +159,20 @@ class StateManager:
 
         return query
 
-    def check_collection_timeout(self) -> bool:
-        """
-        Check if collection should timeout due to silence or max duration.
+    def check_collection_timeout(self, *, silence_override_sec: float | None = None) -> bool:
+        """Check whether the collected request should be finalised.
 
-        Returns:
-            True if collection should be finalized
+        A caller may apply a shorter silence limit for a complete, quiet
+        utterance. The configured limit remains authoritative otherwise.
         """
         if not self.is_collecting():
             return False
 
         current_time = time.time()
-        silence_timeout = current_time - self._last_voice_time >= self.voice_collect_seconds
+        silence_limit = self.voice_collect_seconds
+        if silence_override_sec is not None:
+            silence_limit = min(silence_limit, max(0.0, silence_override_sec))
+        silence_timeout = current_time - self._last_voice_time >= silence_limit
         max_timeout = current_time - self._collect_start_time >= self.max_collect_seconds
 
         if silence_timeout or max_timeout:
