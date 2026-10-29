@@ -16,7 +16,7 @@ from jarvis.debug import debug_log
 from jarvis.utils.redact import scrub_secrets
 from desktop_app.themes import JARVIS_THEME_STYLESHEET
 
-_ISSUE_URL = 'https://github.com/isair/jarvis/issues/new'
+_ISSUE_URL = 'https://github.com/Rachid-Coaching-Life/ATLAS/issues/new'
 _URL_LIMIT = 8000
 
 
@@ -26,7 +26,7 @@ class IssueReportDialog(QDialog):
     def __init__(self, logs: str, *, version: tuple[str, str],
                  metadata: Mapping[str, str], parent=None):
         super().__init__(parent)
-        self.setWindowTitle('Report a problem')
+        self.setWindowTitle('ATLAS — Signaler un problème')
         self.setStyleSheet(JARVIS_THEME_STYLESHEET)
         screen = self.screen().availableGeometry()
         self.resize(min(660, screen.width()), min(640, screen.height()))
@@ -38,17 +38,17 @@ class IssueReportDialog(QDialog):
         layout.addWidget(self.pages, 1)
 
         form_scroll, form = self._scroll_page()
-        heading = QLabel('Tell us what happened')
+        heading = QLabel('Décrivez le problème rencontré')
         heading.setStyleSheet('font-size: 20px; font-weight: 600; color: #fbbf24;')
         form.addWidget(heading)
-        intro = QLabel('A few words are enough to get started. You can check the report before opening GitHub.')
+        intro = QLabel('Décrivez ce qui s’est passé. Vous pourrez vérifier le rapport avant son ouverture sur GitHub.')
         intro.setWordWrap(True)
         form.addWidget(intro)
-        self.problem_input = self._add_field(form, 'What happened?',
-            'What were you doing, and what went wrong?', 'problem')
-        self.expected_input = self._add_field(form, 'What should have happened? (optional)',
-            'What did you want Jarvis to do?', 'expected')
-        extra = QCheckBox('Add more detail (optional)')
+        self.problem_input = self._add_field(form, 'Que s’est-il passé ?',
+            'Que faisiez-vous lorsque le problème est apparu ?', 'problem')
+        self.expected_input = self._add_field(form, 'Quel résultat attendiez-vous ? (facultatif)',
+            'Que souhaitiez-vous demander à ATLAS ?', 'expected')
+        extra = QCheckBox('Ajouter des détails (facultatif)')
         extra.setObjectName('add_details')
         form.addWidget(extra)
         self.extra_fields = QWidget()
@@ -56,11 +56,11 @@ class IssueReportDialog(QDialog):
         extra_layout.setContentsMargins(0, 0, 0, 0)
         self.title_input = QLineEdit()
         self.title_input.setMaxLength(200)
-        self.title_input.setPlaceholderText('Leave blank to use the first line of your description')
-        extra_layout.addWidget(QLabel('Short summary (optional)'))
+        self.title_input.setPlaceholderText('Laissez vide pour utiliser la première ligne de votre description')
+        extra_layout.addWidget(QLabel('Résumé (facultatif)'))
         extra_layout.addWidget(self.title_input)
-        self.steps_input = self._add_field(extra_layout, 'How can we make it happen again? (optional)',
-            'Include what you said or clicked, if you remember', 'steps')
+        self.steps_input = self._add_field(extra_layout, 'Comment reproduire le problème ? (facultatif)',
+            'Indiquez vos paroles ou les clics effectués', 'steps')
         self.extra_fields.hide()
         extra.toggled.connect(self.extra_fields.setVisible)
         form.addWidget(self.extra_fields)
@@ -68,30 +68,30 @@ class IssueReportDialog(QDialog):
         self.pages.addWidget(form_scroll)
 
         review_scroll, review = self._scroll_page()
-        heading = QLabel('Check your report')
+        heading = QLabel('Vérifiez votre rapport')
         heading.setStyleSheet('font-size: 20px; font-weight: 600; color: #fbbf24;')
         review.addWidget(heading)
         self.preview = QTextBrowser()
         self.preview.setOpenExternalLinks(False)
         self.preview.setOpenLinks(False)
         self.preview.setMinimumHeight(200)
-        self.preview.setAccessibleName('Your report')
+        self.preview.setAccessibleName('Votre rapport')
         review.addWidget(self.preview, 1)
-        self.include_logs = QCheckBox('Include troubleshooting details to help us fix it')
+        self.include_logs = QCheckBox('Joindre les informations techniques au rapport')
         self.include_logs.setChecked(True)
         review.addWidget(self.include_logs)
-        privacy = QLabel('These details include your computer settings and activity log, which can contain '
-                         'things you have said to Jarvis. You can check them below or leave them out.')
+        privacy = QLabel('Ces informations comprennent les réglages et le journal d’activité, qui peuvent contenir '
+                         'des paroles adressées à ATLAS. Vous pouvez les consulter ou ne pas les joindre.')
         privacy.setWordWrap(True)
         review.addWidget(privacy)
-        self.details_button = QPushButton('View troubleshooting details')
+        self.details_button = QPushButton('Afficher les informations techniques')
         self.details_button.setCheckable(True)
         self.details_button.toggled.connect(self._show_diagnostics)
         review.addWidget(self.details_button)
         self.technical_preview = QPlainTextEdit()
         self.technical_preview.setReadOnly(True)
         self.technical_preview.setMinimumHeight(160)
-        self.technical_preview.setAccessibleName('Troubleshooting details')
+        self.technical_preview.setAccessibleName('Informations techniques')
         self.technical_preview.hide()
         review.addWidget(self.technical_preview)
         self.pages.addWidget(review_scroll)
@@ -99,22 +99,22 @@ class IssueReportDialog(QDialog):
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
         buttons = QHBoxLayout()
-        cancel = QPushButton('Cancel')
+        cancel = QPushButton('Annuler')
         cancel.clicked.connect(self.reject)
         buttons.addWidget(cancel)
-        self.back_button = QPushButton('Back')
+        self.back_button = QPushButton('Retour')
         self.back_button.clicked.connect(lambda: self._show_page(0))
         buttons.addWidget(self.back_button)
         buttons.addStretch()
-        self.review_button = QPushButton('Review report')
+        self.review_button = QPushButton('Vérifier le rapport')
         self.review_button.setObjectName('review_report')
         self.review_button.clicked.connect(lambda: self._show_page(1))
         buttons.addWidget(self.review_button)
-        self.copy_button = QPushButton('Copy')
-        self.copy_button.setToolTip('Copy the reviewed report to the clipboard')
+        self.copy_button = QPushButton('Copier')
+        self.copy_button.setToolTip('Copier le rapport vérifié')
         self.copy_button.clicked.connect(self._copy_report)
         buttons.addWidget(self.copy_button)
-        self.open_button = QPushButton('Open GitHub')
+        self.open_button = QPushButton('Ouvrir GitHub')
         self.open_button.setObjectName('open_github')
         self.open_button.clicked.connect(self._open_github)
         buttons.addWidget(self.open_button)
@@ -147,7 +147,7 @@ class IssueReportDialog(QDialog):
 
     def _show_diagnostics(self, visible):
         self.technical_preview.setVisible(visible and self.include_logs.isChecked())
-        self.details_button.setText('Hide troubleshooting details' if visible
+        self.details_button.setText('Masquer les informations techniques' if visible
                                     else 'View troubleshooting details')
 
     @staticmethod
@@ -175,9 +175,9 @@ class IssueReportDialog(QDialog):
         ) if field.toPlainText().strip()]
 
     def _diagnostics_text(self):
-        parts = [f'Jarvis version: {self._version}']
+        parts = [f'ATLAS version: {self._version}']
         parts.extend(f'{key}: {value}' for key, value in self._metadata.items())
-        parts.extend(['', 'Activity log', self._logs or 'No activity log was available.'])
+        parts.extend(['', 'Activity log', self._logs or 'Aucun journal disponible.'])
         return scrub_secrets('\n'.join(parts))
 
     def _report_body(self):
@@ -219,9 +219,9 @@ class IssueReportDialog(QDialog):
         self.open_button.setEnabled(valid and reviewing)
         self.copy_button.setEnabled(valid and reviewing)
         long_report = len(self._report_url(self._prepared_report)) > _URL_LIMIT
-        self.open_button.setText('Copy + open GitHub' if long_report else 'Open GitHub')
-        self.status.setText('This report is too long to open directly. We will copy it so you can '
-                            'paste it into GitHub before submitting.' if long_report and reviewing else '')
+        self.open_button.setText('Copier + ouvrir GitHub' if long_report else 'Open GitHub')
+        self.status.setText('Ce rapport est trop long pour être ouvert directement. Il sera copié afin que vous puissiez '
+                            'le coller dans GitHub avant de l’envoyer.' if long_report and reviewing else '')
 
     def _copy_report(self):
         if not self._valid() or self.pages.currentIndex() != 1:
@@ -230,9 +230,9 @@ class IssueReportDialog(QDialog):
             QApplication.clipboard().setText(self._prepared_report)
         except Exception as exc:
             debug_log(f'Issue report clipboard failed: {type(exc).__name__}', 'desktop')
-            self.status.setText('Could not copy the report. You can copy the text from the preview instead.')
+            self.status.setText('Copie impossible. Copiez le contenu depuis l’aperçu.')
             return False
-        self.status.setText('Report copied. You can paste it into GitHub.')
+        self.status.setText('Rapport copié. Vous pouvez le coller dans GitHub.')
         debug_log('Issue report copied after local review', 'desktop')
         return True
 
@@ -250,8 +250,8 @@ class IssueReportDialog(QDialog):
             debug_log(f'Issue report browser failed: {type(exc).__name__}', 'desktop')
             opened = False
         if not opened:
-            self.status.setText('Could not open your browser. Copy the report and open '
-                                'github.com/isair/jarvis/issues/new yourself.')
+            self.status.setText('Impossible d’ouvrir le navigateur. Copiez le rapport et ouvrez '
+                                'github.com/Rachid-Coaching-Life/ATLAS/issues/new manuellement.')
             return
         debug_log('Issue report opened for user submission on GitHub', 'desktop')
         self.accept()
