@@ -177,14 +177,27 @@ class FaceWidget(QWidget):
                 self._glance_started_at = None
                 self._next_glance_at = now + random.uniform(9.0, 15.0)
 
+    @staticmethod
+    def _portrait_bounds(width: int, height: int, image_width: int, image_height: int) -> QRectF:
+        """Center an image without distorting its original aspect ratio."""
+        if min(width, height, image_width, image_height) <= 0:
+            return QRectF()
+        factor = min(width / image_width, height / image_height)
+        scaled_width = image_width * factor
+        scaled_height = image_height * factor
+        return QRectF((width - scaled_width) / 2, (height - scaled_height) / 2,
+                      scaled_width, scaled_height)
+
     def _paint_portrait(self, painter: QPainter) -> None:
         """Render the supplied ATLAS portrait with a discreet state cue."""
-        side = min(self.width(), self.height())
-        center_x = self.width() / 2
-        center_y = self.height() / 2
+        bounds = self._portrait_bounds(self.width(), self.height(),
+                                      self._portrait.width(), self._portrait.height())
+        center_x = bounds.center().x()
+        center_y = bounds.center().y()
         scale = 1.0 + 0.006 * math.sin(self._elapsed * math.tau / 7.5) * self._activation_level
-        target = QRectF(center_x - side * scale / 2, center_y - side * scale / 2,
-                        side * scale, side * scale)
+        target = QRectF(center_x - bounds.width() * scale / 2,
+                        center_y - bounds.height() * scale / 2,
+                        bounds.width() * scale, bounds.height() * scale)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         painter.drawPixmap(target, self._portrait, QRectF(self._portrait.rect()))
 
@@ -196,20 +209,22 @@ class FaceWidget(QWidget):
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(colour)
             pulse = 3.0 + active * (1.5 + math.sin(self._elapsed * 5) * 0.8)
-            painter.drawEllipse(QPointF(center_x, center_y + side * 0.445),
+            painter.drawEllipse(QPointF(center_x, center_y + bounds.height() * 0.445),
                                 pulse, pulse)
 
     def portrait_input_region(self, width: int, height: int) -> QRegion:
         """Mask transparent portrait pixels without clipping hair or shoulders."""
-        side = min(width, height)
+        bounds = self._portrait_bounds(width, height,
+                                      self._portrait.width(), self._portrait.height())
+        if bounds.isEmpty():
+            return QRegion()
         scaled = self._portrait.scaled(
-            side, side,
+            max(1, round(bounds.width())), max(1, round(bounds.height())),
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation,
         )
         region = QRegion(scaled.mask())
-        region.translate((width - scaled.width()) // 2,
-                         (height - scaled.height()) // 2)
+        region.translate(round(bounds.x()), round(bounds.y()))
         return region
 
     def paintEvent(self, event):
@@ -434,8 +449,11 @@ class FaceWindow(QWidget):
         self.face = FaceWidget()
         layout.addWidget(self.face)
         if not self.face._portrait.isNull():
-            self.setMinimumSize(200, 200)
-            self.resize(280, 280)
+            self.setMinimumSize(200, 208)
+            # Portraits are not always square; size the floating window to
+            # the image, not the other way around.
+            image = self.face._portrait
+            self.resize(max(200, round(280 * image.width() / image.height())), 280)
         self.face.state_observed.connect(self._update_presence)
         self._update_presence(self.face._state_manager.state.value)
 
