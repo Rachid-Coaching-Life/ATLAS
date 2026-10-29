@@ -513,6 +513,8 @@ class FaceWindow(QWidget):
         self.setToolTip("Déplacer avec la souris. Clic droit pour les commandes ATLAS.")
         self._tray_menu: Optional[QMenu] = None
         self._drag_offset = None
+        self._mask_refresh_queued = False
+        self._last_composite_mask_geometry = None
 
         if self._hologram_enabled:
             # The desktop chooses this single-window projected layout.
@@ -638,24 +640,46 @@ class FaceWindow(QWidget):
             else:
                 self.setMask(FaceWidget.input_region(self.width(), self.height()))
             return
+        # Computing an alpha-derived native mask is relatively expensive on
+        # Windows. setMask() may itself result in a platform geometry event.
+        # Never recompute/reapply it for an unchanged layout.
+        geometry = (
+            self.width(), self.height(),
+            self.face.geometry().getRect(),
+            self.hologram.geometry().getRect(),
+            self.bridge.geometry().getRect(),
+        )
+        if geometry == self._last_composite_mask_geometry:
+            return
         image_region = self.face.portrait_input_region(
             self.face.width(), self.face.height()
         ).translated(self.face.pos())
         projected = QRegion(self.hologram.geometry())
         connector = QRegion(self.bridge.geometry())
+        self._last_composite_mask_geometry = geometry
         self.setMask(projected.united(connector).united(image_region))
+
+    def _queue_mask_refresh(self) -> None:
+        """Coalesce Qt resize/show events into one post-layout mask update."""
+        if not self._hologram_enabled or self._mask_refresh_queued:
+            return
+        self._mask_refresh_queued = True
+        QTimer.singleShot(0, self._flush_mask_refresh)
+
+    def _flush_mask_refresh(self) -> None:
+        self._mask_refresh_queued = False
+        if self._hologram_enabled and self.isVisible():
+            self._refresh_mask()
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
-        if self._hologram_enabled:
-            QTimer.singleShot(0, self._refresh_mask)
+        self._queue_mask_refresh()
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         if getattr(self, "face", None) is not None:
             if self._hologram_enabled:
-                # Composite Qt layout geometry finishes just after resize.
-                QTimer.singleShot(0, self._refresh_mask)
+                self._queue_mask_refresh()
             else:
                 # Preserve the prior synchronous mask semantics for the
                 # tested standalone portrait, including animation snapshots.
