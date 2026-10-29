@@ -163,7 +163,7 @@ def _collect_runtime_status_snapshot(
 
     ownership = ollama_runtime_ownership or OllamaRuntimeOwnership()
     if ownership.started_by_jarvis and not ownership.stopped:
-        ollama_owner = "Jarvis"
+        ollama_owner = "ATLAS"
     elif ollama_running:
         ollama_owner = "External"
     else:
@@ -1220,8 +1220,8 @@ class LogViewerWindow(QMainWindow):
         header_row_layout.addWidget(clear_btn)
 
         # Report button on the right
-        report_btn = QPushButton("🐛 Report Issue")
-        report_btn.setToolTip("Report a bug or unexpected behavior on GitHub")
+        report_btn = QPushButton("🐛 Signaler un problème")
+        report_btn.setToolTip("Signaler un dysfonctionnement d’ATLAS sur GitHub")
         report_btn.setStyleSheet("""
             QPushButton {
                 background-color: #27272a;
@@ -2454,7 +2454,7 @@ class ATLASSystemTray:
         """Reset the face to asleep so it doesn't look ready while the daemon is down."""
         try:
             from jarvis.activity import JarvisState, get_jarvis_state
-            get_jarvis_state().set_state(ATLASState.ASLEEP)
+            get_jarvis_state().set_state(JarvisState.ASLEEP)
         except Exception:
             pass
 
