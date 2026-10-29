@@ -82,6 +82,14 @@ sequence, which preserves its pronounced final S. The ordinary lowercase
 placed in model responses, saved conversation, playback observer references,
 or echo-detection text. Other TTS engines are unchanged.
 
+For Piper 1.8, sentence punctuation or a comma directly after the name is moved
+*inside* the phonetic block (for example `ATLAS, votre assistant` is sent
+as `[[atlas,]] votre assistant`). Piper may otherwise discard punctuation
+outside a raw phonetic block and run the following words together.
+No new punctuation is invented; punctuation after spaces or non-name words
+retains its existing behaviour. The exact pause and naturalness require an
+auditory test on the configured voice.
+
 ## Piper voice downloads
 
 Missing voice files are downloaded from the configured public model-file source.
