@@ -54,3 +54,52 @@ class TestStopCommand:
     def test_fuzzy_stop_command(self):
         """Short input fuzzy-matches stop commands."""
         assert is_stop_command("stob", ["stop", "quiet"], fuzzy_ratio=0.7) is True
+
+
+
+@pytest.mark.unit
+class TestFrenchStopDefaults:
+    """French interruption phrases work through the actual configured detector."""
+
+    @pytest.mark.parametrize("heard", [
+        "arrête", "Arrête !", "ARRE\u0302TE",
+        "tais-toi", "TAIS TOI !", "Atlas, tais-toi !",
+    ])
+    def test_default_french_stop_interrupts(self, heard):
+        from jarvis.config import get_default_config
+
+        assert is_stop_command(
+            heard, get_default_config()["stop_commands"],
+        ), f"French stop should interrupt: {heard!r}"
+
+    def test_french_stop_does_not_match_unrelated_infinitive(self):
+        from jarvis.config import get_default_config
+
+        assert not is_stop_command(
+            "je voudrais arrêter la musique demain",
+            get_default_config()["stop_commands"],
+        )
+
+    def test_loaded_settings_use_french_stop_defaults(self):
+        from jarvis.config import load_settings
+
+        assert is_stop_command("arrête !", load_settings().stop_commands)
+        assert is_stop_command("tais-toi !", load_settings().stop_commands)
+
+    @pytest.mark.parametrize("custom", [["pause"], []])
+    def test_explicit_custom_stop_settings_remain_authoritative(
+        self, custom, monkeypatch, tmp_path,
+    ):
+        import json
+        from jarvis.config import load_settings
+
+        config = tmp_path / "atlas-config.json"
+        config.write_text(
+            json.dumps({"_config_version": 3, "stop_commands": custom}),
+            encoding="utf-8",
+        )
+        monkeypatch.setenv("JARVIS_CONFIG_PATH", str(config))
+        loaded = load_settings().stop_commands
+
+        assert loaded == custom
+        assert not is_stop_command("arrête", loaded)
