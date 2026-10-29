@@ -207,9 +207,20 @@ The shortcut does not reset the audio capture generation or drain queued audio,
 since the user may start saying the command while recognition of the name
 completes. If collection times out without a subsequent request, the listener
 returns to its idle activity state without invoking the reply engine.
-Full name-and-command utterances continue through the original intent judge.
-This addresses a confirmed synchronous wait on an isolated name, not the
-remaining transcription, collection, routing or generation latency.
+For a complete utterance starting with an exact configured name followed
+immediately by a comma and nonempty speech (for example, "Atlas, ouvre mon
+dossier"), the listener also arms collection without waiting for the LLM
+intent judge. The full transcript is preserved, including the name, and
+queued audio is not drained. This bypass applies only outside TTS playback
+and outside the hot window, and never to fuzzy name approximations, names
+mentioned elsewhere in a sentence, or unpunctuated references. Those
+ambiguous inputs retain the existing intent-judge path.
+
+These narrow shortcuts remove a confirmed potential six-second LLM wait
+for clear speech, but do **not** guarantee lower end-to-end latency:
+Whisper transcription, query collection silence, tool routing, planning,
+generation and synthesis still contribute. Execution of actions retains
+the reply engine's existing validation and safety boundaries.
 
 ### 3. Context-Aware Intent Judge
 
