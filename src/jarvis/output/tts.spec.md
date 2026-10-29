@@ -64,6 +64,14 @@ an atomic observer snapshot, rather than a cross-process transaction protocol.
 Callback exceptions, including observer task cancellation, cannot skip terminal
 cleanup or abandon later queued speech. Cancelling speech uses its request handle.
 
+## French default voice (personal ATLAS)
+
+When no `tts_piper_model_path` is configured, Piper selects the local
+`fr_FR-tom-medium.onnx` voice and its `.onnx.json` metadata, downloading
+missing files from the official pinned voice catalogue. An explicitly
+configured Piper model path always takes precedence over this default.
+No existing downloaded model or saved user setting is deleted or changed.
+
 ## Piper voice downloads
 
 Missing voice files are downloaded from the configured public model-file source.
