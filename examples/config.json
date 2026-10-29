@@ -95,7 +95,9 @@
     "shush",
     "silence",
     "enough",
-    "shut up"
+    "shut up",
+    "arrête",
+    "tais-toi"
   ],
   "stop_command_fuzzy_ratio": 0.8,
   "location_enabled": true,
