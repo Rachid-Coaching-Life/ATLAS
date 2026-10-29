@@ -25,7 +25,8 @@ from .model_download import ModelDownloadError
 from .state_manager import StateManager, ListeningState
 from ..utils.audio_lock import portaudio_lock
 from ..utils.audio_capture import mono_capture, open_input_stream, resolve_input_device
-from .wake_detection import is_wake_word_detected, is_stop_command, is_stop_command_echo
+from .wake_detection import (is_wake_word_detected, is_standalone_wake_word,
+                             is_stop_command, is_stop_command_echo)
 from .transcript_buffer import TranscriptBuffer
 from .intent_judge import (
     IntentJudge,
@@ -882,6 +883,27 @@ class VoiceListener(threading.Thread):
             or is_speaking_now
         )
 
+        # A clearly spoken name alone is an address, not a query.
+        # Do not wait for a slow LLM intent decision on this unambiguous
+        # case. Arm the existing collection state for the *next* utterance.
+        # Preserve buffered audio and its generation: the user may already
+        # be speaking the command while Whisper finishes decoding the name.
+        if (
+            not received_during_tts
+            and not could_be_hot_window
+            and not self.state_manager.is_collecting()
+            and is_standalone_wake_word(
+                accepted_text,
+                getattr(self.cfg, "wake_word", "jarvis"),
+                getattr(self.cfg, "wake_aliases", []),
+            )
+        ):
+            self._transcript_buffer.mark_segment_processed(text_lower)
+            self.state_manager.start_collection("", language=language)
+            self._stop_thinking_tune()
+            debug_log("standalone wake: waiting for command without LLM judge", "voice")
+            return
+
         if not has_engagement_signal:
             debug_log(
                 f"skipping intent judge — no wake word, no hot window, no TTS "
@@ -1321,6 +1343,15 @@ class VoiceListener(threading.Thread):
             query = self.state_manager.clear_collection()
             if query.text.strip():
                 self._dispatch_query(query.text, language=query.language, generation=generation)
+            else:
+                # A name alone must never trigger an LLM reply or leave the
+                # activity indicator stuck in LISTENING after the wait ends.
+                self._stop_thinking_tune()
+                try:
+                    from jarvis.activity import get_jarvis_state, JarvisState
+                    get_jarvis_state().set_state(JarvisState.IDLE)
+                except Exception as exc:
+                    debug_log(f"standalone wake idle reset unavailable: {type(exc).__name__}", "voice")
 
         # Also check hot window expiry - this ensures the timeout is enforced
         # even when there's no audio being processed
