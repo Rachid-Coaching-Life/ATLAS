@@ -1127,7 +1127,7 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
     if _is_simple_conversation_query(redacted):
         # A greeting/invitation to talk needs no inference at all.
         # Preserve the model for genuinely open-ended conversation.
-        if re.search(r"de quoi\\s+.*qu[’']on\\s+(?:parle|discute|dise)", redacted, re.I):
+        if re.search(r"de quoi\s+.*qu[’']on\s+(?:parle|discute|dise)", redacted, re.I):
             reply = "Je suis là pour discuter avec toi. De quoi as-tu envie de parler ?"
         else:
             reply = ""
