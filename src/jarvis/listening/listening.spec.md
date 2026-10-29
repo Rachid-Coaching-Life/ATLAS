@@ -192,6 +192,25 @@ Instead of extracting post-wake-word audio, we:
 
 Wake detection checks the current transcript for case-insensitive, literal primary-name and alias matches at Unicode word boundaries. Names and matching text use canonical Unicode composition; combining marks stay inside word tokens. Empty names are ignored. Configured aliases represent known mishearings and require exact whole-name matches; their approximate neighbours are not wake signals. Only a single-word primary name participates in fuzzy token matching, using `wake_fuzzy_ratio`. Tokens may extend the primary name by at most one character; shorter forms use the configured similarity threshold. Accepted requests retain configured names and all other recognised words. These rules use configured names without language-specific exclusions.
 
+### Fast path for a standalone assistant name
+
+An isolated exact assistant name (primary wake word or a configured literal
+alias, allowing trailing punctuation) arms the existing query collection
+without making an intent-judge LLM request. It is **not** a command: the
+following accepted utterance supplies the actual request. No tool or reply is
+issued for a name by itself. Unlike ordinary wake-word detection, this shortcut
+does not accept fuzzy names or phrases that contain other words. It is disabled
+during TTS and inside the post-TTS hot window, where echo and intent gating
+must retain precedence.
+
+The shortcut does not reset the audio capture generation or drain queued audio,
+since the user may start saying the command while recognition of the name
+completes. If collection times out without a subsequent request, the listener
+returns to its idle activity state without invoking the reply engine.
+Full name-and-command utterances continue through the original intent judge.
+This addresses a confirmed synchronous wait on an isolated name, not the
+remaining transcription, collection, routing or generation latency.
+
 ### 3. Context-Aware Intent Judge
 
 The intent judge receives full context and makes intelligent decisions:
