@@ -393,7 +393,14 @@ def _prepare_piper_synthesis_text(text: str) -> str:
     displayed/model text: playback observers rely on the original words
     for echo detection. Lowercase 'atlas' (the common noun) is unchanged.
     """
-    return re.sub(r"(?<![\w-])(?:ATLAS|Atlas)(?![\w-])", "[[atlas]]", text)
+    # Piper 1.8 may drop punctuation directly after a raw phoneme block,
+    # joining the next words instead of pausing. Keep an adjacent sentence
+    # mark or comma *inside* the block, without changing the original text.
+    return re.sub(
+        r"(?<![\w-])(?:ATLAS|Atlas)([,.!?]?)(?![\w-])",
+        lambda match: f"[[atlas{match.group(1)}]]",
+        text,
+    )
 
 
 def _call_speech_callback(callback: Callable, arguments: tuple, label: str) -> None:
