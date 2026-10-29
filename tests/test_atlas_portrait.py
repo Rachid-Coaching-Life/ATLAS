@@ -78,3 +78,72 @@ def test_non_square_portrait_does_not_stretch(qapp):
     assert abs(result.width() / result.height() - 1145 / 1373) < 0.0001
     assert abs(result.center().x() - 120) < 0.0001
     assert abs(result.center().y() - 140) < 0.0001
+
+
+@pytest.mark.unit
+def test_portrait_lips_move_only_during_speaking(qapp):
+    """The new photo must visibly articulate; an idle portrait remains still."""
+    from PyQt6.QtGui import QImage, QPainter
+    from desktop_app.face_widget import FaceWidget
+
+    face = FaceWidget()
+    face.resize(240, 280)
+    face._elapsed = 1.37
+
+    def paint(speaking):
+        face._speaking = speaking
+        frame = QImage(240, 280, QImage.Format.Format_ARGB32_Premultiplied)
+        frame.fill(0)
+        painter = QPainter(frame)
+        try:
+            face._paint_portrait(painter)
+        finally:
+            painter.end()
+        return frame
+
+    try:
+        at_rest = paint(0.0)
+        speaking = paint(1.0)
+        mouth = face._portrait_bounds(240, 280, face._portrait.width(),
+                                      face._portrait.height())
+        center_x = round(mouth.left() + mouth.width() * 0.503)
+        center_y = round(mouth.top() + mouth.height() * 0.605)
+        # A changed pixel in the actual mouth area proves the portrait is
+        # animated rather than displaying only the glowing status indicator.
+        changes = sum(
+            at_rest.pixel(x, y) != speaking.pixel(x, y)
+            for y in range(center_y - 3, center_y + 9)
+            for x in range(center_x - 15, center_x + 16)
+        )
+        assert changes > 10
+        assert face._speech_mouth_opening(1.37, 0.0) == 0.0
+        assert face._speech_mouth_opening(1.37, 1.0) > 0.0
+        assert face._speech_mouth_opening(1.5, 1.0) != (
+            face._speech_mouth_opening(1.37, 1.0)
+        )
+        face._speaking = 0.0
+        assert paint(0.0) == at_rest
+    finally:
+        face.close()
+
+
+@pytest.mark.unit
+def test_portrait_speaking_animation_uses_real_shared_state(qapp, monkeypatch):
+    """Qt's timer must react to the real shared SPEAKING state."""
+    from types import SimpleNamespace
+    from jarvis.activity import JarvisState
+    from desktop_app.face_widget import FaceWidget
+
+    face = FaceWidget()
+    try:
+        face._state_manager = SimpleNamespace(state=JarvisState.SPEAKING)
+        face._last_frame_at -= 0.5
+        face._animate()
+        assert face._speaking > 0.8
+
+        face._state_manager.state = JarvisState.IDLE
+        face._last_frame_at -= 0.5
+        face._animate()
+        assert face._speaking < 0.2
+    finally:
+        face.close()
