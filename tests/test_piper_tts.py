@@ -436,7 +436,7 @@ class TestPiperTTSConfig:
         assert defaults["tts_piper_speaker"] is None
 
         assert "tts_piper_length_scale" in defaults
-        assert defaults["tts_piper_length_scale"] == 0.65  # ~30% faster speech
+        assert defaults["tts_piper_length_scale"] == 1.0  # normal French speaking rate
 
         assert "tts_piper_noise_scale" in defaults
         assert defaults["tts_piper_noise_scale"] == 0.8  # More expressive
@@ -446,6 +446,25 @@ class TestPiperTTSConfig:
 
         assert "tts_piper_sentence_silence" in defaults
         assert defaults["tts_piper_sentence_silence"] == 0.2
+
+    def test_piper_normal_speed_loaded_when_no_user_override(self):
+        """The GTR7-validated normal speed is now the portable default."""
+        from jarvis.config import load_settings
+        from unittest.mock import patch
+
+        with patch("jarvis.config._load_json", return_value={}):
+            assert load_settings().tts_piper_length_scale == 1.0
+
+    def test_piper_explicit_speed_override_is_preserved(self):
+        """Changing ATLAS defaults must not rewrite personal voice speed."""
+        from jarvis.config import load_settings
+        from unittest.mock import patch
+
+        with patch("jarvis.config._load_json", return_value={
+            "_config_version": 3,
+            "tts_piper_length_scale": 0.85,
+        }):
+            assert load_settings().tts_piper_length_scale == 0.85
 
     def test_tts_engine_defaults_to_piper(self):
         """tts_engine should default to 'piper'."""
