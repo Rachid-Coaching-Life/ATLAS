@@ -1873,8 +1873,8 @@ class TestListeningWindowVisibility:
         tray.face_window.hide.assert_not_called()
         tray.log_viewer.hide.assert_not_called()
 
-    def test_show_launch_windows_opens_log_and_face_windows(self, qapp):
-        """The launch hook opens the log and face windows once at startup."""
+    def test_show_launch_windows_opens_unified_atlas_projection(self, qapp):
+        """The projected face opens alone; full logs remain in the tray."""
         import desktop_app.app as app_mod
 
         tray = app_mod.JarvisSystemTray.__new__(app_mod.JarvisSystemTray)
@@ -1883,9 +1883,9 @@ class TestListeningWindowVisibility:
 
         tray.show_launch_windows()
 
-        tray.log_viewer.show.assert_called_once()
-        tray.log_viewer.raise_.assert_called_once()
-        tray.log_viewer.activateWindow.assert_called_once()
+        tray.log_viewer.show.assert_not_called()
+        tray.log_viewer.raise_.assert_not_called()
+        tray.log_viewer.activateWindow.assert_not_called()
         tray.face_window.show.assert_called_once()
         tray.face_window.raise_.assert_called_once()
 
