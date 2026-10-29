@@ -144,6 +144,7 @@ def _is_atlas_capabilities_request(query: str) -> bool:
         r"\s+(?:me\s+)?dire\s+)?"
         r"(?:(?:ce\s+que\s+tu\s+peux\s+faire)|"
         r"(?:si\s+tu\s+veux\s+faire)|"
+        r"(?:tu\s+me\s+réponds\s+à\s+ce\s+que\s+tu\s+sais\s+faire)|"
         r"(?:quelles?\s+sont\s+tes\s+(?:capacités|fonctions))|"
         r"(?:à\s+quoi\s+sers[ -]tu)|"
         r"(?:que\s+sais[ -]tu\s+faire))",
