@@ -130,3 +130,27 @@ class TestFrenchStopDefaults:
 def test_exact_standalone_wake_name_only(heard, expected):
     from jarvis.listening.wake_detection import is_standalone_wake_word
     assert is_standalone_wake_word(heard, "atlas", ["atlasse"]) is expected
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(("heard", "expected"), [
+    ("Atlas, ouvre mon dossier", True),
+    ("ATLAS, présente-toi en français", True),
+    ("Atlasse, explique le problème", True),
+    ("atlas, peux-tu m'aider ?", True),
+    ("Atlas: ouvre mon dossier", False),
+    ("Atlas ouvre mon dossier", False),
+    ("Atlas,", False),
+    ("Atlas", False),
+    ("Un atlas géographique, ouvre un livre", False),
+    ("Je parle à Atlas, ouvre mon dossier", False),
+    ('"Atlas, ouvre mon dossier"', False),
+    ("Atlassement, ouvre mon dossier", False),
+    ("Atla, ouvre mon dossier", False),
+    ("", False),
+])
+def test_explicit_wake_address_requires_literal_initial_name_and_comma(heard, expected):
+    """Only a clear direct address may bypass the slower LLM intent judge."""
+    from jarvis.listening.wake_detection import is_explicit_wake_address
+
+    assert is_explicit_wake_address(heard, "atlas", ["atlasse"]) is expected
