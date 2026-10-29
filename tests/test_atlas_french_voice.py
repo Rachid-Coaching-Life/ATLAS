@@ -111,18 +111,26 @@ def test_active_tts_never_inserts_english_only_instruction(
 @pytest.mark.parametrize(
     ("original", "expected"),
     [
-        ("Bonjour, je suis ATLAS.", "Bonjour, je suis [[atlas]]."),
+        ("Bonjour, je suis ATLAS.", "Bonjour, je suis [[atlas.]]"),
         ("Bonjour, je suis Atlas !", "Bonjour, je suis [[atlas]] !"),
+        ("Je suis ATLAS, votre assistant.", "Je suis [[atlas,]] votre assistant."),
+        ("ATLAS ? Je réponds.", "[[atlas]] ? Je réponds."),
+        ("ATLAS? Je réponds.", "[[atlas?]] Je réponds."),
+        ("ATLAS! Je réponds.", "[[atlas!]] Je réponds."),
+        ("ATLAS ; votre assistant.", "[[atlas]] ; votre assistant."),
+        ("ATLAS, puis Atlas.", "[[atlas,]] puis [[atlas.]]"),
+        ("ATLAS sans pause", "[[atlas]] sans pause"),
+
         ("Atlas et ATLAS sont des noms.", "[[atlas]] et [[atlas]] sont des noms."),
         ("Un atlas géographique.", "Un atlas géographique."),
-        ("ATLASSE n'est pas ATLAS.", "ATLASSE n'est pas [[atlas]]."),
+        ("ATLASSE n'est pas ATLAS.", "ATLASSE n'est pas [[atlas.]]"),
         ("atlas, Atlasique, ATLAS-3", "atlas, Atlasique, ATLAS-3"),
         ("Déjà [[atlas]] correctement balisé.", "Déjà [[atlas]] correctement balisé."),
         ("", ""),
     ],
 )
 def test_piper_corrects_only_atlas_name_for_synthesis(original, expected):
-    """Only isolated ATLAS/Atlas uses the confirmed French Piper phonemes."""
+    """Isolated name pronunciation keeps punctuation boundaries inside raw phonemes."""
     from jarvis.output.tts import _prepare_piper_synthesis_text
 
     assert _prepare_piper_synthesis_text(original) == expected
@@ -160,6 +168,6 @@ def test_piper_phonemes_do_not_modify_request_or_echo_text(monkeypatch):
     ), patch.object(tts, "_ensure_initialized", return_value=True):
         assert tts._speak_once(request) is False
 
-    assert spoken == ["Bonjour, je suis [[atlas]]."]
+    assert spoken == ["Bonjour, je suis [[atlas.]]"]
     assert request.text == "Bonjour, je suis Atlas."
     assert tts.get_last_spoken_text() == ""
