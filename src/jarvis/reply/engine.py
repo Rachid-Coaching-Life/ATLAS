@@ -136,16 +136,16 @@ def _is_atlas_capabilities_request(query: str) -> bool:
     import unicodedata
 
     clean = unicodedata.normalize("NFC", query or "").casefold().strip()
-    clean = re.sub(r"^(?:atlas|atlasse)\\s*[,.:!?]\\s*", "", clean)
-    clean = re.sub(r"[.!?\\s]+$", "", clean).strip()
+    clean = re.sub(r"^(?:atlas|atlasse)\s*[,.:!?]\s*", "", clean)
+    clean = re.sub(r"[.!?\s]+$", "", clean).strip()
     return bool(re.fullmatch(
-        r"(?:(?:là|alors)[, ]*)?"
-        r"(?:(?:(?:tu\\s+)?peux[ -]tu|tu\\s+peux|est[ -]ce\\s+que\\s+tu\\s+peux)"
-        r"\\s+(?:me\\s+)?dire\\s+)?"
-        r"(?:(?:ce\\s+que\\s+tu\\s+peux\\s+faire)|"
-        r"(?:quelles?\\s+sont\\s+tes\\s+(?:capacités|fonctions))|"
-        r"(?:à\\s+quoi\\s+sers[ -]tu)|"
-        r"(?:que\\s+sais[ -]tu\\s+faire))",
+        r"(?:(?:là|alors)[, ]*)?(?:si\s+)?"
+        r"(?:(?:(?:tu\s+)?peux[ -]tu|tu\s+peux|est[ -]ce\s+que\s+tu\s+peux)"
+        r"\s+(?:me\s+)?dire\s+)?"
+        r"(?:(?:ce\s+que\s+tu\s+peux\s+faire)|"
+        r"(?:quelles?\s+sont\s+tes\s+(?:capacités|fonctions))|"
+        r"(?:à\s+quoi\s+sers[ -]tu)|"
+        r"(?:que\s+sais[ -]tu\s+faire))",
         clean,
     ))
 
