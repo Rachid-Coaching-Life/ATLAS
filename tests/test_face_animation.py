@@ -42,7 +42,9 @@ def scene(qapp, monkeypatch):
     scene_random = Mock(wraps=random)
     scene_random.uniform.side_effect = lambda low, high: (low + high) / 2
     monkeypatch.setattr(face_widget, 'random', scene_random)
-    window = face_widget.FaceWindow()
+    # Golden fixtures record the historical geometric mask, not the new
+    # ATLAS PNG portrait or the holographic composite desktop view.
+    window = face_widget.FaceWindow(portrait=False)
     window.show()
     qapp.processEvents()
     window.face._animation_timer.stop()
@@ -121,7 +123,7 @@ def test_motion_follows_elapsed_time_instead_of_frame_count(scene, state):
     window.close()
     clock.now = 1000.0
     manager.state = JarvisState.ASLEEP
-    second = face_widget.FaceWindow()
+    second = face_widget.FaceWindow(portrait=False)
     second.show()
     second.face._animation_timer.stop()
     try:
