@@ -151,6 +151,24 @@ def _is_atlas_capabilities_request(query: str) -> bool:
     ))
 
 
+def _is_simple_conversation_query(query: str) -> bool:
+    """Only explicit, tool-free social dialogue; never actions or knowledge requests."""
+    import unicodedata
+
+    clean = unicodedata.normalize("NFC", query or "").casefold().strip()
+    clean = re.sub(r"^(?:atlas|atlasse)\s*[,.:!?]\s*", "", clean)
+    clean = re.sub(r"[.!?\s]+$", "", clean).strip()
+    return bool(re.fullmatch(
+        r"(?:bonjour|bonsoir|salut|coucou|"
+        r"comment\s+(?:vas[ -]tu|tu\s+vas)|"
+        r"(?:ça|ca)\s+va|"
+        r"(?:de\s+quoi\s+(?:veux[ -]tu|tu\s+veux)\s+qu[’']on\s+(?:parle|discute|dise))|"
+        r"(?:on\s+peut|peut[ -]on|tu\s+peux)\s+(?:discuter|parler)(?:\s+ensemble)?|"
+        r"(?:j[’']aimerais|je\s+veux)\s+(?:discuter|parler)\s+avec\s+toi)",
+        clean,
+    ))
+
+
 def _is_atlas_self_introduction_request(query: str) -> bool:
     """Only the full, unambiguous French self-introduction request.
 
@@ -1100,6 +1118,46 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
                 dialogue_memory.add_message("assistant", reply)
             except Exception as exc:
                 debug_log(f"self-introduction memory write failed: {exc}", "memory")
+        return reply
+
+    # Everyday small talk must not run a tool router, a planner or
+    # memory enrichment. A short, bounded local-model response is enough.
+    # Explicit actions, factual questions and composite requests still use
+    # the normal agentic path, where tools and permission checks remain intact.
+    if _is_simple_conversation_query(redacted):
+        messages = [
+            {"role": "system", "content": (
+                "Tu es ATLAS, un assistant personnel local. Réponds uniquement "
+                "en français, de manière naturelle et brève (une ou deux phrases). "
+                "N'affirme jamais avoir exécuté une action ou consulté une donnée."
+            )},
+            {"role": "user", "content": redacted},
+        ]
+        try:
+            response = chat_with_messages(
+                cfg, messages, timeout_sec=18.0,
+                extra_options={"num_ctx": 2048, "max_tokens": 80},
+                tools=None, thinking=False,
+            )
+            reply = extract_text_from_response(response) if response else ""
+            reply = reply.strip() if isinstance(reply, str) else ""
+        except Exception as exc:
+            debug_log(f"simple conversation unavailable: {type(exc).__name__}", "reply")
+            reply = ""
+        if cancel_event is not None and cancel_event.is_set():
+            return None
+        if not reply:
+            reply = "Je suis là et je t'écoute. De quoi souhaites-tu discuter ?"
+        if not quiet:
+            print(f"\n🤖 ATLAS\n  {_indent_text(reply)}\n", flush=True)
+        if tts is not None and tts.enabled:
+            tts.speak(reply)
+        if dialogue_memory is not None:
+            try:
+                dialogue_memory.add_message("user", redacted)
+                dialogue_memory.add_message("assistant", reply)
+            except Exception as exc:
+                debug_log(f"simple conversation memory write failed: {exc}", "memory")
         return reply
 
     # Step 2: Check for recent dialogue context
