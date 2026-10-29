@@ -601,6 +601,25 @@ Currently, echo is handled at the transcript level via fuzzy text matching and t
 - The warning recommends a smaller supported model while preserving English-only selection, states the accuracy trade-off, and points to the Setup Wizard or Whisper settings. The smallest or an unknown model gets hardware/load guidance instead. User configuration is never changed automatically.
 - Debug diagnostics record audio duration, decode duration and the loaded model while gathering samples.
 
+## Audible startup readiness
+
+Only the voice listener announces readiness, after the input stream is
+confirmed active and both audio and transcription workers have started.
+When the configured local TTS engine is enabled, ATLAS queues the French
+message "Je suis ATLAS, à votre service." exactly once per listener start.
+Capture carries a dedicated `startup_greeting` pause reason while it plays,
+so the assistant cannot interpret its own greeting as a command. The terminal
+speech callback releases only this pause reason on success, interruption,
+cancellation or failure. Other pauses (for example dictation) stay active.
+Disabled or failed speech output does not block the listener: a French text
+ready status is printed instead. "Écoute active" is printed only after
+capture resumes; the initial stream-open status is not a promise of readiness.
+
+Visible voice request diagnostics report actual Whisper decode duration and
+reply-engine elapsed duration (including query-lock wait, planning and tools).
+These timings do not measure hardware playback delay and do not by themselves
+justify changing model or device settings.
+
 ## Shared playback tracking
 
 The listener subscribes to the local speech engine's playback events. Echo
