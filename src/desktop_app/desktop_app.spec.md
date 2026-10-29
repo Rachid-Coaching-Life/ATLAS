@@ -154,7 +154,15 @@ Window visibility is user-controlled: starting or stopping the assistant never s
 The installed desktop application uses `FaceWindow(hologram=True)` as its
 unified floating visual surface: the original transparent ATLAS portrait is
 joined to one live translucent blue/amber Qt HUD through a luminous circuit
-bridge, all inside the **same native tool window**. The panel reflects real
+bridge, all inside the **same native tool window**. The HUD is a concave,
+multi-faceted sculptural glass polygon, with genuinely transparent cut-out
+corners, prismatic translucent layers, staggered live speech cards, softly
+animated circuitry, a central emitter notch and a three-strand projection
+bridge. Its native hit region follows the polygon rather than a rectangular
+overlay. Refraction and depth are visually simulated through transparent
+Qt gradients/facets; no new 3-D or windowing dependency is introduced.
+The geometric composition and palette may evolve independently from the
+unchanged ATLAS face artwork, its widget size, screen position and mouth. The panel reflects real
 shared `JarvisState` values (asleep, idle, listening, thinking, speaking,
 dictating); the already-existing desktop `LogSignals.new_log` channel feeds
 the latest heard text and the publicly emitted ATLAS reply on the GUI thread.
