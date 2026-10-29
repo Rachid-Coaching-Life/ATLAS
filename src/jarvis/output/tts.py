@@ -385,6 +385,17 @@ def _preprocess_for_speech(text: str) -> str:
     return result
 
 
+def _prepare_piper_synthesis_text(text: str) -> str:
+    """Pronounce the proper name ATLAS with its final S in French Piper.
+
+    Piper's tested French voice recognises [[atlas]] as phonetic input.
+    Apply this only to the synthesis string, never to the speech request or
+    displayed/model text: playback observers rely on the original words
+    for echo detection. Lowercase 'atlas' (the common noun) is unchanged.
+    """
+    return re.sub(r"(?<![\w-])(?:ATLAS|Atlas)(?![\w-])", "[[atlas]]", text)
+
+
 def _call_speech_callback(callback: Callable, arguments: tuple, label: str) -> None:
     """Isolate observer failures, including cancellation of an observer's own task."""
     try:
@@ -1027,7 +1038,7 @@ class PiperTTS(_QueuedSpeech):
                 noise_w_scale=self.noise_w,
             )
             audio_chunks = []
-            for chunk in self._voice.synthesize(text, syn_config):
+            for chunk in self._voice.synthesize(_prepare_piper_synthesis_text(text), syn_config):
                 if self._should_interrupt.is_set():
                     debug_log("Piper TTS interrupted during synthesis", "tts")
                     return False
