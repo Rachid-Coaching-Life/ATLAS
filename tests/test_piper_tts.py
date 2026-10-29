@@ -397,8 +397,8 @@ class TestPiperTTSAutoDownload:
         """Default voice should be a reasonable choice."""
         from jarvis.output.tts import PIPER_DEFAULT_VOICE
 
-        # Should be British English
-        assert PIPER_DEFAULT_VOICE.startswith("en_GB")
+        # ATLAS defaults to French; the legacy English assertion was obsolete.
+        assert PIPER_DEFAULT_VOICE.startswith("fr_FR")
         # Should include quality indicator
         assert "medium" in PIPER_DEFAULT_VOICE or "high" in PIPER_DEFAULT_VOICE
 
