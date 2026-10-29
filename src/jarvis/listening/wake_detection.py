@@ -52,6 +52,22 @@ def is_standalone_wake_word(text: str, wake_word: str, aliases: List[str]) -> bo
     )
 
 
+def is_explicit_wake_address(text: str, wake_word: str, aliases: List[str]) -> bool:
+    """Recognise a literal name followed by a comma and a nonempty request.
+
+    This conservative direct-address signal bypasses a slow LLM intent check.
+    It never treats a mid-sentence mention, a fuzzy approximation, or merely
+    saying the name as a complete command.
+    """
+    candidate = unicodedata.normalize("NFC", text).lstrip()
+    pattern = _wake_name_pattern(candidate, wake_word, aliases)
+    match = pattern.match(candidate) if pattern else None
+    if match is None:
+        return False
+    remainder = candidate[match.end():]
+    return remainder.startswith(",") and bool(remainder[1:].strip())
+
+
 def is_wake_word_detected(text_lower: str, wake_word: str, aliases: List[str], fuzzy_ratio: float = 0.78) -> bool:
     """Accept whole configured names or a close primary-name token."""
     if not text_lower or not text_lower.strip():
