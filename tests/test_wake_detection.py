@@ -86,6 +86,16 @@ class TestFrenchStopDefaults:
         assert is_stop_command("arrête !", load_settings().stop_commands)
         assert is_stop_command("tais-toi !", load_settings().stop_commands)
 
+    @pytest.mark.parametrize("heard", ["arrête", "tais-toi"])
+    def test_standalone_french_stop_is_not_discarded_as_tts_echo(self, heard):
+        from jarvis.config import get_default_config
+        from jarvis.listening.wake_detection import is_stop_command_echo
+
+        # A standalone interruption control retains priority over playback echo.
+        assert not is_stop_command_echo(
+            heard, heard, get_default_config()["stop_commands"],
+        )
+
     @pytest.mark.parametrize("custom", [["pause"], []])
     def test_explicit_custom_stop_settings_remain_authoritative(
         self, custom, monkeypatch, tmp_path,
