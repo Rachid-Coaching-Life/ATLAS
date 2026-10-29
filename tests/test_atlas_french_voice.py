@@ -171,3 +171,28 @@ def test_piper_phonemes_do_not_modify_request_or_echo_text(monkeypatch):
     assert spoken == ["Bonjour, je suis [[atlas.]]"]
     assert request.text == "Bonjour, je suis Atlas."
     assert tts.get_last_spoken_text() == ""
+
+
+def test_voice_reply_engine_exception_speaks_french_error(monkeypatch, mock_config):
+    """Unexpected voice reply failure must never speak an English fallback."""
+    from jarvis.listening import listener as listening
+    from jarvis.reply import engine
+
+    spoken = []
+
+    def capture_voice(text, *, completion_callback=None, terminal_callback=None, **kwargs):
+        spoken.append((text, completion_callback))
+        if terminal_callback is not None:
+            terminal_callback("completed")
+
+    tts = SimpleNamespace(enabled=True, speak=capture_voice)
+    voice = listening.VoiceListener(None, mock_config, tts, None)
+    monkeypatch.setattr(voice, "_stop_thinking_tune", lambda: None)
+
+    def failed_reply(*args, **kwargs):
+        raise RuntimeError("Simulation de panne du modèle")
+
+    monkeypatch.setattr(engine, "run_reply_engine", failed_reply)
+    voice._dispatch_query("ATLAS, bonjour", language="fr", generation=voice._capture_generation)
+
+    assert spoken == [(engine.FRENCH_FALLBACK_REPLY, None)]
