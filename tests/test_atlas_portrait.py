@@ -147,3 +147,34 @@ def test_portrait_speaking_animation_uses_real_shared_state(qapp, monkeypatch):
         assert face._speaking < 0.2
     finally:
         face.close()
+
+
+@pytest.mark.unit
+def test_portrait_lips_follow_real_pcm_level_not_timer(qapp, monkeypatch):
+    """An active Piper timeline must close on silence and open on voiced PCM."""
+    from PyQt6.QtGui import QImage, QPainter
+    import desktop_app.face_widget as face_module
+
+    face = face_module.FaceWidget()
+    face.resize(240, 280)
+    face._speaking = 1.0
+    face._mouth_envelope = {"started_at": 123.0, "frame_ms": 40, "levels": [0, 100, 0]}
+
+    def frame():
+        canvas = QImage(240, 280, QImage.Format.Format_ARGB32_Premultiplied)
+        canvas.fill(0)
+        painter = QPainter(canvas)
+        face._paint_portrait(painter)
+        painter.end()
+        return canvas
+
+    try:
+        monkeypatch.setattr(face_module, "envelope_level", lambda data: 0.0)
+        silent_frame = frame()
+        monkeypatch.setattr(face_module, "envelope_level", lambda data: 1.0)
+        voiced_frame = frame()
+        assert silent_frame != voiced_frame
+        monkeypatch.setattr(face_module, "envelope_level", lambda data: 0.0)
+        assert frame() == silent_frame
+    finally:
+        face.close()
