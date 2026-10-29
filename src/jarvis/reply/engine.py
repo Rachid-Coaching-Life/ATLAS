@@ -1717,15 +1717,6 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
         # Add model-size-appropriate prompt components
         guidance.extend(prompts.to_list())
 
-        # A text-only reply has no speech-engine language constraint.
-        # Keep the existing English-output guard only for active TTS until
-        # multilingual voice synthesis is configured and validated.
-        tts_engine = getattr(cfg, 'tts_engine', 'piper')
-        if tts is not None and getattr(tts, 'enabled', False) and tts_engine in ('piper', 'chatterbox'):
-            guidance.append(
-                "Always respond in English regardless of the language the user speaks in."
-            )
-
         if transcript_context:
             guidance.append(transcript_context)
 
