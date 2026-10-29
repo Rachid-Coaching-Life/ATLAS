@@ -647,12 +647,19 @@ class FaceWindow(QWidget):
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
-        QTimer.singleShot(0, self._refresh_mask)
+        if self._hologram_enabled:
+            QTimer.singleShot(0, self._refresh_mask)
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         if getattr(self, "face", None) is not None:
-            QTimer.singleShot(0, self._refresh_mask)
+            if self._hologram_enabled:
+                # Composite Qt layout geometry finishes just after resize.
+                QTimer.singleShot(0, self._refresh_mask)
+            else:
+                # Preserve the prior synchronous mask semantics for the
+                # tested standalone portrait, including animation snapshots.
+                self._refresh_mask()
 
     def mousePressEvent(self, event) -> None:
         self._drag_offset = None
