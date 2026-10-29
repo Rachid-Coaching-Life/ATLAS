@@ -174,7 +174,13 @@ def test_hologram_panel_paints_gradient_with_qt_float_geometry(qapp):
         # Render the real Qt widget, not a mocked paintEvent; PyQt6 overload
         # mismatches raise only when QWidget actually paints.
         panel.render(canvas)
-        assert canvas.pixelColor(20, 20).alpha() > 0
+        # The new structure is truly nonrectangular. Its corners are
+        # transparent; the central glass has a nonzero but partial alpha.
+        assert canvas.pixelColor(2, 2).alpha() == 0
+        assert canvas.pixelColor(315, 2).alpha() == 0
+        assert 0 < canvas.pixelColor(80, 50).alpha() < 245
+        assert panel.input_region().contains(panel.rect().center())
+        assert not panel.input_region().contains(panel.rect().topLeft())
 
         bridge.resize(47, 270)
         link = QImage(bridge.size(), QImage.Format.Format_ARGB32_Premultiplied)
@@ -184,3 +190,78 @@ def test_hologram_panel_paints_gradient_with_qt_float_geometry(qapp):
     finally:
         panel.close()
         bridge.close()
+
+
+def test_sculptural_hologram_is_an_actual_cutout_not_rounded_rectangle(qapp):
+    """Prove concave emitter geometry and transparent corner hit-testing."""
+    from PyQt6.QtCore import QPoint
+    from PyQt6.QtGui import QImage
+    from desktop_app.hologram_panel import HologramPanel
+
+    panel = HologramPanel()
+    try:
+        panel.resize(375, 330)
+        shape = panel.projection_shape()
+        region = panel.input_region()
+        assert not region.isEmpty()
+        assert not region.contains(QPoint(0, 0))
+        assert not region.contains(QPoint(374, 0))
+        assert not region.contains(QPoint(0, 329))
+        assert not region.contains(QPoint(374, 329))
+        assert region.contains(QPoint(187, 160))
+        assert region.contains(QPoint(370, 164))  # emitter's central tip
+        assert not region.contains(QPoint(370, 115))  # concave right cutout
+
+        canvas = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        canvas.fill(0)
+        panel.render(canvas)
+        assert canvas.pixelColor(0, 0).alpha() == 0
+        assert canvas.pixelColor(374, 0).alpha() == 0
+        assert canvas.pixelColor(187, 160).alpha() > 0
+        assert shape.boundingRect().width() <= panel.width()
+    finally:
+        panel.close()
+
+
+def test_holographic_skin_does_not_change_robot_geometry_or_portrait(qapp):
+    """The new visual design is confined to the left-side HUD and bridge."""
+    from desktop_app.face_widget import FaceWindow
+
+    window = FaceWindow(hologram=True)
+    try:
+        portrait = window.face._portrait
+        face_rect = window.face.geometry()
+        before = portrait.toImage()
+        assert not portrait.isNull()
+        assert window.bridge.width() == 47 or window._compact
+        assert face_rect.width() == window.face.width()
+        assert face_rect.height() == window.face.height()
+        window.hologram.set_activity("listening")
+        window.ingest_log('📝 Heard: "ATLAS, bonjour"')
+        window.hologram.repaint()
+        window.bridge.repaint()
+        assert window.face.geometry() == face_rect
+        assert window.face._portrait.toImage() == before
+    finally:
+        window.close()
+
+
+def test_holographic_overlay_on_narrow_screen_remains_transparent(qapp):
+    """The same polygon and legible labels work at the minimum 210px width."""
+    from PyQt6.QtGui import QImage
+    from desktop_app.hologram_panel import HologramPanel
+
+    panel = HologramPanel()
+    try:
+        panel.resize(210, 205)
+        panel.set_activity("speaking")
+        panel.ingest_log('📝 Heard: "Présente-toi, Atlas"')
+        image = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        image.fill(0)
+        panel.render(image)
+        assert image.pixelColor(0, 0).alpha() == 0
+        assert panel.status.text() == "ATLAS VOUS RÉPOND"
+        assert panel.heard.text() == "Présente-toi, Atlas"
+        assert image.pixelColor(105, 100).alpha() > 0
+    finally:
+        panel.close()
