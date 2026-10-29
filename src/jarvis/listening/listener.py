@@ -292,7 +292,7 @@ def _print_cuda_unavailable_hint(missing_libs: list[str]) -> None:
     if missing_libs:
         print(f"     Missing: {', '.join(missing_libs)}", flush=True)
     print(
-        "  💡 For GPU acceleration, click 'Reinstall GPU libraries' in the Jarvis tray menu",
+        "  💡 For NVIDIA GPU acceleration, use 'Reinstall GPU libraries' in the ATLAS tray menu",
         flush=True,
     )
 
@@ -1961,7 +1961,7 @@ class VoiceListener(threading.Thread):
                         print("  │  4. Turn ON 'Let apps access your microphone'          │", flush=True)
                         print("  │  5. Turn ON 'Let desktop apps access your microphone'  │", flush=True)
                         print("  │                                                         │", flush=True)
-                        print("  │  Then restart Jarvis.                                  │", flush=True)
+                        print("  │  Then restart ATLAS.                                  │", flush=True)
                         print("  └─────────────────────────────────────────────────────────┘", flush=True)
                         print("", flush=True)
                     return
@@ -2472,7 +2472,7 @@ class VoiceListener(threading.Thread):
             self._consume_audio_frames(frame_ms)
         except Exception as exc:
             debug_log(f"audio-frame worker failed ({type(exc).__name__})", "voice")
-            print("  ❌ Audio-frame processing stopped. Restart Jarvis to resume listening.", flush=True)
+            print("  ❌ Audio-frame processing stopped. Restart ATLAS to resume listening.", flush=True)
             self.stop()
 
     def _finish_audio_worker(self) -> None:
