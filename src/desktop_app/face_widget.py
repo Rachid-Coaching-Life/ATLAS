@@ -493,8 +493,9 @@ class FaceWidget(QWidget):
 class FaceWindow(QWidget):
     """A standalone window showing the ATLAS portrait or legacy face."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, *, hologram: bool = False):
         super().__init__(parent)
+        self._hologram_enabled = hologram
         self.setWindowTitle("🤖 ATLAS")
         self.setMinimumSize(160, 208)
         self.resize(FaceWidget.DESIGN_WIDTH, FaceWidget.DESIGN_HEIGHT)
@@ -513,13 +514,24 @@ class FaceWindow(QWidget):
         self._tray_menu: Optional[QMenu] = None
         self._drag_offset = None
 
-        # One physical Qt window holds the portrait, projection circuitry and
-        # live HUD. No separately drifting panel or secondary renderer.
-        self.hologram = HologramPanel(self)
-        self.bridge = ProjectionBridge(self)
-        self.face = FaceWidget(self)
-        self._compact = False
-        self._configure_projection()
+        if self._hologram_enabled:
+            # The desktop chooses this single-window projected layout.
+            self.hologram = HologramPanel(self)
+            self.bridge = ProjectionBridge(self)
+            self.face = FaceWidget(self)
+            self._compact = False
+            self._configure_projection()
+        else:
+            # Retain the isolated silhouette as a tested compatibility mode.
+            layout = QVBoxLayout(self)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(0)
+            self.face = FaceWidget(self)
+            layout.addWidget(self.face)
+            if not self.face._portrait.isNull():
+                self.setMinimumSize(200, 208)
+                image = self.face._portrait
+                self.resize(max(200, round(280 * image.width() / image.height())), 280)
         self.face.state_observed.connect(self._update_presence)
         self._update_presence(self.face._state_manager.state.value)
 
@@ -574,7 +586,8 @@ class FaceWindow(QWidget):
 
     def ingest_log(self, line: str) -> None:
         """Project real daemon speech and replies via the existing Qt log bus."""
-        self.hologram.ingest_log(line)
+        if self._hologram_enabled:
+            self.hologram.ingest_log(line)
 
     def _position_on_right(self):
         """Position the window on the right side of the screen, vertically centered."""
@@ -600,17 +613,30 @@ class FaceWindow(QWidget):
     def _update_presence(self, state_value: str) -> None:
         """Keep resting states quiet and active interaction clearly visible."""
         state = JarvisState(state_value)
-        opacity = (
-            0.84 if state == JarvisState.ASLEEP
-            else 0.94 if state == JarvisState.IDLE else 1.0
-        )
+        if self._hologram_enabled:
+            opacity = (
+                0.84 if state == JarvisState.ASLEEP
+                else 0.94 if state == JarvisState.IDLE else 1.0
+            )
+        else:
+            opacity = (
+                0.45 if state == JarvisState.ASLEEP
+                else 0.72 if state == JarvisState.IDLE else 0.96
+            )
         self.setWindowOpacity(opacity)
-        self.hologram.set_activity(state_value)
-        self.bridge.set_activity(state_value)
+        if self._hologram_enabled:
+            self.hologram.set_activity(state_value)
+            self.bridge.set_activity(state_value)
 
     def _refresh_mask(self) -> None:
-        """Limit pointer interception to the combined projected silhouette."""
-        if not getattr(self, "face", None) or not getattr(self, "hologram", None):
+        """Limit pointer interception to the active visible silhouette."""
+        if not getattr(self, "face", None):
+            return
+        if not self._hologram_enabled:
+            if not self.face._portrait.isNull():
+                self.setMask(self.face.portrait_input_region(self.width(), self.height()))
+            else:
+                self.setMask(FaceWidget.input_region(self.width(), self.height()))
             return
         image_region = self.face.portrait_input_region(
             self.face.width(), self.face.height()
