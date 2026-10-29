@@ -3152,6 +3152,11 @@ class ATLASSystemTray:
         return self.app.exec()
 
 
+# Public Python compatibility: older imports and integrations still use
+# JarvisSystemTray. Keep the symbol while presenting ATLAS to the user.
+JarvisSystemTray = ATLASSystemTray
+
+
 def _ollama_runtime_flags(cfg) -> tuple[bool, bool]:
     """Decide how much of the Ollama startup flow applies given the active
     providers.
