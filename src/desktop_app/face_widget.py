@@ -474,7 +474,8 @@ class FaceWindow(QWidget):
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
-        if not self.face._portrait.isNull():
+        # Qt can deliver a resize before the child FaceWidget is constructed.
+        if getattr(self, "face", None) is not None and not self.face._portrait.isNull():
             self.setMask(self.face.portrait_input_region(self.width(), self.height()))
         else:
             self.setMask(FaceWidget.input_region(self.width(), self.height()))
