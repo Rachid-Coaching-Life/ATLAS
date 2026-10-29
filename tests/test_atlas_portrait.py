@@ -157,7 +157,9 @@ def test_portrait_lips_follow_real_pcm_level_not_timer(qapp, monkeypatch):
 
     face = face_module.FaceWidget()
     face.resize(240, 280)
+    from jarvis.activity import JarvisState
     face._speaking = 1.0
+    face._jarvis_state = JarvisState.SPEAKING
     face._mouth_envelope = {"started_at": 123.0, "frame_ms": 40, "levels": [0, 100, 0]}
 
     def frame():
@@ -176,5 +178,8 @@ def test_portrait_lips_follow_real_pcm_level_not_timer(qapp, monkeypatch):
         assert silent_frame != voiced_frame
         monkeypatch.setattr(face_module, "envelope_level", lambda data: 0.0)
         assert frame() == silent_frame
+        face._jarvis_state = JarvisState.IDLE
+        monkeypatch.setattr(face_module, "envelope_level", lambda data: 1.0)
+        assert frame() == silent_frame  # no ghost articulation after playback
     finally:
         face.close()
