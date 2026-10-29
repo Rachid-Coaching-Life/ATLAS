@@ -9,11 +9,11 @@ from __future__ import annotations
 import math
 import time
 
-from PyQt6.QtCore import QPointF, QRectF, Qt, QTimer
+from PyQt6.QtCore import QPointF, QRectF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import (
     QBrush, QColor, QFont, QLinearGradient, QPainter, QPainterPath, QPen, QRegion,
 )
-from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 
 _STATE_TEXT = {
@@ -77,14 +77,17 @@ def _facet(points: tuple[tuple[float, float], ...], w: float, h: float) -> QPain
 class HologramPanel(QWidget):
     """One nonrectangular glass projection, with real activity and speech data."""
 
+    voice_command_requested = pyqtSignal()
+    exchange_view_requested = pyqtSignal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("atlas_hologram")
         self.setMinimumWidth(210)
         self.setMinimumHeight(190)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        # Let the parent FaceWindow handle drag and context-menu gestures.
-        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        # Unhandled pointer events bubble up to FaceWindow for drag and menu.
+        # The two real control buttons must receive mouse events themselves.
         self._state = "asleep"
         self._phase_origin = time.monotonic()
         self._revealed_at = None
@@ -118,10 +121,29 @@ class HologramPanel(QWidget):
         self._outer.addWidget(self.reply, 1)
 
         self._outer.addStretch(1)
+        self.controls = QHBoxLayout()
+        self.controls.setContentsMargins(0, 0, 0, 0)
+        self.controls.setSpacing(7)
+        self.voice_button = self._control_button("ACTIVER VOIX", "atlas_hud_voice")
+        self.voice_button.setAccessibleName("Commande d’activation vocale")
+        self.voice_button.clicked.connect(
+            lambda _checked=False: self.voice_command_requested.emit()
+        )
+        self.controls.addWidget(self.voice_button, 1)
+        self.exchanges_button = self._control_button("ÉCHANGES", "atlas_hud_exchanges")
+        self.exchanges_button.setAccessibleName("Afficher tous les échanges")
+        self.exchanges_button.setToolTip("Ouvrir la conversation ATLAS")
+        self.exchanges_button.clicked.connect(
+            lambda _checked=False: self.exchange_view_requested.emit()
+        )
+        self.controls.addWidget(self.exchanges_button, 1)
+        self._outer.addLayout(self.controls)
+
         self.footer = QLabel("◉  AUDIO LOCAL  ·  ASSISTANT PERSONNEL")
         self.footer.setObjectName("atlas_hud_footer")
         self.footer.setStyleSheet("color: #a0c5d5; font-size: 9px;")
         self._outer.addWidget(self.footer)
+        self.set_voice_control(running=False)
 
         self._timer = QTimer(self)
         self._timer.setInterval(85)
@@ -132,6 +154,27 @@ class HologramPanel(QWidget):
         label = QLabel(value)
         label.setStyleSheet("color: #80c6df; font-size: 9px; letter-spacing: 1px;")
         layout.addWidget(label)
+
+    @staticmethod
+    def _control_button(text: str, name: str) -> QPushButton:
+        button = QPushButton(text)
+        button.setObjectName(name)
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
+        button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        button.setMinimumWidth(0)
+        button.setFixedHeight(22)
+        button.setStyleSheet(
+            "QPushButton { color: #a7eaff; font: bold 9px 'Segoe UI';"
+            " background: rgba(4, 46, 72, 105); border: 0;"
+            " border-bottom: 1px solid #4bbee1; padding: 2px 3px; }"
+            "QPushButton:hover { color: #ffffff;"
+            " background: rgba(24, 100, 132, 150); }"
+            "QPushButton:pressed { color: #ffbb75; }"
+            "QPushButton:disabled { color: #7d9ead;"
+            " border-bottom: 1px solid #637a88;"
+            " background: rgba(4, 30, 45, 75); }"
+        )
+        return button
 
     @staticmethod
     def _message(value):
@@ -152,7 +195,9 @@ class HologramPanel(QWidget):
             29 if compact else 35, 18 if compact else 25,
             24 if compact else 30, 16 if compact else 24,
         )
-        self._outer.setSpacing(3 if compact else 7)
+        self._outer.setSpacing(2 if compact else 7)
+        self.footer.setVisible(not compact)
+        self.controls.setSpacing(3 if compact else 7)
         font = self.heading.font()
         font.setPointSize(8 if compact else 10)
         self.heading.setFont(font)
@@ -161,6 +206,39 @@ class HologramPanel(QWidget):
         self.status.setFont(font)
         for text in (self.heard, self.reply):
             text.setMaximumHeight(39 if compact else 65)
+
+    def set_voice_control(
+        self, *, running: bool, paused: bool | None = False,
+        pending: bool = False, available: bool = True,
+    ) -> None:
+        """Reflect confirmed daemon state, never optimistically claim success."""
+        if not available:
+            caption, hint, enabled = (
+                "VOIX INDISP.", "Commande vocale momentanément indisponible", False
+            )
+        elif pending:
+            caption, hint, enabled = (
+                "VOIX EN COURS", "Changement de l’écoute vocale en cours", False
+            )
+        elif not running:
+            caption, hint, enabled = (
+                "ACTIVER VOIX", "Démarrer l’assistant vocal ATLAS", True
+            )
+        elif paused is None:
+            caption, hint, enabled = (
+                "VOIX INCONNUE", "État vocal non confirmé, réessayer", True
+            )
+        elif paused:
+            caption, hint, enabled = (
+                "REPRENDRE VOIX", "Reprendre l’écoute vocale", True
+            )
+        else:
+            caption, hint, enabled = (
+                "SUSPENDRE VOIX", "Suspendre l’écoute sans fermer le chat", True
+            )
+        self.voice_button.setText(caption)
+        self.voice_button.setToolTip(hint)
+        self.voice_button.setEnabled(enabled)
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -185,8 +263,8 @@ class HologramPanel(QWidget):
             return
         for part in line.splitlines():
             stripped = part.strip()
-            if stripped.startswith("📝 Heard:"):
-                heard = stripped.split("Heard:", 1)[1].strip().strip('"')
+            if stripped.startswith(("📝 Heard:", "⌨️ Typed:")):
+                heard = stripped.split(":", 1)[1].strip().strip('"')
                 if heard:
                     self.heard.setText(heard[:230])
                 self._await_reply_line = False
