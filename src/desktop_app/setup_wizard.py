@@ -1,5 +1,5 @@
 """
-Jarvis Setup Wizard
+ATLAS Setup Wizard
 
 A setup wizard that checks for Ollama installation, running server, and required models.
 Guides users through the setup process with automated actions where possible.
@@ -544,7 +544,7 @@ class SetupWizard(QWizard):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("🚀 Jarvis Setup Wizard")
+        self.setWindowTitle("🚀 ATLAS Setup Wizard")
         self.setWizardStyle(QWizard.WizardStyle.ModernStyle)
         available = self.screen().availableGeometry()
         self.setMinimumSize(min(700, available.width() - 40),
@@ -589,7 +589,7 @@ class SetupWizard(QWizard):
         # Custom button labels
         self.setButtonText(QWizard.WizardButton.NextButton, "Next →")
         self.setButtonText(QWizard.WizardButton.BackButton, "← Back")
-        self.setButtonText(QWizard.WizardButton.FinishButton, "🎉 Start Jarvis")
+        self.setButtonText(QWizard.WizardButton.FinishButton, "🎉 Start ATLAS")
         self.setButtonText(QWizard.WizardButton.CancelButton, "Exit")
         self.setButtonLayout([
             QWizard.WizardButton.CancelButton, QWizard.WizardButton.Stretch,
@@ -636,7 +636,7 @@ class SetupWizard(QWizard):
         return self._location_working
 
     def _apply_theme(self):
-        """Apply the shared Jarvis theme with SVG indicator icons."""
+        """Apply the shared ATLAS theme with SVG indicator icons."""
         icons = _ensure_icons()
         icon_css = _ICON_STYLESHEET_TEMPLATE.format(**icons)
         self.setStyleSheet(JARVIS_THEME_STYLESHEET + icon_css + """
@@ -698,7 +698,7 @@ class WelcomePage(ScrollableWizardPage):
         # Header
         header_layout = QVBoxLayout()
 
-        title = QLabel("Welcome to your Jarvis")
+        title = QLabel("Welcome to your ATLAS")
         title.setObjectName("title")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         header_layout.addWidget(title)
@@ -924,7 +924,7 @@ class ProviderChoicePage(ScrollableWizardPage):
         layout.addWidget(title)
 
         subtitle = QLabel(
-            "Two ways to run Jarvis. Your models stay on hardware you control."
+            "Two ways to run ATLAS. Your models stay on hardware you control."
         )
         subtitle.setObjectName("subtitle")
         subtitle.setWordWrap(True)
@@ -955,7 +955,7 @@ class ProviderChoicePage(ScrollableWizardPage):
         self._button_group.addButton(self._openai_radio)
         openai_card = self._provider_card(
             self._openai_radio,
-            "Point Jarvis at a server that speaks the OpenAI API. This is "
+            "Point ATLAS at a server that speaks the OpenAI API. This is "
             "usually another local app (LM Studio, oMLX, llama.cpp, vLLM, "
             "LocalAI) running on your own machine or network. You provide its "
             "URL and model name on the next step.",
@@ -1150,7 +1150,7 @@ class OpenAICompatiblePage(ScrollableWizardPage):
         layout.addWidget(title)
 
         subtitle = QLabel(
-            "Choose your local server, then select the models Jarvis will use."
+            "Choose your local server, then select the models ATLAS will use."
         )
         subtitle.setObjectName("subtitle")
         subtitle.setWordWrap(True)
@@ -1804,7 +1804,7 @@ class OllamaInstallPage(ScrollableWizardPage):
         title.setObjectName("title")
         layout.addWidget(title)
 
-        subtitle = QLabel("Ollama is required to run local AI models for Jarvis.")
+        subtitle = QLabel("Ollama is required to run local AI models for ATLAS.")
         subtitle.setObjectName("subtitle")
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
@@ -1947,7 +1947,7 @@ class OllamaServerPage(ScrollableWizardPage):
         title.setObjectName("title")
         layout.addWidget(title)
 
-        subtitle = QLabel("The Ollama server needs to be running for Jarvis to use AI models.")
+        subtitle = QLabel("The Ollama server needs to be running for ATLAS to use AI models.")
         subtitle.setObjectName("subtitle")
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
@@ -2029,7 +2029,7 @@ class OllamaServerPage(ScrollableWizardPage):
                 ollama_path = wizard.ollama_status.cli_path
 
             # Note: We intentionally detach the Ollama server process so it keeps
-            # running after Jarvis exits. Ollama is a system service that should
+            # running after ATLAS exits. Ollama is a system service that should
             # persist. The serve command is idempotent - it won't spawn duplicates.
             if sys.platform == "darwin":
                 # On macOS, try to open the Ollama app first
@@ -2170,7 +2170,7 @@ class ModelsPage(ScrollableWizardPage):
         layout.addWidget(title)
 
         subtitle = QLabel(
-            "Jarvis needs a chat model (conversations) and a fast model "
+            "ATLAS needs a chat model (conversations) and a fast model "
             "(voice intent, tool routing). Pick them separately for "
             "best VRAM usage."
         )
@@ -2572,7 +2572,7 @@ class ModelsPage(ScrollableWizardPage):
 
     def _skip_models(self):
         self._is_complete = True
-        self.status_label.setText("Skipped model installation. Jarvis may not work correctly.")
+        self.status_label.setText("Skipped model installation. ATLAS may not work correctly.")
         self.status_label.setStyleSheet("color: #fbbf24;")
         self.completeChanged.emit()
 
@@ -2646,12 +2646,12 @@ class WhisperSetupPage(ScrollableWizardPage):
 
         # Header - different text based on platform
         if self._is_apple_silicon:
-            title = QLabel("Let Jarvis hear you")
+            title = QLabel("Let ATLAS hear you")
             subtitle_text = (
                 "GPU-accelerated speech recognition. Choose language and model size."
             )
         else:
-            title = QLabel("Let Jarvis hear you")
+            title = QLabel("Let ATLAS hear you")
             subtitle_text = "Choose language mode and model size for speech recognition."
 
         title.setObjectName("title")
@@ -3273,11 +3273,11 @@ class LocationPage(ScrollableWizardPage):
         layout.setContentsMargins(28, 20, 28, 20)
 
         # Header
-        title = QLabel("Make Jarvis feel at home")
+        title = QLabel("Make ATLAS feel at home")
         title.setObjectName("title")
         layout.addWidget(title)
 
-        subtitle = QLabel("Location helps Jarvis provide weather, local services, and time-aware responses.")
+        subtitle = QLabel("Location helps ATLAS provide weather, local services, and time-aware responses.")
         subtitle.setObjectName("subtitle")
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
@@ -3731,12 +3731,12 @@ class MCPPage(ScrollableWizardPage):
         layout.setContentsMargins(28, 20, 28, 20)
 
         # Header
-        title = QLabel("Give Jarvis more abilities")
+        title = QLabel("Give ATLAS more abilities")
         title.setObjectName("title")
         layout.addWidget(title)
 
         subtitle = QLabel(
-            "MCP (Model Context Protocol) servers give Jarvis extra abilities. "
+            "MCP (Model Context Protocol) servers give ATLAS extra abilities. "
             "Select any you'd like to enable — you can always change these later in Settings."
         )
         subtitle.setObjectName("subtitle")
@@ -3749,7 +3749,7 @@ class MCPPage(ScrollableWizardPage):
         self._node_warning = QLabel(
             "⚠️  <b>Node.js not found.</b> The MCP servers below require Node.js to run. "
             "<a href='https://nodejs.org/' style='color: #f59e0b;'>Download Node.js</a> "
-            "and restart Jarvis, or skip this page for now."
+            "and restart ATLAS, or skip this page for now."
         )
         self._node_warning.setOpenExternalLinks(True)
         self._node_warning.setWordWrap(True)
@@ -3882,7 +3882,7 @@ class SearchProvidersPage(ScrollableWizardPage):
     Ordering mirrors the runtime fallback chain: DDG → Brave → Wikipedia →
     honest "blocked" envelope. The page is always shown (even when nothing
     needs configuring) because the explainer itself is the point — users
-    should understand what Jarvis will and won't reach over the network
+    should understand what ATLAS will and won't reach over the network
     before they start using it.
     """
 
@@ -3899,7 +3899,7 @@ class SearchProvidersPage(ScrollableWizardPage):
         layout.addWidget(title)
 
         subtitle = QLabel(
-            "Jarvis uses DuckDuckGo for web search. When DuckDuckGo blocks a "
+            "ATLAS uses DuckDuckGo for web search. When DuckDuckGo blocks a "
             "request or has nothing useful, these optional fallbacks keep "
             "answers flowing — all off by default except Wikipedia."
         )
@@ -3967,7 +3967,7 @@ class SearchProvidersPage(ScrollableWizardPage):
         layout.addWidget(wiki_card)
 
         tip = QLabel(
-            "💡  When every provider fails, Jarvis tells you the search was "
+            "💡  When every provider fails, ATLAS tells you the search was "
             "blocked rather than making something up."
         )
         tip.setWordWrap(True)
@@ -4062,12 +4062,12 @@ class CompletePage(ScrollableWizardPage):
         layout.addWidget(success_icon)
 
         # Header
-        title = QLabel("Meet your Jarvis")
+        title = QLabel("Meet your ATLAS")
         title.setObjectName("title")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
-        subtitle = QLabel("Jarvis is ready to use. Click 'Start Jarvis' to launch the voice assistant.")
+        subtitle = QLabel("ATLAS is ready to use. Click 'Start ATLAS' to launch the voice assistant.")
         subtitle.setObjectName("subtitle")
         subtitle.setWordWrap(True)
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -4088,9 +4088,9 @@ class CompletePage(ScrollableWizardPage):
         card_layout.addSpacing(8)
 
         tips = QLabel(
-            "• Say your wake word (e.g. 'Jarvis') anywhere in your sentence to activate the assistant\n"
-            "• After Jarvis replies, speak your follow-up — no need to repeat the wake word\n"
-            "• Jarvis will appear in your system tray (menu bar on macOS)\n"
+            "• Say your wake word (e.g. 'ATLAS') anywhere in your sentence to activate the assistant\n"
+            "• After ATLAS replies, speak your follow-up — no need to repeat the wake word\n"
+            "• ATLAS will appear in your system tray (menu bar on macOS)\n"
             "• Right-click the tray icon to access settings and controls\n"
             "• View logs by clicking '📝 View Logs' in the tray menu"
         )
@@ -4099,7 +4099,7 @@ class CompletePage(ScrollableWizardPage):
         card_layout.addWidget(tips)
 
         # Memory viewer tip with special styling
-        brain_tip = QLabel("🧠  Peek inside Jarvis's brain — open the Memory Viewer to see what he remembers")
+        brain_tip = QLabel("🧠  Peek inside ATLAS's brain — open the Memory Viewer to see what he remembers")
         brain_tip.setWordWrap(True)
         brain_tip.setStyleSheet("""
             background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
