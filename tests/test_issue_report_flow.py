@@ -76,7 +76,7 @@ def test_long_unicode_report_is_copied_without_losing_details(qapp, monkeypatch)
     dialog.review_button.click()
     dialog.copy_button.click()
     body = qapp.clipboard().text()
-    assert 'Copy' in dialog.open_button.text()
+    assert 'Copier' in dialog.open_button.text()
     dialog.review_button.click()
     dialog.open_button.click()
     assert qapp.clipboard().text() == body
@@ -94,7 +94,7 @@ def test_browser_failure_retains_report_and_reports_failure(qapp, monkeypatch):
     dialog.open_button.click()
     assert dialog.result() != QDialog.DialogCode.Accepted
     assert dialog.preview.toPlainText() == body
-    assert 'browser' in dialog.status.text().lower()
+    assert 'navigateur' in dialog.status.text().lower()
     dialog.close()
 
 
@@ -301,3 +301,17 @@ def test_url_credentials_are_scrubbed_from_review_copy_and_browser(qapp, monkeyp
     assert 'alice' not in query['title'][0] and 'short' not in query['title'][0]
     qapp.clipboard().clear()
     dialog.close()
+
+
+def test_atlas_issue_dialog_is_french_and_targets_the_atlas_repository(qapp, monkeypatch):
+    from desktop_app.issue_report import _ISSUE_URL
+    dialog = report_dialog(qapp, monkeypatch)
+    try:
+        assert "ATLAS" in dialog.windowTitle()
+        assert "Jarvis" not in dialog.expected_input.placeholderText()
+        assert "ATLAS" in dialog.expected_input.placeholderText()
+        assert "s'est" in dialog.problem_input.placeholderText() or "faisiez-vous" in dialog.problem_input.placeholderText()
+        assert _ISSUE_URL == "https://github.com/Rachid-Coaching-Life/ATLAS/issues/new"
+        assert "ATLAS version:" in dialog._diagnostics_text()
+    finally:
+        dialog.close()
