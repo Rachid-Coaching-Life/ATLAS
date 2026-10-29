@@ -34,6 +34,8 @@ class HologramPanel(QWidget):
         self.setMinimumWidth(210)
         self.setMinimumHeight(190)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        # The entire floating ATLAS projection is draggable from its parent.
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self._state = "asleep"
         self._phase_origin = time.monotonic()
         self._await_reply_line = False
