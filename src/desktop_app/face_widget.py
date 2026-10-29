@@ -47,12 +47,17 @@ class FaceWidget(QWidget):
     PRIMARY_COLOUR = QColor(COLORS["accent_secondary"])
     INK_COLOUR = QColor(COLORS["bg_primary"])
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, *, portrait: bool = True):
         super().__init__(parent)
         self.setMinimumSize(160, 208)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self._portrait = QPixmap(str(Path(__file__).resolve().parent / "desktop_assets" / "atlas_portrait.png"))
+        # The installed ATLAS portrait is the production default. The original
+        # geometric fallback remains independently testable using portrait=False.
+        self._portrait = (
+            QPixmap(str(Path(__file__).resolve().parent / "desktop_assets" / "atlas_portrait.png"))
+            if portrait else QPixmap()
+        )
         self._state_manager = get_jarvis_state()
         self._jarvis_state = JarvisState.ASLEEP
         self._expression = Expression.NEUTRAL
@@ -493,7 +498,8 @@ class FaceWidget(QWidget):
 class FaceWindow(QWidget):
     """A standalone window showing the ATLAS portrait or legacy face."""
 
-    def __init__(self, parent=None, *, hologram: bool = False):
+    def __init__(self, parent=None, *, hologram: bool = False,
+                 portrait: bool = True):
         super().__init__(parent)
         self._hologram_enabled = hologram
         self.setWindowTitle("🤖 ATLAS")
@@ -520,7 +526,7 @@ class FaceWindow(QWidget):
             # The desktop chooses this single-window projected layout.
             self.hologram = HologramPanel(self)
             self.bridge = ProjectionBridge(self)
-            self.face = FaceWidget(self)
+            self.face = FaceWidget(self, portrait=portrait)
             self._compact = False
             self._configure_projection()
         else:
@@ -528,7 +534,7 @@ class FaceWindow(QWidget):
             layout = QVBoxLayout(self)
             layout.setContentsMargins(0, 0, 0, 0)
             layout.setSpacing(0)
-            self.face = FaceWidget(self)
+            self.face = FaceWidget(self, portrait=portrait)
             layout.addWidget(self.face)
             if not self.face._portrait.isNull():
                 self.setMinimumSize(200, 208)
