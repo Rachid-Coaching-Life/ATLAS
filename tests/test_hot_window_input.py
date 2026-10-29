@@ -1584,3 +1584,60 @@ def test_hot_window_does_not_collect_an_earlier_tts_fragment_as_new_query(heard)
         assert _accepted_query(listener) == heard, 'The decision replaced heard speech with earlier TTS'
     finally:
         listener.state_manager.stop()
+
+
+@pytest.mark.unit
+class TestStandaloneWakeWordWithoutLLM:
+    """A clear standalone name arms capture without blocking on the judge."""
+
+    @pytest.mark.parametrize("name", ["Atlas", "ATLAS.", "atlas ?", "Atlas !"])
+    def test_name_then_request_keeps_followup_audio_and_skips_judge(self, name):
+        listener, _ = _create_listener()
+        listener.cfg.wake_word = "atlas"
+        judge = _install_intent_judge(listener, _make_judgment(directed=False))
+        start_generation = listener._capture_generation
+        captured_audio = object()
+        listener._audio_q.put_nowait(captured_audio)
+
+        _process_transcript(listener, name, utterance_energy=0.01)
+
+        judge.judge.assert_not_called()
+        assert listener.state_manager.is_collecting()
+        assert listener.state_manager.get_pending_query() == ""
+        assert listener._capture_generation == start_generation
+        assert listener._audio_q.get_nowait() is captured_audio
+
+        _process_transcript(
+            listener, "Tu peux te présenter en français ?", utterance_energy=0.01,
+        )
+        assert listener.state_manager.get_pending_query() == (
+            "Tu peux te présenter en français ?"
+        )
+        judge.judge.assert_not_called()
+
+    def test_name_alone_expires_without_sending_empty_request(self):
+        listener, _ = _create_listener()
+        listener.cfg.wake_word = "atlas"
+        listener._dispatch_query = MagicMock()
+        _process_transcript(listener, "Atlas.", utterance_energy=0.01)
+        assert listener.state_manager.is_collecting()
+        listener.state_manager._last_voice_time -= 10.0
+
+        listener._check_query_timeout()
+
+        listener._dispatch_query.assert_not_called()
+        assert not listener.state_manager.is_collecting()
+
+    def test_wake_plus_full_request_still_uses_judge(self):
+        listener, _ = _create_listener()
+        listener.cfg.wake_word = "atlas"
+        judge = _install_intent_judge(
+            listener, _make_judgment(directed=False, confidence="high"),
+        )
+
+        _process_transcript(
+            listener, "Atlas, explique-moi la météo.", utterance_energy=0.01,
+        )
+
+        judge.judge.assert_called_once()
+        assert not listener.state_manager.is_collecting()
