@@ -646,7 +646,7 @@ def get_default_config() -> Dict[str, Any]:
         "planner_timeout_sec": 3.0,
 
         # Stop Commands
-        "stop_commands": ["stop", "quiet", "shush", "silence", "enough", "shut up"],
+        "stop_commands": ["stop", "quiet", "shush", "silence", "enough", "shut up", "arrête", "tais-toi"],
         "stop_command_fuzzy_ratio": 0.8,
 
         # Location Services
