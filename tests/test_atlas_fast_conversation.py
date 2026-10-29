@@ -42,7 +42,7 @@ def test_simple_chat_skips_preparations_and_caps_generation(capsys):
          patch.object(engine, "extract_search_params_for_memory", side_effect=AssertionError("memory")):
         result = engine.run_reply_engine(
             db=object(), cfg=SimpleNamespace(llm_chat_model="qwen3.5:0.8b"),
-            tts=voice, text="De quoi veux-tu qu'on dise ?", dialogue_memory=memory,
+            tts=voice, text="Je veux discuter avec toi.", dialogue_memory=memory,
         )
 
     assert result == "Parlons de ce qui t'intéresse !"
@@ -88,3 +88,16 @@ def test_simple_chat_cancellation_has_no_voice_or_memory():
     assert result is None
     voice.speak.assert_not_called()
     memory.add_message.assert_not_called()
+
+
+def test_invitation_to_talk_answers_immediately_without_llm_or_tools():
+    voice = SimpleNamespace(enabled=True, speak=MagicMock())
+    with patch.object(engine, "chat_with_messages", side_effect=AssertionError("model")), \
+         patch.object(engine, "select_tools", side_effect=AssertionError("router")), \
+         patch.object(engine, "plan_query", side_effect=AssertionError("planner")):
+        result = engine.run_reply_engine(
+            db=object(), cfg=SimpleNamespace(), tts=voice,
+            text="Atlas, de quoi veux-tu qu'on dise ?", dialogue_memory=None,
+        )
+    assert "De quoi as-tu envie de parler" in result
+    voice.speak.assert_called_once_with(result)
