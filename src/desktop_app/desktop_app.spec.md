@@ -165,9 +165,14 @@ The geometric composition and palette may evolve independently from the
 unchanged ATLAS face artwork, its widget size, screen position and mouth. The panel reflects real
 shared `JarvisState` values (asleep, idle, listening, thinking, speaking,
 dictating); the already-existing desktop `LogSignals.new_log` channel feeds
-the latest heard text and the publicly emitted ATLAS reply on the GUI thread.
-The output labels are plain text, not interpreted as HTML. This is a display
-for existing speech events, not a new command-execution path.
+the latest spoken or typed request and the publicly emitted ATLAS reply on the
+GUI thread. The output labels are plain text, not interpreted as HTML.
+Two native Qt controls sit within the projected glass: a voice action
+(start, pause or resume, displaying the confirmed state or a pending/unknown
+state) and an Exchanges action that opens the shared Chat window. Both reuse
+existing tray and daemon controls without introducing a command-execution
+path. The remaining projected glass still forwards unhandled pointer events
+to the unified window for drag and context-menu gestures.
 
 On wide screens the panel is immediately left of the portrait. Below 740
 logical screen pixels it stacks beneath the portrait with a vertical circuit
