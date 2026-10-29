@@ -106,3 +106,60 @@ def test_active_tts_never_inserts_english_only_instruction(
     assert system_messages
     assert all("Always answer in French" in prompt for prompt in system_messages)
     assert all("Always respond in English" not in prompt for prompt in system_messages)
+
+
+@pytest.mark.parametrize(
+    ("original", "expected"),
+    [
+        ("Bonjour, je suis ATLAS.", "Bonjour, je suis [[atlas]]."),
+        ("Bonjour, je suis Atlas !", "Bonjour, je suis [[atlas]] !"),
+        ("Atlas et ATLAS sont des noms.", "[[atlas]] et [[atlas]] sont des noms."),
+        ("Un atlas géographique.", "Un atlas géographique."),
+        ("ATLASSE n'est pas ATLAS.", "ATLASSE n'est pas [[atlas]]."),
+        ("atlas, Atlasique, ATLAS-3", "atlas, Atlasique, ATLAS-3"),
+        ("Déjà [[atlas]] correctement balisé.", "Déjà [[atlas]] correctement balisé."),
+        ("", ""),
+    ],
+)
+def test_piper_corrects_only_atlas_name_for_synthesis(original, expected):
+    """Only isolated ATLAS/Atlas uses the confirmed French Piper phonemes."""
+    from jarvis.output.tts import _prepare_piper_synthesis_text
+
+    assert _prepare_piper_synthesis_text(original) == expected
+
+
+def test_piper_phonemes_do_not_modify_request_or_echo_text(monkeypatch):
+    """Piper hears phonemes, while the speech request keeps the visible name."""
+    import sys
+    from types import ModuleType, SimpleNamespace
+
+    from jarvis.output.tts import PiperTTS
+
+    tts = PiperTTS(enabled=True)
+    spoken = []
+    request = SimpleNamespace(text="Bonjour, je suis Atlas.", abandoned=False)
+
+    def capture_synthesis(text, config):
+        spoken.append(text)
+        raise RuntimeError("Expected synthetic stop before audio playback")
+
+    fake_piper = ModuleType("piper")
+    fake_piper.__path__ = []
+    fake_config = ModuleType("piper.config")
+    fake_config.SynthesisConfig = lambda **kwargs: SimpleNamespace(**kwargs)
+    fake_sounddevice = ModuleType("sounddevice")
+    tts._voice = SimpleNamespace(synthesize=capture_synthesis)
+
+    with patch.dict(
+        sys.modules,
+        {
+            "piper": fake_piper,
+            "piper.config": fake_config,
+            "sounddevice": fake_sounddevice,
+        },
+    ), patch.object(tts, "_ensure_initialized", return_value=True):
+        assert tts._speak_once(request) is False
+
+    assert spoken == ["Bonjour, je suis [[atlas]]."]
+    assert request.text == "Bonjour, je suis Atlas."
+    assert tts.get_last_spoken_text() == ""
