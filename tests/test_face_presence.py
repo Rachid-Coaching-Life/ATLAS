@@ -15,7 +15,10 @@ def face(qapp, monkeypatch, tmp_path):
     from jarvis import activity
     monkeypatch.setattr(activity, '_get_jarvis_state_file', lambda: str(tmp_path / 'state'))
     monkeypatch.setattr(activity, '_jarvis_state_instance', None)
-    window = face_widget.FaceWindow()
+    # This suite asserts the original transparent *geometric* silhouette.
+    # Production keeps the ATLAS PNG portrait; explicitly select the
+    # fallback rather than re-recording legacy golden image fixtures.
+    window = face_widget.FaceWindow(portrait=False)
     window.show()
     qapp.processEvents()
     window.face._animation_timer.stop()
@@ -51,7 +54,7 @@ def test_context_menu_can_hide_and_tray_can_show_the_face(face, qapp):
     face.contextMenuEvent(event)
     qapp.processEvents()
     menu = next(menu for menu in face.findChildren(QMenu) if menu.isVisible())
-    action = next(action for action in menu.actions() if 'hide' in action.text().lower())
+    action = next(action for action in menu.actions() if 'Masquer ATLAS' in action.text())
     action.trigger()
     menu.close()
     assert not face.isVisible()
