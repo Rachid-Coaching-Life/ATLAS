@@ -50,7 +50,7 @@ def test_face_window_owns_panel_bridge_and_face(qapp):
     from PyQt6.QtCore import QPoint
     from desktop_app.face_widget import FaceWindow
 
-    window = FaceWindow()
+    window = FaceWindow(hologram=True)
     try:
         window.show()
         qapp.processEvents()
@@ -73,7 +73,7 @@ def test_screen_geometry_keeps_projected_interface_onscreen(qapp):
     for width, height in ((1920, 1080), (800, 600), (600, 900)):
         screen = SimpleNamespace(availableGeometry=lambda w=width, h=height: QRect(0, 0, w, h))
         with patch("desktop_app.face_widget.QApplication.primaryScreen", return_value=screen):
-            window = FaceWindow()
+            window = FaceWindow(hologram=True)
         try:
             assert window.width() <= width
             assert window.height() <= height
