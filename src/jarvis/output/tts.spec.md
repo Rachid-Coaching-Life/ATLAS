@@ -72,6 +72,16 @@ missing files from the official pinned voice catalogue. An explicitly
 configured Piper model path always takes precedence over this default.
 No existing downloaded model or saved user setting is deleted or changed.
 
+## Proper-name phonetics for French Piper
+
+The original conversational text and saved speech requests retain the literal
+name `ATLAS` (also `Atlas`). Only when the Piper synthesizer is called, an
+isolated proper-name occurrence uses the user-verified `[[atlas]]` phonetic
+sequence, which preserves its pronounced final S. The ordinary lowercase
+`atlas` and larger words remain unchanged. The phonetic representation is not
+placed in model responses, saved conversation, playback observer references,
+or echo-detection text. Other TTS engines are unchanged.
+
 ## Piper voice downloads
 
 Missing voice files are downloaded from the configured public model-file source.
