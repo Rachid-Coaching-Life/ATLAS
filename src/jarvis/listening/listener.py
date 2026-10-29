@@ -2395,6 +2395,7 @@ class VoiceListener(threading.Thread):
                 pass
 
             self._start_audio_worker(frame_ms)
+            self._announce_voice_ready()
             while not self._should_stop:
                 self.apply_capture_pause_reset()
                 if self.capture_paused:
@@ -2413,6 +2414,41 @@ class VoiceListener(threading.Thread):
                     self._handle_transcription_result(result)
                 if not self._should_stop and not self.capture_paused:
                     self._check_query_timeout()
+
+    def _announce_voice_ready(self) -> None:
+        """Speak once after microphone capture is active, without self-triggering.
+
+        The brief startup greeting is deliberately excluded from transcription.
+        Resume user capture on every TTS terminal outcome, including failures.
+        """
+        if self._should_stop:
+            return
+
+        def _ready(outcome: str = "completed") -> None:
+            self.set_capture_paused("startup_greeting", False)
+            if self._should_stop:
+                return
+            if self.capture_paused:
+                print("  🎙️ ATLAS prêt ; écoute temporairement suspendue", flush=True)
+            else:
+                print("  🎙️ ATLAS prêt : écoute active", flush=True)
+            if outcome != "completed":
+                debug_log(f"startup greeting not spoken ({outcome})", "voice")
+
+        if self.tts is None or not self.tts.enabled:
+            _ready("disabled")
+            return
+
+        self.set_capture_paused("startup_greeting", True)
+        try:
+            print("  🔊 ATLAS : annonce de disponibilité...", flush=True)
+            self.tts.speak(
+                "Je suis ATLAS, à votre service.",
+                terminal_callback=_ready,
+            )
+        except Exception as exc:
+            debug_log(f"startup greeting failed: {type(exc).__name__}", "voice")
+            _ready("failed")
 
     def _start_audio_worker(self, frame_ms: int) -> None:
         if self._should_stop or self._audio_worker_thread is not None:
