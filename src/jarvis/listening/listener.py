@@ -26,7 +26,7 @@ from .state_manager import StateManager, ListeningState
 from ..utils.audio_lock import portaudio_lock
 from ..utils.audio_capture import mono_capture, open_input_stream, resolve_input_device
 from .wake_detection import (is_wake_word_detected, is_standalone_wake_word,
-                             is_stop_command, is_stop_command_echo)
+                             is_explicit_wake_address, is_stop_command, is_stop_command_echo)
 from .transcript_buffer import TranscriptBuffer
 from .intent_judge import (
     IntentJudge,
@@ -902,6 +902,29 @@ class VoiceListener(threading.Thread):
             self.state_manager.start_collection("", language=language)
             self._stop_thinking_tune()
             debug_log("standalone wake: waiting for command without LLM judge", "voice")
+            return
+
+        # A literal name plus comma at the beginning of a complete request
+        # is an explicit address. Do not spend up to six seconds asking the
+        # LLM whether the user is talking to the assistant. Keep all captured
+        # audio and the capture generation: Whisper may have queued a
+        # continuation while this segment was being processed.
+        # Mentions of the name elsewhere still go to the intent judge.
+        if (
+            not received_during_tts
+            and not could_be_hot_window
+            and not self.state_manager.is_collecting()
+            and is_explicit_wake_address(
+                accepted_text,
+                getattr(self.cfg, "wake_word", "jarvis"),
+                getattr(self.cfg, "wake_aliases", []),
+            )
+        ):
+            self._transcript_buffer.mark_segment_processed(text_lower)
+            self.state_manager.start_collection(accepted_text, language=language)
+            self._start_thinking_tune()
+            debug_log("direct address: accepted without LLM intent judge", "voice")
+            print(f"\n✨ Working on it: {self.state_manager.get_pending_query()}", flush=True)
             return
 
         if not has_engagement_signal:
