@@ -59,7 +59,8 @@ def test_a_second_empty_turn_cannot_reach_a_third_answer(reply_config, db, dialo
     third = 'Third answer must not be delivered.'
     empty = {'message': {'role': 'assistant', 'content': ''}}
     reply, operations = _reply(reply_config, db, dialogue_memory, [empty, empty, {'message': {'content': third}}])
-    assert reply and reply != third
+    assert reply == engine.FRENCH_FALLBACK_REPLY
+    assert reply != third
     assert not operations
 
 
@@ -93,3 +94,14 @@ def test_thinking_only_continuation_remains_available(reply_config, db, dialogue
     ])
     assert reply == 'Considered answer.'
     assert not operations
+
+
+def test_fallback_replies_to_user_are_in_french():
+    """A failed model reply or action must not bypass the French-only persona."""
+    assert engine.FRENCH_FALLBACK_REPLY == (
+        "Je n'ai pas réussi à traiter votre demande. Pouvez-vous réessayer ?"
+    )
+    assert engine._UNEXECUTED_ACTION_REPLY == (
+        "Je n'ai pas pu effectuer cette action. "
+        "Veuillez réessayer ou préciser les informations manquantes."
+    )
