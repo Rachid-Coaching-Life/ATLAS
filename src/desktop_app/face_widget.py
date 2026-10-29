@@ -188,6 +188,60 @@ class FaceWidget(QWidget):
         return QRectF((width - scaled_width) / 2, (height - scaled_height) / 2,
                       scaled_width, scaled_height)
 
+    @staticmethod
+    def _speech_mouth_opening(elapsed: float, speaking: float) -> float:
+        """Approximate mouth articulation only while actual playback is active.
+
+        This is an animated mouth, not phoneme-aligned lip synchronisation:
+        Piper currently publishes playback state, but no viseme stream.
+        """
+        if speaking <= 0.02:
+            return 0.0
+        syllables = abs(math.sin(elapsed * 10.5) * math.cos(elapsed * 3.7 + 0.4))
+        return max(0.0, min(1.0, speaking)) * (0.24 + 0.76 * syllables)
+
+    def _paint_portrait_mouth(self, painter: QPainter, bounds: QRectF) -> None:
+        """Open the lips over the official portrait, not over a status icon."""
+        opening = self._speech_mouth_opening(self._elapsed, self._speaking)
+        if opening <= 0.02 or bounds.isEmpty():
+            return
+
+        # Normalised coordinates refer to the selected ATLAS frontal portrait.
+        # QPainter scales the mouth together with the portrait.
+        mx = bounds.left() + bounds.width() * 0.503
+        my = bounds.top() + bounds.height() * 0.605
+        half_width = bounds.width() * 0.105
+        jaw_gap = bounds.height() * 0.031 * opening
+
+        painter.save()
+        painter.setPen(Qt.PenStyle.NoPen)
+        # The dark interior makes an actual opening visible at compact 220px sizes.
+        mouth = QPainterPath()
+        mouth.moveTo(mx - half_width, my)
+        mouth.cubicTo(mx - half_width * 0.52, my - jaw_gap * 0.45,
+                      mx + half_width * 0.52, my - jaw_gap * 0.45,
+                      mx + half_width, my)
+        mouth.cubicTo(mx + half_width * 0.6, my + jaw_gap,
+                      mx - half_width * 0.6, my + jaw_gap,
+                      mx - half_width, my)
+        painter.fillPath(mouth, QColor(25, 9, 16, 240))
+        # Soft lip contours move apart with the speaking aperture.
+        upper = QPainterPath(QPointF(mx - half_width, my))
+        upper.cubicTo(mx - half_width * 0.4, my - jaw_gap * 0.30,
+                      mx + half_width * 0.4, my - jaw_gap * 0.30,
+                      mx + half_width, my)
+        lower = QPainterPath(QPointF(mx - half_width, my))
+        lower.cubicTo(mx - half_width * 0.45, my + jaw_gap * 0.95,
+                      mx + half_width * 0.45, my + jaw_gap * 0.95,
+                      mx + half_width, my)
+        outline = QPen(QColor(137, 69, 66, 215))
+        outline.setWidthF(max(0.8, bounds.width() * 0.004))
+        painter.setPen(outline)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPath(upper)
+        painter.drawPath(lower)
+        painter.restore()
+
     def _paint_portrait(self, painter: QPainter) -> None:
         """Render the supplied ATLAS portrait with a discreet state cue."""
         bounds = self._portrait_bounds(self.width(), self.height(),
@@ -200,6 +254,7 @@ class FaceWidget(QWidget):
                         bounds.width() * scale, bounds.height() * scale)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         painter.drawPixmap(target, self._portrait, QRectF(self._portrait.rect()))
+        self._paint_portrait_mouth(painter, target)
 
         # The listening/thinking/speaking indicator is below the facial details.
         active = max(self._listening, self._thinking, self._speaking, self._dictating)
