@@ -57,7 +57,11 @@ def test_scene_keeps_background_workers_independent(scene, dependency):
     def sample():
         if dependency == "clock":
             before = time.monotonic()
-            Event().wait(0.001)
+            # A 1ms wait can return within the same Windows clock tick,
+            # even when the real clock has not been mocked or frozen.
+            # Keep this independent-worker check meaningful across timer
+            # resolutions; a frozen global clock still fails after 50ms.
+            Event().wait(0.05)
             return before, time.monotonic()
         return [random.uniform(0, 1) for _ in range(4)]
 
