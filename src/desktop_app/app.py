@@ -1822,6 +1822,10 @@ class ATLASSystemTray:
         # Keep conversation preview on the GUI thread, using the same
         # line stream already displayed by the optional log viewer.
         self.log_signals.new_log.connect(self.face_window.ingest_log)
+        self.face_window.hologram.voice_command_requested.connect(
+            self._handle_hologram_voice_request
+        )
+        self.face_window.hologram.exchange_view_requested.connect(self.show_chat)
 
         # Create dictation history window (hidden by default)
         from desktop_app.dictation_history import DictationHistoryWindow
@@ -2468,6 +2472,36 @@ class ATLASSystemTray:
         self.voice_pause_action.setToolTip("Keep text chat and dictation available while voice listening is paused")
         self.voice_pause_action.setEnabled(False)
         self.voice_pause_action.triggered.connect(self.toggle_voice_pause)
+        self._sync_hologram_voice_control()
+
+    def _handle_hologram_voice_request(self) -> None:
+        """Use the existing start/pause/resume path for the projected control."""
+        if self.is_listening:
+            self.toggle_voice_pause()
+        else:
+            self.toggle_listening()
+        self._sync_hologram_voice_control()
+
+    def _sync_hologram_voice_control(self) -> None:
+        """Represent confirmed voice status on the projection."""
+        face = getattr(self, "face_window", None)
+        if face is None or not getattr(face, "_hologram_enabled", False):
+            return
+        running = bool(getattr(self, "is_listening", False))
+        pending = getattr(self, "_voice_pause_request_id", None) is not None
+        action = getattr(self, "voice_pause_action", None)
+        available = not (
+            getattr(self, "_daemon_stop_expected", False)
+            or getattr(self, "_daemon_stuck", False)
+        )
+        if running and action is not None and not action.isEnabled() and not pending:
+            available = False
+        face.hologram.set_voice_control(
+            running=running,
+            paused=getattr(self, "_voice_pause_state", False),
+            pending=pending,
+            available=available,
+        )
 
     def _sync_voice_pause_controls(self) -> None:
         owner = self.daemon_thread if self.is_bundled else self.daemon_process
@@ -2483,6 +2517,7 @@ class ATLASSystemTray:
             elif not self.is_listening:
                 self.status_action.setText("⚪ Status: Stopped")
         self.voice_pause_action.setEnabled(active and self._voice_pause_request_id is None)
+        self._sync_hologram_voice_control()
 
     def toggle_voice_pause(self) -> None:
         import json
@@ -2496,6 +2531,7 @@ class ATLASSystemTray:
         self._voice_pause_request_id = request_id
         self.voice_pause_action.setEnabled(False)
         self.voice_pause_action.setText("⏳ Pausing Voice Listening…" if paused else "⏳ Resuming Voice Listening…")
+        self._sync_hologram_voice_control()
         self._voice_pause_timer.start()
         debug_log(f"requesting voice pause: {paused}", "desktop")
         try:
@@ -2548,6 +2584,7 @@ class ATLASSystemTray:
         self.tray_icon.setToolTip("ATLAS: voice paused" if status['paused'] else "ATLAS: listening")
         self.log_signals.new_log.emit("⏸️ Voice listening paused. Text chat and dictation remain available.\n"
                                       if status['paused'] else "🎤 Voice listening resumed.\n")
+        self._sync_hologram_voice_control()
         debug_log(f"voice pause confirmed: {status['paused']}", "desktop")
 
     def _voice_pause_unknown(self, message: str) -> None:
@@ -2558,6 +2595,7 @@ class ATLASSystemTray:
         self.voice_pause_action.setEnabled(self.is_listening and not self._daemon_stop_expected)
         self.status_action.setText("⚠️ Status: Voice state unknown")
         self.tray_icon.setToolTip("ATLAS: voice state unknown")
+        self._sync_hologram_voice_control()
         self.log_signals.new_log.emit(f"⚠️ {message}\n")
 
     def _voice_pause_timed_out(self) -> None:
