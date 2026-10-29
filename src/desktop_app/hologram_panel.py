@@ -11,7 +11,7 @@ import time
 
 from PyQt6.QtCore import QPointF, QRectF, Qt, QTimer
 from PyQt6.QtGui import (
-    QColor, QFont, QLinearGradient, QPainter, QPainterPath, QPen, QRegion,
+    QBrush, QColor, QFont, QLinearGradient, QPainter, QPainterPath, QPen, QRegion,
 )
 from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
@@ -227,7 +227,7 @@ class HologramPanel(QWidget):
         sheen.setColorAt(0, QColor(43, 131, 169, 70))
         sheen.setColorAt(.6, QColor(11, 45, 75, 75))
         sheen.setColorAt(1, QColor(5, 25, 43, 24))
-        painter.fillPath(slab, sheen)
+        painter.fillPath(slab, QBrush(sheen))
         edge = QColor(accent)
         edge.setAlpha(120)
         painter.setPen(QPen(edge, 1.0))
@@ -255,7 +255,7 @@ class HologramPanel(QWidget):
         tint.setColorAt(0, QColor(4, 36, 59, 154))
         tint.setColorAt(.48, QColor(5, 24, 46, 139))
         tint.setColorAt(1, QColor(3, 21, 38, 162))
-        painter.fillPath(path, tint)
+        painter.fillPath(path, QBrush(tint))
 
         # Staggered prismatic layers give a projected multi-depth appearance.
         faces = (
