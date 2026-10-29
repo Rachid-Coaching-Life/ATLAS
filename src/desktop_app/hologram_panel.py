@@ -1,16 +1,18 @@
-"""Lightweight projected HUD, attached to ATLAS's existing floating face.
+"""Original sculptural hologram for ATLAS's unchanged floating portrait.
 
-Pure Qt painting: no WebEngine, network access, secondary window or new assets.
-The tray forwards public, visible daemon-log lines on Qt's GUI thread.
+All visual effects are real-time Qt raster painting in the *existing* HUD and
+connector widgets. No new surface, dependencies, background tasks or assets.
+The face artwork, dimensions, geometry and lip animation are not altered.
 """
-
 from __future__ import annotations
 
 import math
 import time
 
-from PyQt6.QtCore import Qt, QTimer, QRectF
-from PyQt6.QtGui import QColor, QFont, QLinearGradient, QPainter, QPainterPath, QPen
+from PyQt6.QtCore import QPointF, QRectF, Qt, QTimer
+from PyQt6.QtGui import (
+    QColor, QFont, QLinearGradient, QPainter, QPainterPath, QPen, QRegion,
+)
 from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 
@@ -23,10 +25,57 @@ _STATE_TEXT = {
     "dictating": "DICTÉE EN COURS",
     "dictation_processing": "TRAITEMENT DE LA DICTÉE",
 }
+_ACTIVE = frozenset({"listening", "thinking", "speaking", "dictating", "dictation_processing"})
+_CYAN = QColor(59, 209, 255)
+_AMBER = QColor(255, 159, 71)
+
+
+def _glass_outline(width: float, height: float) -> QPainterPath:
+    """Concave multi-faceted silhouette with cut-away corners and emitter notch.
+
+    The path is expressed as fractions of the panel's allocated rectangle.
+    Neither its outside corners nor its right-hand side form a rounded box.
+    """
+    w, h = float(width), float(height)
+    if w <= 0 or h <= 0:
+        return QPainterPath()
+    path = QPainterPath(QPointF(.11 * w, .018 * h))
+    path.lineTo(.58 * w, .018 * h)
+    path.lineTo(.635 * w, .001 * h)
+    path.lineTo(.81 * w, .001 * h)
+    path.lineTo(.956 * w, .094 * h)
+    path.lineTo(.956 * w, .266 * h)
+    path.lineTo(.929 * w, .301 * h)
+    path.lineTo(.929 * w, .418 * h)
+    path.lineTo(.993 * w, .497 * h)
+    path.lineTo(.929 * w, .559 * h)
+    path.lineTo(.929 * w, .727 * h)
+    path.lineTo(.964 * w, .759 * h)
+    path.lineTo(.964 * w, .863 * h)
+    path.lineTo(.825 * w, .985 * h)
+    path.lineTo(.18 * w, .985 * h)
+    path.lineTo(.115 * w, .935 * h)
+    path.lineTo(.049 * w, .887 * h)
+    path.lineTo(.049 * w, .668 * h)
+    path.lineTo(.014 * w, .627 * h)
+    path.lineTo(.044 * w, .545 * h)
+    path.lineTo(.044 * w, .322 * h)
+    path.lineTo(.077 * w, .267 * h)
+    path.lineTo(.077 * w, .096 * h)
+    path.closeSubpath()
+    return path
+
+
+def _facet(points: tuple[tuple[float, float], ...], w: float, h: float) -> QPainterPath:
+    path = QPainterPath(QPointF(w * points[0][0], h * points[0][1]))
+    for x, y in points[1:]:
+        path.lineTo(w * x, h * y)
+    path.closeSubpath()
+    return path
 
 
 class HologramPanel(QWidget):
-    """HUD that displays genuine listening state, heard speech and replies."""
+    """One nonrectangular glass projection, with real activity and speech data."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -34,42 +83,45 @@ class HologramPanel(QWidget):
         self.setMinimumWidth(210)
         self.setMinimumHeight(190)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        # The entire floating ATLAS projection is draggable from its parent.
+        # Let the parent FaceWindow handle drag and context-menu gestures.
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self._state = "asleep"
         self._phase_origin = time.monotonic()
+        self._revealed_at = None
         self._await_reply_line = False
 
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(23, 22, 23, 21)
-        outer.setSpacing(9)
+        self._outer = QVBoxLayout(self)
+        self._outer.setContentsMargins(35, 25, 30, 24)
+        self._outer.setSpacing(7)
 
         self.heading = QLabel("ATLAS  /  INTERFACE NEURALE")
         self.heading.setObjectName("atlas_hud_heading")
-        self.heading.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        self.heading.setStyleSheet("color: #66d8ff; letter-spacing: 2px;")
-        outer.addWidget(self.heading)
+        self.heading.setWordWrap(True)
+        self.heading.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        self.heading.setStyleSheet("color: #91e6ff; letter-spacing: 1px;")
+        self._outer.addWidget(self.heading)
 
         self.status = QLabel(_STATE_TEXT[self._state])
         self.status.setObjectName("atlas_hud_status")
-        self.status.setFont(QFont("Segoe UI", 13, QFont.Weight.DemiBold))
-        self.status.setStyleSheet("color: #ffaf66;")
-        outer.addWidget(self.status)
+        self.status.setFont(QFont("Segoe UI", 12, QFont.Weight.DemiBold))
+        self.status.setStyleSheet("color: #ffc082;")
+        self._outer.addWidget(self.status)
 
-        self._label(outer, "DERNIÈRE DEMANDE")
+        self._label(self._outer, "DERNIÈRE DEMANDE")
         self.heard = self._message("Prononcez « Atlas » pour commencer.")
         self.heard.setObjectName("atlas_hud_heard")
-        outer.addWidget(self.heard)
+        self._outer.addWidget(self.heard, 1)
 
-        self._label(outer, "RÉPONSE")
+        self._label(self._outer, "RÉPONSE")
         self.reply = self._message("Prêt à vous accompagner.")
         self.reply.setObjectName("atlas_hud_reply")
-        outer.addWidget(self.reply)
+        self._outer.addWidget(self.reply, 1)
 
-        outer.addStretch(1)
-        self.footer = QLabel("●   AUDIO LOCAL  ·  ASSISTANT PERSONNEL")
-        self.footer.setStyleSheet("color: #678ca1; font-size: 9px;")
-        outer.addWidget(self.footer)
+        self._outer.addStretch(1)
+        self.footer = QLabel("◉  AUDIO LOCAL  ·  ASSISTANT PERSONNEL")
+        self.footer.setObjectName("atlas_hud_footer")
+        self.footer.setStyleSheet("color: #a0c5d5; font-size: 9px;")
+        self._outer.addWidget(self.footer)
 
         self._timer = QTimer(self)
         self._timer.setInterval(85)
@@ -78,7 +130,7 @@ class HologramPanel(QWidget):
     @staticmethod
     def _label(layout, value):
         label = QLabel(value)
-        label.setStyleSheet("color: #75a7bc; font-size: 9px; letter-spacing: 1px;")
+        label.setStyleSheet("color: #80c6df; font-size: 9px; letter-spacing: 1px;")
         layout.addWidget(label)
 
     @staticmethod
@@ -87,12 +139,32 @@ class HologramPanel(QWidget):
         label.setWordWrap(True)
         label.setTextFormat(Qt.TextFormat.PlainText)
         label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        label.setStyleSheet("color: #e5f6ff; font-size: 12px;")
-        label.setMaximumHeight(62)
+        label.setStyleSheet("color: #e7f8ff; font-size: 12px;")
+        label.setMaximumHeight(65)
         return label
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        compact = self.width() < 295 or self.height() < 265
+        # Keep all real text visible on 210px screens without expanding the
+        # allocated window or changing the portrait's size/position.
+        self._outer.setContentsMargins(
+            29 if compact else 35, 18 if compact else 25,
+            24 if compact else 30, 16 if compact else 24,
+        )
+        self._outer.setSpacing(3 if compact else 7)
+        font = self.heading.font()
+        font.setPointSize(8 if compact else 10)
+        self.heading.setFont(font)
+        font = self.status.font()
+        font.setPointSize(10 if compact else 12)
+        self.status.setFont(font)
+        for text in (self.heard, self.reply):
+            text.setMaximumHeight(39 if compact else 65)
 
     def showEvent(self, event):
         super().showEvent(event)
+        self._revealed_at = time.monotonic()
         self._timer.start()
 
     def hideEvent(self, event):
@@ -102,12 +174,13 @@ class HologramPanel(QWidget):
     def set_activity(self, state: str) -> None:
         self._state = state
         self.status.setText(_STATE_TEXT.get(state, "ATLAS ACTIF"))
-        active = state in {"speaking", "listening", "thinking", "dictating"}
-        self.status.setStyleSheet("color: #56d9ff;" if active else "color: #ffaf66;")
+        self.status.setStyleSheet(
+            "color: #7fe3ff;" if state in _ACTIVE else "color: #ffc082;"
+        )
         self.update()
 
     def ingest_log(self, line: str) -> None:
-        """Show only visible conversation lines, never raw IPC or diagnostics."""
+        """Keep existing speech messages without interpreting them as markup."""
         if not isinstance(line, str):
             return
         for part in line.splitlines():
@@ -120,60 +193,161 @@ class HologramPanel(QWidget):
             elif "🤖 ATLAS" in stripped or "⚠️ ATLAS" in stripped:
                 self._await_reply_line = True
             elif self._await_reply_line and stripped:
-                # The reply logger prints the text on the following line.
-                # Avoid treating another event heading as a reply.
                 if not stripped.startswith(("⏱️", "📝", "🔧", "🔁", "✨", "─")):
                     self.reply.setText(stripped[:250])
                 self._await_reply_line = False
 
+    def projection_shape(self) -> QPainterPath:
+        """Return the real painted outline for assertions and hit-testing."""
+        return _glass_outline(self.width(), self.height())
+
+    def input_region(self) -> QRegion:
+        # Coarse polygon construction is cheap, unlike pixmap-alpha scanning.
+        return QRegion(self.projection_shape().toFillPolygon().toPolygon())
+
+    def _glass_card(self, painter: QPainter, label: QLabel, accent: QColor, w: float):
+        """Cut glass strips follow live label placement, not hard-coded text."""
+        r = label.geometry()
+        top = r.top() - 15
+        bottom = r.bottom() + 7
+        if bottom <= top:
+            return
+        left = max(16, r.left() - 10)
+        right = min(w - 14, r.right() + 11)
+        if right - left < 16:
+            return
+        slab = QPainterPath(QPointF(left + 8, top))
+        slab.lineTo(right - 12, top)
+        slab.lineTo(right, top + 11)
+        slab.lineTo(right - 6, bottom)
+        slab.lineTo(left, bottom)
+        slab.lineTo(left, top + 8)
+        slab.closeSubpath()
+        sheen = QLinearGradient(QPointF(left, top), QPointF(right, bottom))
+        sheen.setColorAt(0, QColor(43, 131, 169, 70))
+        sheen.setColorAt(.6, QColor(11, 45, 75, 75))
+        sheen.setColorAt(1, QColor(5, 25, 43, 24))
+        painter.fillPath(slab, sheen)
+        edge = QColor(accent)
+        edge.setAlpha(120)
+        painter.setPen(QPen(edge, 1.0))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawLine(QPointF(left + 11, top + .5), QPointF(right - 13, top + .5))
+        painter.drawLine(QPointF(left + 1, top + 8), QPointF(left + 1, bottom - 5))
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        # QLinearGradient requires QPointF endpoints, not QRect's QPoint.
-        bounds = QRectF(self.rect()).adjusted(4, 4, -4, -4)
-        if bounds.width() <= 0 or bounds.height() <= 0:
+        w, h = float(self.width()), float(self.height())
+        if w < 2 or h < 2:
             painter.end()
             return
-        bg = QLinearGradient(bounds.topLeft(), bounds.bottomRight())
-        bg.setColorAt(0, QColor(5, 21, 35, 232))
-        bg.setColorAt(.5, QColor(6, 16, 29, 220))
-        bg.setColorAt(1, QColor(7, 18, 30, 232))
-        painter.setPen(QPen(QColor(30, 139, 179, 140), 1.2))
-        painter.setBrush(bg)
-        painter.drawRoundedRect(bounds, 14, 14)
+        path = self.projection_shape()
+        now = time.monotonic()
+        phase = now - self._phase_origin
+        activity = self._state in _ACTIVE
+        glow = .7 + .28 * math.sin(phase * (4.7 if activity else 1.6))
+        # The glass is actually translucent and physically cut away, not a
+        # dark QPainter rounded rectangle. Transparent pixels remain alpha 0.
+        painter.save()
+        painter.setClipPath(path)
+        tint = QLinearGradient(QPointF(0, 0), QPointF(w, h))
+        tint.setColorAt(0, QColor(4, 36, 59, 154))
+        tint.setColorAt(.48, QColor(5, 24, 46, 139))
+        tint.setColorAt(1, QColor(3, 21, 38, 162))
+        painter.fillPath(path, tint)
 
-        t = time.monotonic() - self._phase_origin
-        pulse = .57 + .25 * math.sin(t * 2.8)
-        bright = QColor(50, 200, 255)
-        bright.setAlphaF(pulse)
+        # Staggered prismatic layers give a projected multi-depth appearance.
+        faces = (
+            (((.105, .030), (.47, .030), (.60, .090), (.28, .28), (.065, .28)),
+             QColor(83, 212, 255, 41)),
+            (((.75, .016), (.955, .10), (.92, .31), (.79, .38), (.67, .22)),
+             QColor(145, 215, 248, 42)),
+            (((.064, .60), (.30, .69), (.25, .96), (.12, .93)),
+             QColor(30, 120, 170, 35)),
+            (((.81, .75), (.96, .86), (.83, .98), (.54, .975)),
+             QColor(255, 159, 71, 27)),
+        )
+        for coords, color in faces:
+            painter.fillPath(_facet(coords, w, h), color)
+
+        # Thin tech weave and microcircuits are deliberately subtle to keep
+        # the actual conversation readable.
+        painter.setPen(QPen(QColor(67, 187, 224, 16), .6))
+        for row in range(16, int(h), 23):
+            painter.drawLine(QPointF(.09 * w, row), QPointF(.96 * w, row))
+        for col in range(22, int(w), 32):
+            painter.drawLine(QPointF(col, .07 * h), QPointF(col, .92 * h))
+
+        self._glass_card(painter, self.heard, _CYAN, w)
+        self._glass_card(painter, self.reply, _AMBER, w)
+
+        # Internal orbit / emitter circuitry near the robot-facing edge.
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.setPen(QPen(bright, 2.0))
-        x, y, w, h = bounds.x(), bounds.y(), bounds.width(), bounds.height()
-        for points in (
-            ((x + 7, y + 32), (x + 7, y + 7), (x + 48, y + 7)),
-            ((x + w - 48, y + 7), (x + w - 7, y + 7), (x + w - 7, y + 32)),
-            ((x + 7, y + h - 32), (x + 7, y + h - 7), (x + 48, y + h - 7)),
-            ((x + w - 48, y + h - 7), (x + w - 7, y + h - 7),
-             (x + w - 7, y + h - 32)),
-        ):
-            path = QPainterPath()
-            path.moveTo(*points[0])
-            for point in points[1:]:
-                path.lineTo(*point)
-            painter.drawPath(path)
-        painter.setPen(QPen(QColor(255, 153, 67, 190), 1))
-        painter.drawLine(int(x + 20), int(y + 79), int(x + w - 20), int(y + 79))
+        cx, cy = .94 * w, .50 * h
+        painter.setPen(QPen(QColor(57, 216, 255, 125), 1.1))
+        painter.drawArc(QRectF(cx - 13, cy - 13, 26, 26),
+                        int((phase * 35) % 360) * 16, 118 * 16)
+        painter.setPen(QPen(QColor(255, 160, 75, 125), 1))
+        painter.drawArc(QRectF(cx - 19, cy - 19, 38, 38),
+                        int((-phase * 22) % 360) * 16, 90 * 16)
+
+        # Several deterministic particles travel along an internal circuit.
+        for index in range(9):
+            p = (phase * (.07 if activity else .025) + index * .137) % 1
+            px = w * (.14 + .72 * p)
+            py = h * (.855 - .055 * math.sin(index * 3.2 + p * math.tau))
+            c = QColor(_CYAN if index % 3 else _AMBER)
+            c.setAlpha(80 if activity else 30)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(c)
+            painter.drawEllipse(QPointF(px, py), 1.2, 1.2)
+        painter.restore()
+
+        # Thin fractured perimeter and luminous contact pads. The exterior
+        # corners stay transparent; no square or rectangular frame is drawn.
+        edge = QColor(_CYAN)
+        edge.setAlpha(int((130 if activity else 95) * glow))
+        painter.setPen(QPen(edge, 1.25))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPath(path)
+        painter.setPen(QPen(QColor(255, 165, 77, 180), 1.3))
+        painter.drawLine(QPointF(.13 * w, .083 * h), QPointF(.50 * w, .083 * h))
+        painter.drawLine(QPointF(.16 * w, .937 * h), QPointF(.59 * w, .937 * h))
+
+        # Animated physical projection from the right-hand emitter; the
+        # bridge widget continues it without changing the portrait geometry.
+        tip = QPointF(.991 * w, .497 * h)
+        painter.setPen(QPen(QColor(54, 223, 255, int(150 * glow)), 1.7))
+        painter.drawLine(tip, QPointF(.935 * w, .497 * h))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(103, 227, 255, int(130 * glow)))
+        painter.drawEllipse(tip, 2.3, 2.3)
+
+        # First appearance: the projection scans in from the robot-facing
+        # right edge, without moving the widget, portrait or actual text.
+        if self._revealed_at is not None:
+            progress = min(1.0, max(0.0, (now - self._revealed_at) / .66))
+            if progress < 1:
+                painter.save()
+                veil = QColor(4, 17, 30, int((1 - progress) * 80))
+                painter.fillPath(path, veil)
+                sweep_x = w * (.92 - .82 * progress)
+                painter.setPen(QPen(QColor(91, 222, 255, int(160 * (1 - progress))), 1.3))
+                painter.drawLine(QPointF(sweep_x, .14 * h), QPointF(sweep_x, .89 * h))
+                painter.restore()
         painter.end()
 
 
 class ProjectionBridge(QWidget):
-    """A luminous circuit physically connecting the panel to ATLAS's portrait."""
+    """Three luminous circuit strands running from ATLAS to the glass emitter."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedWidth(47)
         self.setMinimumHeight(28)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self._vertical = False
         self._state = "asleep"
         self._phase_origin = time.monotonic()
@@ -209,28 +383,53 @@ class ProjectionBridge(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        active = self._state in {"listening", "thinking", "speaking", "dictating"}
-        intensity = (.65 + .3 * math.sin((time.monotonic() - self._phase_origin) * 5)
-                     if active else .3)
-        cyan = QColor(49, 209, 255)
-        cyan.setAlphaF(intensity)
-        orange = QColor(255, 156, 70, 165)
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.setPen(QPen(cyan, 2))
         w, h = self.width(), self.height()
+        if w < 2 or h < 2:
+            painter.end()
+            return
+        t = time.monotonic() - self._phase_origin
+        active = self._state in _ACTIVE
+        power = .68 + .30 * math.sin(t * 5.0) if active else .40
+        base = QColor(_CYAN)
+        base.setAlpha(int(145 * power))
+        ember = QColor(_AMBER)
+        ember.setAlpha(120)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+
         if self._vertical:
             x = w / 2
-            painter.drawLine(int(x), 0, int(x), h)
-            painter.setPen(QPen(orange, 1))
-            painter.drawLine(int(x - 15), int(h / 2), int(x + 15), int(h / 2))
+            paths = (
+                (QPointF(x, 0), QPointF(x, h)),
+                (QPointF(x - 13, 0), QPointF(x - 13, h * .75)),
+                (QPointF(x + 13, h * .25), QPointF(x + 13, h)),
+            )
+            for a, b in paths:
+                painter.setPen(QPen(base, 1.2))
+                painter.drawLine(a, b)
+            painter.setPen(QPen(ember, 1.5))
+            painter.drawLine(QPointF(x - 21, h * .57), QPointF(x + 21, h * .57))
+            travel = (t * (.8 if active else .3)) % 1
+            dot = QPointF(x, h * travel)
         else:
-            mid = h / 2
-            path = QPainterPath()
-            path.moveTo(0, mid)
-            path.lineTo(w * .38, mid)
-            path.lineTo(w * .62, mid - 12)
-            path.lineTo(w, mid - 12)
-            painter.drawPath(path)
-            painter.setPen(QPen(orange, 1))
-            painter.drawLine(0, int(mid + 9), w, int(mid + 9))
+            cy = h * .497
+            tracks = (0, -8, 8)
+            for dy in tracks:
+                path = QPainterPath(QPointF(w, cy + dy))
+                path.lineTo(w * .67, cy + dy)
+                path.lineTo(w * .44, cy + dy - (7 if dy == 0 else -4))
+                path.lineTo(0, cy + dy - (7 if dy == 0 else -4))
+                painter.setPen(QPen(base, 1.8 if dy == 0 else 1.05))
+                painter.drawPath(path)
+            painter.setPen(QPen(ember, 1))
+            painter.drawLine(QPointF(w * .47, cy - 15), QPointF(w * .47, cy + 16))
+            travel = (t * (.8 if active else .28)) % 1
+            dot = QPointF(w * (1 - travel), cy)
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        halo = QColor(_CYAN)
+        halo.setAlpha(int(55 * power))
+        painter.setBrush(halo)
+        painter.drawEllipse(dot, 4.2, 4.2)
+        painter.setBrush(QColor(155, 244, 255, 215))
+        painter.drawEllipse(dot, 1.45, 1.45)
         painter.end()
