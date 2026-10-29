@@ -72,6 +72,14 @@ missing files from the official pinned voice catalogue. An explicitly
 configured Piper model path always takes precedence over this default.
 No existing downloaded model or saved user setting is deleted or changed.
 
+## French Piper speaking rate
+
+For ATLAS, the default `tts_piper_length_scale` is `1.0`, validated as a
+comfortable normal speaking rate on the Windows GTR7. Values below `1.0`
+speed up playback. An explicitly saved value in the user's configuration
+continues to override this default; the change does not migrate or rewrite
+an existing personal configuration.
+
 ## Proper-name phonetics for French Piper
 
 The original conversational text and saved speech requests retain the literal
