@@ -185,7 +185,11 @@ def test_voice_reply_engine_exception_speaks_french_error(monkeypatch, mock_conf
         if terminal_callback is not None:
             terminal_callback("completed")
 
-    tts = SimpleNamespace(enabled=True, speak=capture_voice)
+    tts = SimpleNamespace(
+        enabled=True,
+        speak=capture_voice,
+        set_playback_callbacks=lambda started, finished: None,
+    )
     voice = listening.VoiceListener(None, mock_config, tts, None)
     monkeypatch.setattr(voice, "_stop_thinking_tune", lambda: None)
 
