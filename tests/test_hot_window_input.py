@@ -1641,3 +1641,53 @@ class TestStandaloneWakeWordWithoutLLM:
 
         judge.judge.assert_called_once()
         assert not listener.state_manager.is_collecting()
+
+
+@pytest.mark.unit
+class TestExplicitWakeAddressWithoutLLM:
+    """A direct Atlas command avoids intent latency without losing a queued follow-up."""
+
+    @pytest.mark.parametrize("command", [
+        "Atlas, ouvre mon dossier",
+        "ATLAS, présente-toi en français.",
+        "Atlasse, donne-moi la météo.",
+    ])
+    def test_direct_address_skips_judge_but_preserves_full_query_and_audio(self, command):
+        listener, _ = _create_listener()
+        listener.cfg.wake_word = "atlas"
+        listener.cfg.wake_aliases = ["atlasse"]
+        judge = _install_intent_judge(listener, _make_judgment(directed=False))
+        captured_audio = object()
+        listener._audio_q.put_nowait(captured_audio)
+        initial_generation = listener._capture_generation
+
+        _process_transcript(listener, command, utterance_energy=0.01)
+
+        judge.judge.assert_not_called()
+        assert listener.state_manager.is_collecting()
+        assert listener.state_manager.get_pending_query() == command
+        assert listener._capture_generation == initial_generation
+        assert listener._audio_q.get_nowait() is captured_audio
+
+        _process_transcript(listener, "Et explique ce que tu fais.", utterance_energy=0.01)
+        assert listener.state_manager.get_pending_query() == (
+            command + " Et explique ce que tu fais."
+        )
+        judge.judge.assert_not_called()
+
+    @pytest.mark.parametrize("heard", [
+        "Un atlas géographique, ouvre un livre.",
+        "Je parle à Atlas, ouvre le dossier.",
+        "Atlas est un outil de cartographie.",
+    ])
+    def test_mention_of_name_still_uses_intent_judge(self, heard):
+        listener, _ = _create_listener()
+        listener.cfg.wake_word = "atlas"
+        judge = _install_intent_judge(
+            listener, _make_judgment(directed=False, confidence="high"),
+        )
+
+        _process_transcript(listener, heard, utterance_energy=0.01)
+
+        judge.judge.assert_called_once()
+        assert not listener.state_manager.is_collecting()
