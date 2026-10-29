@@ -13,6 +13,7 @@ from PyQt6.QtCore import Qt, QTimer, QPointF, QRectF, pyqtSignal
 
 from jarvis.activity import JarvisState, get_jarvis_state
 from jarvis.debug import debug_log
+from jarvis.output.lip_sync import read_envelope, envelope_level
 from desktop_app.themes import COLORS, apply_theme
 
 
@@ -58,6 +59,7 @@ class FaceWidget(QWidget):
         self._listening = 0.0
         self._thinking = 0.0
         self._speaking = 0.0
+        self._mouth_envelope = None
         self._dictating = 0.0
         self._started_at = _time.monotonic()
         self._last_frame_at = self._started_at
@@ -116,6 +118,7 @@ class FaceWidget(QWidget):
         previous = self._jarvis_state
         self._jarvis_state = self._state_manager.state
         if self._jarvis_state != previous:
+            self._mouth_envelope = None
             self._state_entered_at = now
             if self._jarvis_state == JarvisState.LISTENING:
                 self._listening_started_at = now
@@ -123,6 +126,10 @@ class FaceWidget(QWidget):
             debug_log(f"👤 Face state: {self._jarvis_state.value}", "face")
         self._state_elapsed = max(0.0, now - self._state_entered_at)
         state = self._jarvis_state
+        if state == JarvisState.SPEAKING and self._mouth_envelope is None:
+            # TTS publishes after it claims SPEAKING, just before audio start.
+            # Retry on later frames until its waveform arrives.
+            self._mouth_envelope = read_envelope()
         awake = state != JarvisState.ASLEEP
         self._activation_level = self._approach(self._activation_level, float(awake), elapsed, 0.32)
         for name, target in (
@@ -201,8 +208,12 @@ class FaceWidget(QWidget):
         return max(0.0, min(1.0, speaking)) * (0.24 + 0.76 * syllables)
 
     def _paint_portrait_mouth(self, painter: QPainter, bounds: QRectF) -> None:
-        """Open the lips over the official portrait, not over a status icon."""
-        opening = self._speech_mouth_opening(self._elapsed, self._speaking)
+        """Open the lips over the portrait using Piper's actual audio energy."""
+        if self._mouth_envelope is not None:
+            opening = envelope_level(self._mouth_envelope) * self._speaking
+        else:
+            # Legacy voice backends do not currently publish PCM levels.
+            opening = self._speech_mouth_opening(self._elapsed, self._speaking)
         if opening <= 0.02 or bounds.isEmpty():
             return
 
