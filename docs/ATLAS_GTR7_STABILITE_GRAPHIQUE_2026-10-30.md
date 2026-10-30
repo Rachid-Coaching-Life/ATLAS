@@ -585,3 +585,71 @@ Remove-Item Env:ATLAS_HOLOGRAM_LOW_EFFECTS -ErrorAction SilentlyContinue
 
 **Ne pas lancer l'application complète** tant que l'alimentation USB-C
 n'est pas vérifiée stable et compatible.
+
+
+## Essai suivant : panneaux optiques statiques pré-calculés
+
+Après le commit `213287e`, les tests sur le GTR7 ont donné
+**50 passed in 5.17s**. Le profilage hors écran sur 8 échantillons
+par état mesurait :
+
+| Mode | HUD listening (médiane) |
+|---|---:|
+| Normal | 10,414 ms |
+| Allégé | 5,887 ms |
+| Hybride | 6,471 ms |
+| Sculpté | 6,685 ms |
+
+L'examen de l'image claire de la variante sculptée a montré que
+l'encoche profonde de la carte « RÉPONSE » paraît artificielle, tandis
+que le double instrument de télémétrie améliore la séparation des îlots.
+Décision : **conserver l'option sculptée expérimentale**, et essayer
+un matériau optique réellement plus volumique sans multiplier les
+effets redessinés à chaque image.
+
+Prototype sur `develop-atlas` :
+- Variable facultative `ATLAS_HOLOGRAM_OPTICAL=1`, qui exige aussi
+  `ATLAS_HOLOGRAM_SCULPTED=1`,
+  `ATLAS_HOLOGRAM_CACHED_EFFECTS=1` et
+  `ATLAS_HOLOGRAM_LOW_EFFECTS=1`.
+- Dans `hologram_panel.py`, chaque carte de conversation utilise un
+  calque `QImage` prémultiplié construit au premier dessin, avec un
+  plan arrière décalé, un panneau de contraste, une réfraction diagonale
+  et une facette latérale. L'encoche trop prononcée est remplacée par
+  une courbe biseautée plus courte.
+- Le cache est indexé par composant, taille, DPI et géométrie Qt. Il
+  contient au maximum deux surfaces (une par carte) : environ 1,27 Mio
+  à 505×330 pixels et DPR=1, hors cache spectral existant.
+- Les vrais `QLabel` restent au premier plan et **ne sont pas
+  convertis en image** ; commandes, portrait et géométrie sont inchangés.
+- Aucune nouvelle animation, aucun rendu 3D, aucune dépendance externe.
+- Un cinquième mode `optique` est ajouté au profiler hors écran, pour
+  une comparaison sur le même GTR7 ; deux tests couvrent le cache,
+  les vrais contrôles, le changement de taille et l'opt-in.
+
+**Non encore testé sur Windows** : les nouveaux tests et le coût réel de
+ce mode. Ne pas considérer l'image optique comme la refonte finale,
+ni conclure à une baisse de consommation GPU.
+
+Validation hors écran, chaque commande PowerShell sur sa propre ligne :
+
+```powershell
+cd C:\Users\cheha\ATLAS
+git pull --ff-only origin develop-atlas
+$env:PYTHONPATH = "$PWD\src"
+.\.venv\Scripts\python.exe -m pytest -q tests/test_hologram_controls.py tests/test_hologram_panel.py tests/test_atlas_portrait.py
+.\.venv\Scripts\python.exe scripts\profile_atlas_hologram_offscreen.py --samples 8 --warmup 2
+$env:ATLAS_HOLOGRAM_LOW_EFFECTS = "1"
+$env:ATLAS_HOLOGRAM_CACHED_EFFECTS = "1"
+$env:ATLAS_HOLOGRAM_SCULPTED = "1"
+$env:ATLAS_HOLOGRAM_OPTICAL = "1"
+.\.venv\Scripts\python.exe scripts\preview_atlas_hologram_offscreen.py
+start "$env:TEMP\ATLAS_hologram_sur_fond_clair.png"
+Remove-Item Env:ATLAS_HOLOGRAM_OPTICAL -ErrorAction SilentlyContinue
+Remove-Item Env:ATLAS_HOLOGRAM_SCULPTED -ErrorAction SilentlyContinue
+Remove-Item Env:ATLAS_HOLOGRAM_CACHED_EFFECTS -ErrorAction SilentlyContinue
+Remove-Item Env:ATLAS_HOLOGRAM_LOW_EFFECTS -ErrorAction SilentlyContinue
+```
+
+Aucune ouverture de fenêtre native ATLAS ni redémarrage répété
+avant résolution des coupures électriques du GTR7.
