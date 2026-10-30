@@ -262,6 +262,41 @@ class FaceWidget(QWidget):
         painter.drawPath(lower)
         painter.restore()
 
+    def _paint_portrait_blink(self, painter: QPainter, bounds: QRectF) -> None:
+        """Temporarily close the eyes while preserving every portrait pixel."""
+        closing = max(0.0, min(1.0, self._blink_factor))
+        if closing <= 0.025 or bounds.isEmpty():
+            return
+        w, h = bounds.width(), bounds.height()
+        eye_y = bounds.top() + h * 0.372
+        radius_x = w * 0.076
+        radius_y = h * 0.024
+        painter.save()
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(85, 56, 42, 243))
+        for centre_fraction in (0.318, 0.618):
+            cx = bounds.left() + w * centre_fraction
+            left, right = cx - radius_x, cx + radius_x
+            top = QPainterPath(QPointF(left, eye_y - radius_y))
+            top.cubicTo(cx - radius_x * .42, eye_y - radius_y * 1.17,
+                        cx + radius_x * .42, eye_y - radius_y * 1.17,
+                        right, eye_y - radius_y)
+            top.lineTo(right, eye_y - radius_y * (1.0 - closing))
+            top.quadTo(cx, eye_y - radius_y * (1.0 - closing * 1.10),
+                       left, eye_y - radius_y * (1.0 - closing))
+            top.closeSubpath()
+            painter.drawPath(top)
+            bottom = QPainterPath(QPointF(left, eye_y + radius_y))
+            bottom.cubicTo(cx - radius_x * .42, eye_y + radius_y * 1.10,
+                           cx + radius_x * .42, eye_y + radius_y * 1.10,
+                           right, eye_y + radius_y)
+            bottom.lineTo(right, eye_y + radius_y * (1.0 - closing))
+            bottom.quadTo(cx, eye_y + radius_y * (1.0 - closing * 1.10),
+                          left, eye_y + radius_y * (1.0 - closing))
+            bottom.closeSubpath()
+            painter.drawPath(bottom)
+        painter.restore()
+
     def _paint_portrait(self, painter: QPainter) -> None:
         """Render the supplied ATLAS portrait with a discreet state cue."""
         bounds = self._portrait_bounds(self.width(), self.height(),
@@ -274,6 +309,7 @@ class FaceWidget(QWidget):
                         bounds.width() * scale, bounds.height() * scale)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         painter.drawPixmap(target, self._portrait, QRectF(self._portrait.rect()))
+        self._paint_portrait_blink(painter, target)
         self._paint_portrait_mouth(painter, target)
 
         # The listening/thinking/speaking indicator is below the facial details.
