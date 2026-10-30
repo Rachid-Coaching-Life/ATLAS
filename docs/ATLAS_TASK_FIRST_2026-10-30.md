@@ -168,3 +168,74 @@ Ensuite, sous ATLAS normal : clic droit sur **TÂCHES**,
 qu'elle est transmise et que les états de tâche proviennent bien
 du service. Clic gauche sur **TÂCHES** pour consulter la réponse
 intégrale et son historique.
+
+
+## 30 octobre 2026 — Première tâche locale déterministe
+
+**Validation utilisateur précédente :** après récupération du commit
+`a8e00f0`, les suites `test_task_centre.py` et
+`test_hologram_controls.py` ont réussi sous Windows :
+`36 passed in 3.10s`.
+
+### Déficit fonctionnel établi
+
+Le gestionnaire de tâches `TaskManager` confiait tous les prompts à
+`run_reply_engine`. Or les outils intégrés accessibles par ce moteur
+ne comportaient pas de diagnostic de ressources CPU/RAM/disque. Une
+demande « Vérifie mon ordinateur » risquait donc de produire une réponse
+explicative sans mesure, plutôt qu'une opération démontrée. Les outils
+existants de lecture/écriture de fichiers et le moteur de tâches restent
+inchangés pour les autres demandes.
+
+### Fonction ajoutée
+
+Commande à saisir dans **TÂCHES** ou **Nouvelle tâche…** :
+**`Diagnostic système`** (et quelques variantes strictement définies
+telles que `État du système`).
+
+- `src/jarvis/tools/builtin/system_status.py` : nouvel outil intégré
+  `systemStatus` de **lecture seule** ; il relève un échantillon
+  d'utilisation CPU de 0,1 seconde, la RAM utilisée et totale, et la
+  capacité libre du volume du profil utilisateur via `psutil`, déjà
+  présent dans `requirements.txt`. Le résultat précise ses limites :
+  ni température ni GPU, et aucune conclusion sur la santé matérielle.
+- `src/jarvis/tools/registry.py` : publication de l'outil pour le
+  routage normal, sans ajouter de dépendance.
+- `src/jarvis/tasks.py` : **seulement** pour une commande de statut
+  système exacte et non composée, le gestionnaire appelle directement
+  le même outil `systemStatus` ; il n'appelle alors ni LLM,
+  ni agent de planification. Il conserve les états
+  `queued → running → completed` et le texte issu des mesures.
+  Un relevé impossible devient `failed` avec l'erreur, jamais
+  `completed`. Les commandes composées et actions sur fichiers
+  conservent l'ancien trajet moteur/permissions.
+- `tests/test_system_status.py` : mesures fictives maîtrisées,
+  annonce explicite des limites, absence d'appel LLM, transitions
+  du gestionnaire, défaut des compteurs et frontière étroite des
+  commandes routées sans modèle.
+
+Le résultat est visible dans le **centre des tâches** et le panneau
+holographique par les signaux `task_updated` déjà ajoutés. Le texte
+complet reste accessible par le centre.
+
+### État des vérifications
+
+Code et tests enregistrés sur `develop-atlas`, mais les nouveaux
+tests Windows ne sont **pas encore exécutés**. Les valeurs réelles du
+GTR7, l'exactitude du relevé en situation native et le circuit
+complet de lancement ne sont **pas encore confirmés**.
+Aucune mesure ni aucun état sain n'est inventé.
+
+Validation recommandée :
+
+```powershell
+git pull --ff-only origin develop-atlas
+$env:PYTHONPATH = "$PWD\src"
+.\.venv\Scripts\python.exe -m pytest -q tests/test_system_status.py tests/test_task_centre.py tests/test_hologram_controls.py
+```
+
+Puis, ATLAS démarré : clic droit sur **TÂCHES** →
+**Nouvelle tâche…** → `Diagnostic système` ; ouvrir ensuite
+**TÂCHES** pour observer la mesure locale, le statut et les
+limitations explicitement affichées. Ne pas interpréter ce
+relevé comme un test matériel.
