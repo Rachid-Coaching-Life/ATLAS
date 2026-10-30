@@ -2318,6 +2318,12 @@ class ATLASSystemTray:
         self.dictation_history_window.raise_()
         self.dictation_history_window.activateWindow()
 
+    def _connect_chat_to_hologram(self, chat_window) -> None:
+        """Connect one chat's structured updates to the existing projection."""
+        face = getattr(self, "face_window", None)
+        if face is not None and getattr(face, "_hologram_enabled", False):
+            chat_window.conversation_preview_changed.connect(face.ingest_chat_preview)
+
     def show_chat(self) -> None:
         """Show the text chat window (created lazily on first open)."""
         if self.chat_window is None:
@@ -2328,6 +2334,7 @@ class ATLASSystemTray:
                 cancel_fn=getattr(self, "_chat_cancel_fn", None),
                 control_fn=getattr(self, "_chat_control_fn", None),
             )
+            self._connect_chat_to_hologram(self.chat_window)
         else:
             self.chat_window._submit_fn = self._chat_submit_fn
             self.chat_window._cancel_fn = getattr(self, "_chat_cancel_fn", None)
@@ -2877,7 +2884,9 @@ class ATLASSystemTray:
                 submit_fn=self._chat_submit_fn,
                 daemon_available=self.is_listening,
                 cancel_fn=getattr(self, "_chat_cancel_fn", None),
+                control_fn=getattr(self, "_chat_control_fn", None),
             )
+            self._connect_chat_to_hologram(self.chat_window)
         self.chat_window.process_ipc_line(line)
 
     def stop_daemon(
