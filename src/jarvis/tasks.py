@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 import threading
 from math import isfinite
+from pathlib import Path
+import os
 import re
 import time
 import unicodedata
@@ -36,16 +38,59 @@ _DIRECT_SYSTEM_STATUS_COMMANDS = frozenset({
 })
 
 
-def _is_direct_system_status_task(prompt: str) -> bool:
-    """Only exact, harmless system-status requests bypass LLM planning."""
+def _normalized_task_intent(prompt: str) -> str:
+    """Accent-insensitive exact-match key; never extract an action from prose."""
     if not isinstance(prompt, str):
-        return False
+        return ""
     unaccented = "".join(
         letter for letter in unicodedata.normalize("NFKD", prompt)
         if not unicodedata.combining(letter)
     ).casefold()
-    normalized = re.sub(r"[^a-z0-9]+", " ", unaccented).strip()
-    return normalized in _DIRECT_SYSTEM_STATUS_COMMANDS
+    return re.sub(r"[^a-z0-9]+", " ", unaccented).strip()
+
+
+def _is_direct_system_status_task(prompt: str) -> bool:
+    """Only exact, harmless system-status requests bypass LLM planning."""
+    return _normalized_task_intent(prompt) in _DIRECT_SYSTEM_STATUS_COMMANDS
+
+
+_DIRECT_FILE_LIST_COMMANDS = {
+    "liste mes documents": "Documents",
+    "liste les fichiers de mes documents": "Documents",
+    "liste les fichiers de mon dossier documents": "Documents",
+    "liste mes telechargements": "Downloads",
+    "liste les fichiers de mes telechargements": "Downloads",
+    "liste les fichiers de mon bureau": "Desktop",
+}
+
+
+def _direct_file_list_folder(prompt: str) -> Optional[str]:
+    """Recognise only simple file-listing requests, never mutating actions."""
+    return _DIRECT_FILE_LIST_COMMANDS.get(_normalized_task_intent(prompt))
+
+
+def _local_inventory_directory(folder: str) -> Path:
+    """Use an existing home folder or known local OneDrive relocation only.
+
+    Symlinks outside the profile are intentionally rejected by localFiles.
+    Never create a missing folder or search the whole disk.
+    """
+    if folder not in {"Documents", "Downloads", "Desktop"}:
+        raise ValueError("Dossier de consultation inconnu")
+    home = Path.home().resolve()
+    candidates = [home / folder, home / "OneDrive" / folder]
+    for key in ("OneDrive", "OneDriveCommercial", "OneDriveConsumer"):
+        cloud_root = os.environ.get(key)
+        if cloud_root:
+            candidates.append(Path(cloud_root) / folder)
+    for path in candidates:
+        if path.is_dir():
+            resolved = path.resolve()
+            if resolved.is_relative_to(home):
+                return resolved
+    raise FileNotFoundError(
+        f"Le dossier {folder} n'a pas été trouvé dans le profil local."
+    )
 
 
 class TaskStatus(str, Enum):
@@ -202,6 +247,27 @@ class TaskManager:
                         or "Diagnostic système indisponible."
                     )
                 result = outcome.reply_text
+            elif (folder := _direct_file_list_folder(task.prompt)) is not None:
+                # Reuse the existing sandboxed read-only file tool; never
+                # infer a path or a destructive operation from free-form text.
+                from .tools.registry import run_tool_with_retries
+                directory = _local_inventory_directory(folder)
+                outcome = run_tool_with_retries(
+                    self.db, self.cfg, "localFiles",
+                    {"operation": "list", "path": str(directory),
+                     "recursive": False, "glob": "*"},
+                    "", task.prompt, redact(task.prompt), max_retries=0,
+                )
+                if not outcome.success:
+                    raise RuntimeError(
+                        outcome.error_message or outcome.reply_text
+                        or f"Impossible de lister {folder}."
+                    )
+                result = (
+                    f"Inventaire en lecture seule : {folder} "
+                    "(50 entrées affichées au maximum).\n"
+                    + (outcome.reply_text or "Aucun détail disponible.")
+                )
             else:
                 from .daemon import query_lock
                 with query_lock():
