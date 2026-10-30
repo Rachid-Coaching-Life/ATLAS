@@ -41,23 +41,34 @@ def test_repeated_introduction_guard_is_narrow(query, reply, expected):
     assert _remove_unrequested_atlas_introduction(reply, query) == expected
 
 
-def test_startup_presentation_is_queued_once_when_daemon_calls_helper():
-    from jarvis.daemon import _announce_atlas_startup, _ATLAS_STARTUP_GREETING
+def test_startup_presentation_is_spoken_once_after_voice_ready():
+    from jarvis.listening.listener import VoiceListener
 
+    calls = []
     class FakeTTS:
         enabled = True
 
-        def __init__(self):
-            self.queued = []
+        def speak(self, text, terminal_callback=None):
+            calls.append(text)
+            if terminal_callback is not None:
+                terminal_callback("completed")
 
-        def speak(self, text):
-            self.queued.append(text)
+    class FakeListener:
+        _should_stop = False
+        tts = FakeTTS()
+        capture_paused = False
 
-    tts = FakeTTS()
-    assert _announce_atlas_startup(tts) is True
-    assert tts.queued == [_ATLAS_STARTUP_GREETING]
-    assert _ATLAS_STARTUP_GREETING.startswith("Bonjour, je suis ATLAS.")
-    tts.enabled = False
-    assert _announce_atlas_startup(tts) is False
-    assert len(tts.queued) == 1
-    assert _announce_atlas_startup(None) is False
+        def set_capture_paused(self, reason, paused):
+            assert reason == "startup_greeting"
+            calls.append(("pause", paused))
+
+    listener = FakeListener()
+    VoiceListener._announce_voice_ready(listener)
+    assert calls == [
+        ("pause", True),
+        "Bonjour, je suis ATLAS. Je suis prêt à exécuter vos tâches.",
+        ("pause", False),
+    ]
+    listener.tts.enabled = False
+    VoiceListener._announce_voice_ready(listener)
+    assert len([call for call in calls if isinstance(call, str)]) == 1
