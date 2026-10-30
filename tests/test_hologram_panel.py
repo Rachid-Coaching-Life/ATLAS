@@ -442,6 +442,14 @@ def test_offscreen_preview_loads_real_unicode_font_and_exports_png():
     assert image.height() == 330
     assert image.pixelColor(0, 0).alpha() == 0
     assert image.pixelColor(252, 165).alpha() > 0
+    # Same genuine render on a simulated desktop background, not a mock-up.
+    assert "Vue de contraste (fond simulé) :" in result.stdout
+    backdrop = QImage(
+        str(Path(tempfile.gettempdir()) / "ATLAS_hologram_sur_fond.png")
+    )
+    assert not backdrop.isNull()
+    assert backdrop.size() == image.size()
+    assert backdrop.pixelColor(0, 0).alpha() == 255
 
 
 def test_spectral_layers_render_at_small_and_large_sizes(qapp):
