@@ -69,6 +69,21 @@ def _direct_file_list_folder(prompt: str) -> Optional[str]:
     return _DIRECT_FILE_LIST_COMMANDS.get(_normalized_task_intent(prompt))
 
 
+_DIRECT_PDF_LIST_COMMANDS = {
+    "liste les pdf de mes documents": "Documents",
+    "liste les fichiers pdf de mes documents": "Documents",
+    "liste les pdf de mes telechargements": "Downloads",
+    "liste les fichiers pdf de mes telechargements": "Downloads",
+    "liste les pdf de mon bureau": "Desktop",
+    "liste les fichiers pdf de mon bureau": "Desktop",
+}
+
+
+def _direct_pdf_list_folder(prompt: str) -> Optional[str]:
+    """Exact, nonrecursive and read-only local PDF listing requests only."""
+    return _DIRECT_PDF_LIST_COMMANDS.get(_normalized_task_intent(prompt))
+
+
 def _local_inventory_directory(folder: str) -> Path:
     """Use an existing home folder or known local OneDrive relocation only.
 
@@ -247,15 +262,19 @@ class TaskManager:
                         or "Diagnostic système indisponible."
                     )
                 result = outcome.reply_text
-            elif (folder := _direct_file_list_folder(task.prompt)) is not None:
-                # Reuse the existing sandboxed read-only file tool; never
-                # infer a path or a destructive operation from free-form text.
+            elif (
+                (folder := _direct_file_list_folder(task.prompt)) is not None
+                or (folder := _direct_pdf_list_folder(task.prompt)) is not None
+            ):
+                # Keep the existing localFiles sandbox and nonrecursive limit.
+                # Never search another volume or infer a destructive action.
                 from .tools.registry import run_tool_with_retries
+                pdf_only = _direct_pdf_list_folder(task.prompt) is not None
                 directory = _local_inventory_directory(folder)
                 outcome = run_tool_with_retries(
                     self.db, self.cfg, "localFiles",
                     {"operation": "list", "path": str(directory),
-                     "recursive": False, "glob": "*"},
+                     "recursive": False, "glob": "*.pdf" if pdf_only else "*"},
                     "", task.prompt, redact(task.prompt), max_retries=0,
                 )
                 if not outcome.success:
@@ -263,9 +282,10 @@ class TaskManager:
                         outcome.error_message or outcome.reply_text
                         or f"Impossible de lister {folder}."
                     )
+                scope = "PDF du dossier" if pdf_only else "dossier"
                 result = (
-                    f"Inventaire en lecture seule : {folder} "
-                    "(50 entrées affichées au maximum).\n"
+                    f"Inventaire en lecture seule : {scope} {folder} "
+                    "(premier niveau uniquement, 50 entrées affichées au maximum).\n"
                     + (outcome.reply_text or "Aucun détail disponible.")
                 )
             else:
