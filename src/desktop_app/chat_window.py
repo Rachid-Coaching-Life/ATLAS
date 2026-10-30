@@ -703,6 +703,10 @@ class ChatWindow(QMainWindow):
             return
         if reply:
             self._append_assistant(reply)
+        else:
+            self._emit_conversation_preview(
+                reply_override="ATLAS n'a pas renvoyé de réponse."
+            )
 
     def _on_busy(self) -> None:
         self._set_thinking(False)
