@@ -131,7 +131,7 @@ def _remove_unrequested_atlas_introduction(reply: str, query: str) -> str:
     prefix = re.match(
         r"^\s*(?:(?:bonjour|bonsoir|salut)[\s.,!?:;]+)?"
         r"(?:je\s+suis|moi[\s,]+c[’']est)\s+atlas"
-        r"[\s.,!?:;]+",
+        r"(?:,\s*votre assistant(?: personnel local)?)?[.,!?:;]+(?:\s+|$)",
         reply,
         flags=re.IGNORECASE,
     )
