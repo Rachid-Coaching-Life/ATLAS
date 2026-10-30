@@ -26,11 +26,11 @@ SUBMISSION_TIMEOUT_MS = 10000
 
 
 _STATUS_LABELS = {
-    "queued": "🟡 Queued",
-    "running": "🔵 Running",
-    "completed": "✅ Completed",
-    "failed": "❌ Failed",
-    "cancelled": "⚪ Cancelled",
+    "queued": "🟡 En attente",
+    "running": "🔵 En cours",
+    "completed": "✅ Terminé",
+    "failed": "❌ Échec",
+    "cancelled": "⚪ Annulé",
 }
 
 
@@ -83,7 +83,7 @@ class TaskCentreWindow(QDialog):
         self.details.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.TextSelectableByKeyboard
         )
-        self.details.setPlainText("Select a task to view its result.")
+        self.details.setPlainText("Sélectionnez une tâche pour afficher son résultat.")
         layout.addWidget(self.details, 1)
 
         input_row = QHBoxLayout()
@@ -237,7 +237,7 @@ class TaskCentreWindow(QDialog):
 
     def _show_task_details(self, current, _previous) -> None:
         if current is None:
-            self.details.setPlainText("Select a task to view its result.")
+            self.details.setPlainText("Sélectionnez une tâche pour afficher son résultat.")
             return
         task = self._tasks.get(str(current.data(Qt.ItemDataRole.UserRole)), {})
         status = _STATUS_LABELS.get(task.get("status"), "❔ Unknown")
