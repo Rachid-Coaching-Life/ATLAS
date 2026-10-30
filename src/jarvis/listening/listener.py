@@ -429,7 +429,8 @@ class VoiceListener(threading.Thread):
 
     def __init__(self, db: "Database", cfg, tts: Optional[Any],
                  dialogue_memory: "DialogueMemory", *,
-                 on_low_confidence: Optional[Callable[[LowConfidenceEvent], None]] = None):
+                 on_low_confidence: Optional[Callable[[LowConfidenceEvent], None]] = None,
+                 task_manager=None):
         """
         Initialise voice listener.
 
@@ -449,6 +450,7 @@ class VoiceListener(threading.Thread):
         self.tts = tts
         self.dialogue_memory = dialogue_memory
         self.on_low_confidence = on_low_confidence
+        self._task_manager = task_manager
         self._should_stop = False
         self._capture_pause_reasons = frozenset()
         self._capture_pause_reset_pending = False
@@ -1129,15 +1131,52 @@ class VoiceListener(threading.Thread):
             failed = False
             reply_started = time.monotonic()
             try:
-                # Voice and text share one conversation and reply-engine lock.
-                with query_lock():
+                # Deterministic voice tasks reuse the existing task queue,
+                # its events and permission checks, without a model round trip.
+                from concurrent.futures import TimeoutError as TaskTimeout
+                from ..tasks import _direct_voice_task_prompt, TaskStatus
+                direct_prompt = _direct_voice_task_prompt(
+                    query, getattr(self.cfg, "wake_word", "ATLAS"),
+                    getattr(self.cfg, "wake_aliases", ()) or (),
+                )
+                task_service = getattr(self, "_task_manager", None)
+                if direct_prompt is not None and task_service is not None:
                     if not self._transcription_is_current(generation):
-                        debug_log('Discarded voice dispatch after query-lock wait', 'voice')
                         return
-                    reply = run_reply_engine(
-                        self.db, self.cfg, None, query, self.dialogue_memory,
-                        language=language, speech_context=speech_context,
-                    )
+                    task_id = task_service.submit(direct_prompt)
+                    try:
+                        finished = task_service.wait_for_task(task_id, timeout=12.0)
+                    except TaskTimeout:
+                        reply = (
+                            "La tâche est toujours en cours. "
+                            "Son avancement est visible dans le centre des tâches."
+                        )
+                    else:
+                        if finished is None:
+                            reply = "Impossible de retrouver le résultat de cette tâche."
+                            failed = True
+                        elif finished.status is TaskStatus.COMPLETED:
+                            reply = finished.result or "Tâche terminée sans résultat détaillé."
+                        elif finished.status is TaskStatus.FAILED:
+                            reply = finished.error or "L'exécution de la tâche a échoué."
+                            failed = True
+                        elif finished.status is TaskStatus.CANCELLED:
+                            reply = "La tâche a été annulée."
+                            failed = True
+                        else:
+                            reply = "La tâche est en cours. Consultez son état dans le centre des tâches."
+                    print(f"\n🤖 ATLAS\n  {reply}\n", flush=True)
+                else:
+                    # Other requests retain the existing guarded conversation
+                    # path, including audio context, memory and tool permissions.
+                    with query_lock():
+                        if not self._transcription_is_current(generation):
+                            debug_log('Discarded voice dispatch after query-lock wait', 'voice')
+                            return
+                        reply = run_reply_engine(
+                            self.db, self.cfg, None, query, self.dialogue_memory,
+                            language=language, speech_context=speech_context,
+                        )
             except Exception as exc:
                 print(f"\n  ❌ Reply engine error: {exc}", flush=True)
                 debug_log(f'Reply engine exception: {exc}', 'voice')
