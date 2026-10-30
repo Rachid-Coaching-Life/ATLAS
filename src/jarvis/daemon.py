@@ -1100,6 +1100,7 @@ def _run_daemon(smoke_test: bool = False) -> None:
     voice_thread: Optional[threading.Thread] = None
     voice_thread = VoiceListener(
         db, cfg, tts, _global_dialogue_memory,
+        task_manager=_global_task_manager,
     )
     voice_thread.start()
     _global_voice_listener = voice_thread
@@ -1218,9 +1219,6 @@ def _run_daemon(smoke_test: bool = False) -> None:
         _global_dictation_engine = None
 
         return
-
-    # A single audible self-introduction on normal startup; never per reply.
-    _announce_atlas_startup(tts)
 
     # Periodic diary update checking
     last_diary_check = time.time()
