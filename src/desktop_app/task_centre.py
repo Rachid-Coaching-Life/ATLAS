@@ -6,7 +6,7 @@ import json
 import uuid
 from typing import Callable, Optional
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -37,6 +37,9 @@ _STATUS_LABELS = {
 class TaskCentreWindow(QDialog):
     """Créer, suivre et annuler les tâches exécutées par ATLAS."""
 
+    task_updated = pyqtSignal(dict)
+    task_submission_state_changed = pyqtSignal(str, str)
+
     def __init__(
         self,
         submit_callback: Callable[..., Optional[str]],
@@ -56,6 +59,8 @@ class TaskCentreWindow(QDialog):
         self._tasks: dict[str, dict] = {}
         self._items: dict[str, QListWidgetItem] = {}
         self._pending_request = None
+        self._pending_external = False
+        self._pending_prompt = ""
         self._submission_timer = QTimer(self)
         self._submission_timer.setSingleShot(True)
         self._submission_timer.timeout.connect(self._submission_timed_out)
@@ -136,6 +141,7 @@ class TaskCentreWindow(QDialog):
         if self.task_list.currentItem() is None and self.task_list.count():
             self.task_list.setCurrentRow(0)
         self._show_task_details(self.task_list.currentItem(), None)
+        self.task_updated.emit(dict(task))
         return True
 
     def process_log_line(self, line: str) -> bool:
@@ -163,12 +169,19 @@ class TaskCentreWindow(QDialog):
             return
         self._submission_timer.stop()
         self._pending_request = None
+        external = self._pending_external
+        prompt = self._pending_prompt
+        self._pending_external = False
+        self._pending_prompt = ""
         self.prompt.setReadOnly(False)
         self.submit_button.setEnabled(True)
-        if accepted:
+        if accepted and not external:
             self.prompt.clear()
-        else:
+        elif not accepted:
             self.details.setPlainText(f"⚠️ {redact(error)}")
+        if external:
+            state = "Demande acceptée ; suivi en cours." if accepted else f"Envoi refusé : {redact(error)}"
+            self.task_submission_state_changed.emit(prompt, state)
 
     def _submission_timed_out(self) -> None:
         if self._pending_request is not None:
@@ -177,17 +190,29 @@ class TaskCentreWindow(QDialog):
                 error="Aucune confirmation d’ATLAS. Vérifiez les tâches avant de réessayer.",
             )
 
+    def submit_hologram_task(self, prompt: str) -> bool:
+        """Use the existing admission/timeout pipeline, preserving chat drafts."""
+        return self._submit_prompt(prompt, external=True)
+
     def _submit(self) -> None:
+        self._submit_prompt(self.prompt.toPlainText(), external=False)
+
+    def _submit_prompt(self, prompt: str, *, external: bool) -> bool:
         if self._pending_request is not None:
-            return
-        prompt = self.prompt.toPlainText().strip()
-        if not prompt:
-            self.details.setPlainText("⚠️ Enter a task before running it.")
-            return
+            return False
+        if not isinstance(prompt, str) or not prompt.strip():
+            if not external:
+                self.details.setPlainText("⚠️ Décrivez une tâche avant de l'exécuter.")
+            return False
+        prompt = prompt.strip()
         identity = uuid.uuid4().hex
         self._pending_request = identity
+        self._pending_external = external
+        self._pending_prompt = redact(prompt)
         self.prompt.setReadOnly(True)
         self.submit_button.setEnabled(False)
+        if external:
+            self.task_submission_state_changed.emit(self._pending_prompt, "Envoi au service de tâches…")
         self._submission_timer.start(SUBMISSION_TIMEOUT_MS)
         try:
             task_id = self._submit_callback(prompt, request_id=identity)
@@ -197,7 +222,8 @@ class TaskCentreWindow(QDialog):
                 self._finish_submission(identity, accepted=True)
         except Exception as exc:
             self._finish_submission(identity, accepted=False,
-                                    error=f"Could not queue task: {redact(str(exc))}")
+                                    error=f"Impossible d'envoyer la tâche : {redact(str(exc))}")
+        return True
 
     def _cancel_selected(self) -> None:
         item = self.task_list.currentItem()
