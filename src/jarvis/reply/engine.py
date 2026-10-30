@@ -129,9 +129,9 @@ def _remove_unrequested_atlas_introduction(reply: str, query: str) -> str:
     if _is_atlas_self_introduction_request(query):
         return reply
     prefix = re.match(
-        r"^\\s*(?:(?:bonjour|bonsoir|salut)[\\s.,!?:;]+)?"
-        r"(?:je\\s+suis|moi[\\s,]+c[’']est)\\s+atlas"
-        r"[\\s.,!?:;]+",
+        r"^\s*(?:(?:bonjour|bonsoir|salut)[\s.,!?:;]+)?"
+        r"(?:je\s+suis|moi[\s,]+c[’']est)\s+atlas"
+        r"[\s.,!?:;]+",
         reply,
         flags=re.IGNORECASE,
     )
