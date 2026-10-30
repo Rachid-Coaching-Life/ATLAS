@@ -517,6 +517,102 @@ class HologramPanel(QWidget):
         painter.drawLine(QPointF(.17 * w, .666 * h), QPointF(.77 * w, .666 * h))
         painter.restore()
 
+    def _paint_orbital_core(self, painter: QPainter, w: float, h: float) -> None:
+        """A tiny stationary planetary instrument in the reserved left rail.
+
+        The rings are strokes painted directly by Qt. They allocate no new
+        widgets, images, OpenGL contexts or animation timers.
+        """
+        if w < 390 or h < 280:
+            return
+        painter.save()
+        center = QPointF(39, 39)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(QPen(QColor(29, 196, 253, 25), 7.0))
+        painter.drawEllipse(center, 22, 22)
+        painter.setPen(QPen(QColor(62, 212, 255, 165), 1.05))
+        painter.drawEllipse(center, 20, 20)
+        painter.setPen(QPen(QColor(78, 203, 255, 105), .9))
+        painter.drawEllipse(center, 9, 19)
+        painter.drawEllipse(center, 19, 8)
+        painter.drawLine(QPointF(21, 39), QPointF(57, 39))
+        painter.setPen(QPen(QColor(252, 162, 62, 215), 1.75))
+        painter.drawArc(QRectF(14, 14, 50, 50), 20 * 16, 84 * 16)
+        painter.drawArc(QRectF(14, 14, 50, 50), 195 * 16, 53 * 16)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(185, 243, 255, 220))
+        painter.drawEllipse(QPointF(39, 39), 2.0, 2.0)
+        painter.restore()
+
+    def _paint_telemetry(
+        self, painter: QPainter, w: float, h: float, phase: float, activity: bool
+    ) -> None:
+        """An independent luminous data strip above the real action buttons."""
+        if w < 390 or h < 300:
+            return
+        # Anchored in the unused gap, so real text and buttons stay visible.
+        reply_bottom = self.reply.geometry().bottom()
+        control_top = self.voice_button.geometry().top()
+        if control_top - reply_bottom < 21:
+            return
+        y = (reply_bottom + control_top) / 2.0
+        painter.save()
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(QPen(QColor(55, 196, 248, 65), .8))
+        painter.drawLine(QPointF(.18*w, y), QPointF(.86*w, y))
+        # Subdued waveform that reacts only to already-confirmed activity.
+        for i in range(21):
+            x = (.23 + i * .017) * w
+            strength = (0.55 + 0.45 * math.sin(i * 1.9 + (
+                phase * 2.8 if activity else 0.0
+            )))
+            height = 2.0 + 5.0 * strength
+            color = QColor(56, 218, 255, 165 if activity else 85)
+            painter.setPen(QPen(color, 1.25))
+            painter.drawLine(QPointF(x, y - height), QPointF(x, y + height))
+        # Three discrete activity nodes, instead of a large fake graph.
+        for i in range(3):
+            x = (.73 + .033*i) * w
+            color = QColor(255, 171, 67, 205 if i == 0 else 96)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(color)
+            painter.drawEllipse(QPointF(x, y), 2.2, 2.2)
+        painter.restore()
+
+    def _paint_neural_emitter(
+        self, painter: QPainter, w: float, h: float, phase: float, activity: bool
+    ) -> None:
+        """Distinct blue/amber reactor at the panel's robot-facing notch.
+
+        A small bounded radial gradient creates a luminous lens without
+        large-area blur or shadows, even on software raster backends.
+        """
+        if w < 390:
+            return
+        origin = QPointF(.94 * w, .50 * h)
+        pulse = .94 + (.06 * math.sin(phase * 3.0) if activity else 0.0)
+        painter.save()
+        halo = QRadialGradient(origin, 33)
+        halo.setColorAt(0, QColor(194, 249, 255, int(150 * pulse)))
+        halo.setColorAt(.13, QColor(53, 210, 255, int(100 * pulse)))
+        halo.setColorAt(.55, QColor(14, 137, 255, 44))
+        halo.setColorAt(1, QColor(0, 0, 0, 0))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QBrush(halo))
+        painter.drawEllipse(origin, 33, 33)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(QPen(QColor(38, 212, 255, 175), 1.3))
+        painter.drawEllipse(origin, 19, 19)
+        painter.setPen(QPen(QColor(255, 164, 61, 235), 1.6))
+        painter.drawArc(QRectF(origin.x()-23, origin.y()-23, 46, 46),
+                        32*16, 117*16)
+        painter.drawArc(QRectF(origin.x()-23, origin.y()-23, 46, 46),
+                        220*16, 57*16)
+        painter.setPen(QPen(QColor(138, 230, 255, 187), .9))
+        painter.drawLine(QPointF(origin.x()-27, origin.y()),
+                         QPointF(origin.x()-9, origin.y()))
+        painter.restore()
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -534,9 +630,11 @@ class HologramPanel(QWidget):
         painter.save()
         painter.setClipPath(path)
         tint = QLinearGradient(QPointF(0, 0), QPointF(w, h))
-        tint.setColorAt(0, QColor(4, 31, 53, 176))
-        tint.setColorAt(.48, QColor(3, 18, 39, 158))
-        tint.setColorAt(1, QColor(3, 23, 43, 185))
+        # Translucent carrier, not a single opaque tablet.  Opaque text
+        # islands and light rails sit above the glass on separate planes.
+        tint.setColorAt(0, QColor(3, 32, 61, 115))
+        tint.setColorAt(.48, QColor(2, 16, 39, 87))
+        tint.setColorAt(1, QColor(2, 29, 53, 119))
         painter.fillPath(path, QBrush(tint))
 
         # Spectral lighting gives the acrylic depth without applying a
@@ -574,14 +672,16 @@ class HologramPanel(QWidget):
 
         # Thin tech weave and microcircuits are deliberately subtle to keep
         # the actual conversation readable.
-        painter.setPen(QPen(QColor(67, 187, 224, 16), .6))
-        for row in range(16, int(h), 23):
+        painter.setPen(QPen(QColor(67, 187, 224, 13), .6))
+        for row in range(16, int(h), 28):
             painter.drawLine(QPointF(.09 * w, row), QPointF(.96 * w, row))
-        for col in range(22, int(w), 32):
+        for col in range(22, int(w), 37):
             painter.drawLine(QPointF(col, .07 * h), QPointF(col, .92 * h))
 
         self._paint_neural_details(painter, w, h, phase, activity)
         self._paint_instruments(painter, w, h)
+        self._paint_orbital_core(painter, w, h)
+        self._paint_telemetry(painter, w, h, phase, activity)
         self._glass_card(painter, self.heard, _CYAN, w)
         self._glass_card(painter, self.reply, _AMBER, w)
         self._paint_message_symbol(painter, self.heard, _CYAN, microphone=True)
@@ -629,6 +729,8 @@ class HologramPanel(QWidget):
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor(103, 227, 255, int(130 * glow)))
         painter.drawEllipse(tip, 2.3, 2.3)
+        # Last so the emitter lens sits above the glass and circuitry.
+        self._paint_neural_emitter(painter, w, h, phase, activity)
 
         # First appearance: the projection scans in from the robot-facing
         # right edge, without moving the widget, portrait or actual text.
