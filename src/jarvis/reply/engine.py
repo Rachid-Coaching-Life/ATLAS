@@ -121,8 +121,8 @@ def _remove_unrequested_atlas_introduction(reply: str, query: str) -> str:
     """Remove only a stock self-introduction before an actual answer.
 
     Narrow fallback for local models ignoring the system prompt. Explicit
-    requests for ATLAS to present itself are never altered. Do not delete
-    the entire reply if it only contains an introduction.
+    requests for ATLAS to present itself are never altered. If the reply
+    contains only an unrequested introduction, request clarification instead.
     """
     if not isinstance(reply, str) or not reply.strip():
         return reply
