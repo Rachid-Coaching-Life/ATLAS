@@ -1774,13 +1774,17 @@ class DaemonThread(KeepAliveWorker):
 
 
 def _diagnostic_hologram_enabled() -> bool:
-    """Opt-in diagnostic: portrait-only window, independent of vocal startup.
-
-    This does not guarantee stability: Qt translucency, portrait animation,
-    the Windows compositor and voice daemon remain active. Never alter the
-    normal mode unless the user explicitly sets this environment variable.
-    """
+    """Opt-in portrait-only diagnostic; normal visual mode is unchanged."""
     return os.environ.get("ATLAS_DIAGNOSTIC_NO_HOLOGRAM") != "1"
+
+
+def _diagnostic_autostart_enabled() -> bool:
+    """Allow a low-load diagnostic boot without starting the voice/AI daemon.
+
+    The normal mode still starts listening automatically. Disabling the daemon
+    alone is NOT a guarantee of safety after a hardware power-cut.
+    """
+    return os.environ.get("ATLAS_DIAGNOSTIC_NO_AUTOSTART") != "1"
 
 
 class ATLASSystemTray:
@@ -3871,10 +3875,16 @@ def main() -> int:
         )
         print("ATLASSystemTray initialized successfully", flush=True)
 
-        # Always auto-start listening
-        splash.set_status("Starting voice assistant...")
-        print("🚀 Auto-starting ATLAS listener...", flush=True)
-        tray_instance.start_daemon()
+        # Normal behavior is unchanged. On an explicitly requested diagnostic
+        # run, avoid loading voice/AI engines so their power demand can be
+        # isolated from the Windows/Qt desktop renderer.
+        if _diagnostic_autostart_enabled():
+            splash.set_status("Starting voice assistant...")
+            print("🚀 Auto-starting ATLAS listener...", flush=True)
+            tray_instance.start_daemon()
+        else:
+            splash.set_status("Diagnostic: voice service not started")
+            print("ATLAS diagnostic: voice/AI autostart disabled", flush=True)
 
         # Close splash screen
         splash.close_splash()
