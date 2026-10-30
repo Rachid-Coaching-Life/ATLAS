@@ -632,3 +632,92 @@ def test_hologram_islands_keep_real_controls_and_compact_fallback(qapp):
             assert not panel._timer.isActive()
         finally:
             panel.close()
+
+
+def test_opt_in_low_effects_keep_live_controls_and_portrait_geometry(qapp, monkeypatch):
+    """The diagnostic reduces HUD work, not its essential functions or shape."""
+    from PyQt6.QtGui import QImage
+    from desktop_app.face_widget import FaceWindow
+    from desktop_app.hologram_panel import HologramPanel, ProjectionBridge
+
+    monkeypatch.setenv("ATLAS_HOLOGRAM_LOW_EFFECTS", "1")
+    window = FaceWindow(hologram=True)
+    try:
+        panel = window.hologram
+        bridge = window.bridge
+        assert panel._low_effects
+        assert bridge._low_effects
+        assert panel._timer.interval() == 500
+        assert bridge._timer.interval() == 500
+        assert not window.face._portrait.isNull()
+        assert window.face.width() > 0
+        events = []
+        panel.voice_command_requested.connect(lambda: events.append("voice"))
+        panel.exchange_view_requested.connect(lambda: events.append("exchanges"))
+        panel.voice_button.click()
+        panel.exchanges_button.click()
+        assert events == ["voice", "exchanges"]
+        panel.show()
+        qapp.processEvents()
+        image = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        image.fill(0)
+        panel.render(image)
+        assert image.pixelColor(0, 0).alpha() == 0
+        assert image.pixelColor(panel.width() // 2, panel.height() // 2).alpha() > 0
+        panel.set_activity("idle")
+        bridge.set_activity("idle")
+        assert not panel._timer.isActive()
+        assert not bridge._timer.isActive()
+    finally:
+        window.close()
+
+
+def test_hologram_default_cadence_unchanged_without_diagnostic_opt_in(qapp, monkeypatch):
+    from desktop_app.hologram_panel import HologramPanel, ProjectionBridge
+
+    monkeypatch.delenv("ATLAS_HOLOGRAM_LOW_EFFECTS", raising=False)
+    panel = HologramPanel()
+    bridge = ProjectionBridge()
+    try:
+        assert not panel._low_effects
+        assert not bridge._low_effects
+        assert panel._timer.interval() == 250
+        assert bridge._timer.interval() == 250
+    finally:
+        panel.close()
+        bridge.close()
+
+
+def test_offscreen_profiler_generates_json_without_native_desktop(tmp_path):
+    """Regression: profile script must never start daemon, desktop or GPU API."""
+    import json
+    import os
+    from pathlib import Path
+    import subprocess
+    import sys
+
+    root = Path(__file__).resolve().parents[1]
+    script = root / "scripts" / "profile_atlas_hologram_offscreen.py"
+    output = tmp_path / "atlas_profile.json"
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(root / "src")
+    result = subprocess.run(
+        [sys.executable, str(script), "--samples", "2",
+         "--warmup", "1", "--output", str(output)],
+        cwd=root, env=env, capture_output=True, text=True, timeout=35,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + "\n" + result.stderr
+    assert output.is_file()
+    data = json.loads(output.read_text(encoding="utf-8"))
+    assert data["platform"] == "offscreen"
+    assert data["samples"] == 2
+    for name in (
+        "hologram_normal_idle", "hologram_normal_listening",
+        "hologram_alleger_idle", "hologram_alleger_listening",
+        "bridge_normal_idle", "bridge_alleger_listening",
+        "portrait_idle", "portrait_speaking",
+    ):
+        assert data["measurements"][name]["median_ms"] >= 0
+    assert data["measurements"]["hologram_normal_listening"]["timer_ms"] == 250
+    assert data["measurements"]["hologram_alleger_listening"]["timer_ms"] == 500
