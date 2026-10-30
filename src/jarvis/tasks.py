@@ -124,6 +124,13 @@ def _local_inventory_directory(folder: str) -> Path:
     )
 
 
+def _has_pdf_open_intent(prompt: str) -> bool:
+    """Prevent invalid PDF-open paths from falling back to an LLM/tool router."""
+    return isinstance(prompt, str) and bool(
+        re.match(r"^ouvre\s+le\s+pdf\b", prompt.strip(), re.IGNORECASE)
+    )
+
+
 def _direct_pdf_open_request(prompt: str) -> Optional[tuple[str, tuple[str, ...]]]:
     """Parse an explicit relative PDF path from one user instruction.
 
@@ -385,9 +392,15 @@ class TaskManager:
                         or "Recherche PDF indisponible."
                     )
                 result = outcome.reply_text
-            elif (requested_pdf := _direct_pdf_open_request(task.prompt)) is not None:
-                # Only an explicit, exact PDF filename may reach the OS.
-                # Never invoke a shell or allow a model to choose the path.
+            elif _has_pdf_open_intent(task.prompt):
+                # Invalid requests fail closed; they must never fall through
+                # to unconstrained LLM/tool routing.
+                requested_pdf = _direct_pdf_open_request(task.prompt)
+                if requested_pdf is None:
+                    raise ValueError(
+                        "Ouverture refusée : indiquez un chemin PDF relatif "
+                        "dans Documents, Téléchargements ou Bureau."
+                    )
                 folder, relative_parts = requested_pdf
                 result = _open_explicit_local_pdf(folder, relative_parts)
             else:
