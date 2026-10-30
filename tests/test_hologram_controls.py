@@ -310,3 +310,103 @@ def test_hologram_copy_action_uses_current_visible_plain_text(qapp):
     finally:
         clipboard.setText(prior)
         panel.close()
+
+
+def test_hologram_write_control_opens_focused_quick_input_without_full_chat(qapp, monkeypatch):
+    """A real prompt is submitted through the shared hidden chat, not a new backend."""
+    from types import SimpleNamespace
+    from desktop_app.app import ATLASSystemTray
+    from desktop_app.hologram_panel import HologramPanel
+
+    monkeypatch.setattr("desktop_app.chat_window.get_hot_window_messages", lambda: [])
+    sent = []
+    panel = HologramPanel()
+    tray = object.__new__(ATLASSystemTray)
+    tray.is_listening = True
+    tray.chat_window = None
+    tray._chat_submit_fn = sent.append
+    tray._chat_cancel_fn = lambda: None
+    tray._chat_control_fn = lambda action, data: None
+    tray._request_hologram_text = lambda: ("  Résume le projet ATLAS  ", True)
+    tray.face_window = SimpleNamespace(
+        _hologram_enabled=True,
+        hologram=panel,
+        ingest_chat_preview=panel.set_conversation_preview,
+    )
+    panel.text_input_requested.connect(tray._handle_hologram_text_request)
+    try:
+        panel.resize(430, 330)
+        panel.show()
+        qapp.processEvents()
+        assert panel.write_button.isVisible()
+        panel.write_button.click()
+        qapp.processEvents()
+        assert sent == ["Résume le projet ATLAS"]
+        assert tray.chat_window is not None
+        assert not tray.chat_window.isVisible()
+        assert panel.heard.text() == "Résume le projet ATLAS"
+        assert panel.reply.text() == "ATLAS prépare sa réponse…"
+        assert panel.write_button.isHidden()
+        assert panel.stop_response_button.isVisible()
+
+        tray.chat_window._on_complete("Le projet est en cours.")
+        qapp.processEvents()
+        assert panel.reply.text() == "Le projet est en cours."
+        assert panel.write_button.isVisible()
+        assert panel.stop_response_button.isHidden()
+    finally:
+        if tray.chat_window is not None:
+            tray.chat_window.close()
+        panel.close()
+
+
+def test_hologram_write_cancel_does_not_create_a_chat(qapp):
+    from types import SimpleNamespace
+    from desktop_app.app import ATLASSystemTray
+    from desktop_app.hologram_panel import HologramPanel
+
+    panel = HologramPanel()
+    tray = object.__new__(ATLASSystemTray)
+    tray.is_listening = True
+    tray.chat_window = None
+    tray._request_hologram_text = lambda: ("question non envoyée", False)
+    tray.face_window = SimpleNamespace(
+        _hologram_enabled=True, hologram=panel,
+        ingest_chat_preview=panel.set_conversation_preview,
+    )
+    try:
+        tray._handle_hologram_text_request()
+        assert tray.chat_window is None
+        assert panel.heard.text() == "Prononcez « Atlas » pour commencer."
+    finally:
+        panel.close()
+
+
+def test_hologram_write_button_keeps_compact_hud_and_busy_state(qapp):
+    from desktop_app.hologram_panel import HologramPanel
+
+    panel = HologramPanel()
+    events = []
+    panel.text_input_requested.connect(lambda: events.append("write"))
+    try:
+        panel.resize(270, 240)
+        panel.show()
+        qapp.processEvents()
+        assert panel.write_button.isVisible()
+        assert panel.write_button.text() == "✎"
+        assert panel.write_button.accessibleName() == "Écrire une demande à ATLAS"
+        panel.write_button.click()
+        assert events == ["write"]
+
+        panel.set_chat_response_pending(True)
+        assert panel.write_button.isHidden()
+        assert panel.stop_response_button.isVisible()
+
+        panel.set_chat_response_pending(False)
+        assert panel.write_button.isVisible()
+        assert panel.stop_response_button.isHidden()
+        panel.resize(430, 330)
+        qapp.processEvents()
+        assert panel.write_button.text() == "ÉCRIRE"
+    finally:
+        panel.close()
