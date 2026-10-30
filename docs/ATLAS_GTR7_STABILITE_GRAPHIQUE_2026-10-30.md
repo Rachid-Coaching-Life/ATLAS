@@ -751,3 +751,65 @@ Si une coupure ou un blocage se produit, **ne pas réessayer**.
 Si les 8 secondes se passent sans incident, cela indique seulement
 un succès bref du rendu natif dans ces conditions, pas l'absence de
 défaut d'alimentation. Tests du nouveau lanceur à exécuter sur Windows.
+
+
+## Essai natif du portrait seul — anomalie Ollama au démarrage
+
+Après nettoyage des applications démarrant avec Windows, relevés au
+repos : CPU 16 % puis 7 %, RAM 8,5 puis 8,2 Gio (27,7 Gio utilisables),
+GPU AMD 780M 3 %, 45 puis 39 °C ; seulement deux entrées de démarrage
+maintenues (Realtek HD Audio Universal Service, Windows Security
+notification icon). **Ces observations ne valident pas l'alimentation.**
+
+L'utilisateur a exécuté la fenêtre complète en mettant
+`ATLAS_DIAGNOSTIC_NO_HOLOGRAM=1` et
+`ATLAS_DIAGNOSTIC_NO_AUTOSTART=1` ; portrait visible, aucun
+hologramme, aucun moteur vocal, GTR7 non éteint pendant cet essai
+ponctuel. L'image paraît translucide parce que
+`FaceWindow._update_presence` applique **0,45 d'opacité en état
+ASLEEP lorsqu'il n'y a pas d'hologramme** (comportement existant,
+portrait non modifié).
+
+**Anomalie du mode diagnostic établie par les logs :** avant que le
+démarrage vocal soit désactivé, `app.main()` lançait tout de même le
+contrôle de configuration Ollama, un serveur `ollama.exe serve`
+(PID communiqué 7136, version 0.40.13), ainsi que les vérifications
+de modèles. Plusieurs fenêtres de terminal ont brièvement été vues,
+leur parent exact n'est pas identifié ; elles ne doivent pas être
+attribuées à Ollama sans traçage.
+
+**Correction minimale dans `src/desktop_app/app.py` :**
+- si `ATLAS_DIAGNOSTIC_NO_AUTOSTART=1`, sortir du chemin normal
+  avant tout contrôle de configuration, tout lancement Ollama et
+  toute vérification de modèles ; créer uniquement la fenêtre Qt et
+  son tray, sans démon vocal ;
+- ne pas tuer les anciens processus de manière automatique en mode
+  diagnostic et ne pas programmer de recherche de mise à jour ;
+- sans cette variable, le lancement normal, y compris la gestion
+  d'Ollama, reste inchangé.
+
+Test nouveau dans `tests/test_hologram_controls.py` : utilise le
+vrai point d'entrée `main()` avec tray/splash simulés, interdit
+`subprocess.Popen` et les workers de configuration, puis vérifie
+l'affichage et l'entrée dans la boucle d'événements sans démarrer
+l'IA. **Non exécuté sur Windows au moment du commit.**
+
+Procédure de validation conseillée (application native à ne pas
+relancer tant que le test unitaire n'est pas passé) :
+
+```powershell
+cd C:\Users\cheha\ATLAS
+git pull --ff-only origin develop-atlas
+$env:PYTHONPATH = "$PWD\src"
+.\.venv\Scripts\python.exe -m pytest -q tests/test_hologram_controls.py tests/test_hologram_panel.py tests/test_atlas_portrait.py
+```
+
+Avant un nouvel essai, fermer normalement l'instance précédente
+depuis l'icône de la zone de notification. Si Ollama tourne encore,
+consulter son état, sans arrêter aveuglément tous les processus :
+`Get-Process -Name ollama -ErrorAction SilentlyContinue`.
+
+**Risque inchangé :** le GTR7 a connu trois coupures électriques ;
+la stabilité électrique et GPU sous la projection entière ne sont
+pas démontrées par le portrait seul. Ne pas traiter ce résultat
+comme une autorisation de lancer l'hologramme complet.
