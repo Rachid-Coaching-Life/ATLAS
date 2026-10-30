@@ -653,3 +653,45 @@ Remove-Item Env:ATLAS_HOLOGRAM_LOW_EFFECTS -ErrorAction SilentlyContinue
 
 Aucune ouverture de fenêtre native ATLAS ni redémarrage répété
 avant résolution des coupures électriques du GTR7.
+
+
+## Résultats du prototype optique — 52 tests réussis
+
+Le 30 octobre 2026, après récupération jusqu'au commit `1f7645c`,
+l'utilisateur a exécuté les tests :
+**52 passed in 5.40s**.
+
+Profilage sur GTR7, `--samples 8 --warmup 2`, rendu Qt hors écran
+(médiane du panneau en état `listening`) :
+
+| Mode | Temps |
+|---|---:|
+| Normal | 10,194 ms |
+| Allégé | 5,993 ms |
+| Hybride | 6,516 ms |
+| Sculpté | 6,503 ms |
+| Optique | 5,821 ms |
+
+Le mode optique est 42,9 % plus rapide que normal et 10,5 %
+plus rapide que sculpté dans **cette session**. L'écart face à
+l'allégé (0,172 ms, soit 2,9 %) est trop faible pour être considéré
+comme probant avec seulement 8 échantillons. Le pont optique en
+écoute prend 0,366 ms ; le portrait (non modifié) 0,196 ms au repos
+et 0,409 ms en parole.
+
+Capture sur fond clair simulé reçue : les cartes de conversation
+présentent des plans sombres et des reflets diagonaux ; la grande
+encoche sous la réponse a disparu, les instruments de télémétrie
+restent séparés. **Limites :** titre supérieur encore plat, facettes
+de conversation parfois perçues comme de grands aplats sombres,
+écart artistique encore important par rapport à la référence voulue.
+
+**Décision provisoire :** garder le rendu optique comme meilleure
+base expérimentale pour la prochaine étape, mais ne pas l'activer
+par défaut. Ne pas ajouter de minuteries, ni toucher au portrait.
+Le prochain changement visuel éventuel doit concerner d'abord la
+composition et le matériau du bandeau supérieur, avec comparaison
+hors écran et test de lisibilité sur fond clair et sombre.
+Ne pas assimiler les gains de `QWidget.render(QImage)` à une mesure
+de consommation électrique, de DWM ou de stabilité système.
+Les coupures brutales avec alimentation USB-C restent inexpliquées.
