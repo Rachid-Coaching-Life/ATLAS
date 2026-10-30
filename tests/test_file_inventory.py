@@ -534,3 +534,141 @@ def test_unsafe_pdf_open_request_fails_closed_without_llm(
         assert launched == []
     finally:
         manager.shutdown()
+
+
+def test_spoken_pdf_title_opens_unique_matching_document(isolated_profile, monkeypatch):
+    from jarvis import tasks
+
+    desktop = isolated_profile / "Desktop"
+    desktop.mkdir()
+    original = b"%PDF-1.7\nProtected sample"
+    named = desktop / "Certificat-Medical-1&2.pdf"
+    named.write_bytes(original)
+    (desktop / "Certificat-enregistrement.txt").write_text("other", encoding="utf-8")
+    launches = []
+    monkeypatch.setattr(tasks.os, "startfile", launches.append, raising=False)
+    monkeypatch.setattr(
+        tasks, "run_reply_engine",
+        lambda *_args, **_kwargs: pytest.fail("Aucun appel au modèle IA autorisé"),
+    )
+    task_manager = tasks.TaskManager(
+        db=object(), cfg=SimpleNamespace(), dialogue_memory=None,
+    )
+    try:
+        voice_text = "ATLAS, ouvre mon certificat médical"
+        command = tasks._direct_voice_task_prompt(voice_text, "atlas", [])
+        assert command == "ouvre mon certificat médical"
+        task_id = task_manager.submit(command)
+        completed = task_manager.wait_for_task(task_id, timeout=5)
+        assert completed.status == tasks.TaskStatus.COMPLETED
+        assert launches == [str(named.resolve())]
+        assert "transmise à Windows" in completed.result
+        assert named.read_bytes() == original
+    finally:
+        task_manager.shutdown()
+
+
+def test_spoken_pdf_ambiguous_name_never_opens(isolated_profile, monkeypatch):
+    from jarvis import tasks
+
+    for folder in ("Documents", "Desktop"):
+        root = isolated_profile / folder
+        root.mkdir()
+        (root / "Certificat-Medical.pdf").write_bytes(b"%PDF-1.4")
+    launches = []
+    monkeypatch.setattr(tasks.os, "startfile", launches.append, raising=False)
+    manager = tasks.TaskManager(
+        db=object(), cfg=SimpleNamespace(), dialogue_memory=None,
+    )
+    try:
+        identity = manager.submit("Ouvre mon certificat médical")
+        result = manager.wait_for_task(identity, timeout=5)
+        assert result.status == tasks.TaskStatus.FAILED
+        assert "Plusieurs PDF" in result.error
+        assert "Précisez" in result.error
+        assert launches == []
+    finally:
+        manager.shutdown()
+
+
+def test_spoken_pdf_folder_qualifier_resolves_ambiguity(isolated_profile, monkeypatch):
+    from jarvis import tasks
+
+    for folder in ("Desktop", "Documents"):
+        root = isolated_profile / folder
+        root.mkdir()
+        (root / "Certificat-Medical.pdf").write_bytes(b"%PDF-1.4")
+    launches = []
+    monkeypatch.setattr(tasks.os, "startfile", launches.append, raising=False)
+    manager = tasks.TaskManager(
+        db=object(), cfg=SimpleNamespace(), dialogue_memory=None,
+    )
+    try:
+        identity = manager.submit("Ouvre mon certificat médical sur le Bureau")
+        result = manager.wait_for_task(identity, timeout=5)
+        assert result.status == tasks.TaskStatus.COMPLETED
+        assert launches == [
+            str((isolated_profile / "Desktop" / "Certificat-Medical.pdf").resolve())
+        ]
+    finally:
+        manager.shutdown()
+
+
+@pytest.mark.parametrize(
+    ("spoken", "expected"),
+    [
+        ("ATLAS, ouvre mon certificat médical", "ouvre mon certificat médical"),
+        ("Atlas ouvre mon certificat médical", "ouvre mon certificat médical"),
+        ("ATLAS, Diagnostic système", "Diagnostic système"),
+        ("ATLAS, liste mes documents", "liste mes documents"),
+        ("ATLAS, recherche les PDF dans mes documents et sous-dossiers",
+         "recherche les PDF dans mes documents et sous-dossiers"),
+        ("ATLAS, ouvre le PDF Bureau/fichier.pdf",
+         "ouvre le PDF Bureau/fichier.pdf"),
+        ("ATLAS, explique moi la différence entre deux PDF", None),
+        ("ATLAS, supprime tous les PDF", None),
+        ("Un collègue a dit ATLAS, ouvre le fichier", None),
+    ],
+)
+def test_voice_tasks_only_accept_existing_direct_intents(spoken, expected):
+    from jarvis.tasks import _direct_voice_task_prompt
+
+    assert _direct_voice_task_prompt(spoken, "atlas", ()) == expected
+
+
+@pytest.mark.parametrize(
+    ("spoken", "expected"),
+    [
+        ("Ouvre mon certificat médical", ("certificat médical", None)),
+        ("Ouvre mon certificat médical sur le bureau",
+         ("certificat medical", "Desktop")),
+        ("Ouvre mon certificat médical dans mes documents",
+         ("certificat medical", "Documents")),
+        ("Ouvre mon certificat médical et supprime-le", None),
+        (r"Ouvre mon C:\Windows\secret.pdf", None),
+        ("Ouvre mon navigateur", ("navigateur", None)),
+    ],
+)
+def test_spoken_pdf_request_limits_actions(spoken, expected):
+    from jarvis.tasks import _direct_spoken_pdf_request
+
+    assert _direct_spoken_pdf_request(spoken) == expected
+
+
+def test_spoken_pdf_missing_returns_failed_not_fabricated(isolated_profile, monkeypatch):
+    from jarvis import tasks
+
+    (isolated_profile / "Desktop").mkdir()
+    launches = []
+    monkeypatch.setattr(tasks.os, "startfile", launches.append, raising=False)
+    manager = tasks.TaskManager(
+        db=object(), cfg=SimpleNamespace(), dialogue_memory=None,
+    )
+    try:
+        identity = manager.submit("Ouvre mon certificat médical")
+        result = manager.wait_for_task(identity, timeout=5)
+        assert result.status == tasks.TaskStatus.FAILED
+        assert "Aucun PDF correspondant" in result.error
+        assert launches == []
+    finally:
+        manager.shutdown()
