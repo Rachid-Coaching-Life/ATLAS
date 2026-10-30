@@ -149,3 +149,65 @@ Pour récupérer et vérifier cette petite fonction :
 git pull --ff-only origin develop-atlas
 .\.venv\Scripts\python.exe -m pytest -q tests/test_hologram_controls.py::test_hologram_copy_action_uses_current_visible_plain_text
 ```
+
+
+## Développement fonctionnel — saisie rapide depuis l'hologramme
+
+À la suite de la mise à jour locale au commit `5dd300b` confirmée
+par l'utilisateur, l'audit a identifié un vrai obstacle : la fenêtre
+`FaceWindow` est dotée de `WindowDoesNotAcceptFocus`. Un champ
+clavier inséré naïvement dans la projection ne serait donc pas
+utilisable de manière fiable sous Windows. Le moteur de chat existant
+et la gestion des échanges n'ont pas besoin d'être dupliqués.
+
+**Ajout sur `develop-atlas` :**
+
+- `src/desktop_app/hologram_panel.py` : bouton **ÉCRIRE**
+  transmettant `text_input_requested`. En vue compacte (moins
+  de 295 px de largeur ou 265 px de hauteur), il affiche `✎` avec
+  un nom accessible complet. Pendant une réponse écrite, le bouton
+  **ÉCRIRE** s'efface au profit de **ARRÊTER**, afin de ne pas
+  surcharger la ligne de commandes.
+- `src/desktop_app/app.py` : action temporaire
+  `_request_hologram_text()` ouvrant une saisie Qt focalisable,
+  uniquement à l'initiative de l'utilisateur. Après validation,
+  le texte est transmis au même `ChatWindow` (et donc au même
+  moteur conversationnel) sans afficher la fenêtre complète du
+  chat. Refus si le service n'est pas lancé ou si un message
+  est déjà en traitement ; annuler la boîte de dialogue n'envoie
+  aucune requête. La création de `ChatWindow` est centralisée
+  dans `_create_chat_window()` pour les trois voies
+  (chat ouvert, IPC, saisie holographique).
+- `src/desktop_app/chat_window.py` : `submit_prompt(text)`
+  revalorise l'envoi existant (`_send()`) sans deuxième
+  conversation ; l'amorçage de l'historique vocal a été extrait
+  vers `_seed_hot_window_if_needed()` et s'effectue avant
+  le premier envoi masqué afin d'éviter sa duplication à
+  l'ouverture ultérieure de la fenêtre.
+- `tests/test_hologram_controls.py` : saisie validée, annulation,
+  réaction de la carte de réponse, disposition compacte,
+  et basculement entre **ÉCRIRE** et **ARRÊTER**.
+- `tests/test_chat_window.py` : maintien de l'historique vocal
+  unique et impossibilité d'envoyer deux requêtes simultanément
+  avec `submit_prompt`.
+
+**Limites :** la boîte de saisie est un dialogue Qt temporaire
+qui prend le focus, pas un remplacement permanent de l'hologramme.
+Elle ne lance ni nouvelle instance du moteur, ni processus externe.
+La disposition du portrait et son fichier image ne changent pas.
+
+**Validation :** code et tests enregistrés sur GitHub, mais aucun
+essai Qt sur Windows ni test de la fonctionnalité avec le moteur
+de dialogue réel n'a encore été effectué après ces changements.
+
+Après `git pull --ff-only origin develop-atlas`, tests ciblés :
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q tests/test_hologram_controls.py tests/test_chat_window.py
+```
+
+Puis, en fonctionnement normal d'ATLAS : cliquer sur **ÉCRIRE**,
+taper une demande, valider ; vérifier qu'elle figure dans la carte
+`DERNIÈRE DEMANDE`, que `ARRÊTER` apparaît pendant le traitement
+et que la réponse arrive dans `RÉPONSE`. Le bouton `ÉCHANGES`
+doit ouvrir la même conversation contenant cet échange.
