@@ -42,6 +42,7 @@ class SystemStatusTool(Tool):
         if args is not None and (not isinstance(args, dict) or args):
             return ToolExecutionResult(
                 success=False,
+                reply_text=None,
                 error_message="Le diagnostic système ne prend aucun paramètre.",
             )
         try:
@@ -75,6 +76,7 @@ class SystemStatusTool(Tool):
         except Exception as exc:
             return ToolExecutionResult(
                 success=False,
+                reply_text=None,
                 error_message=(
                     "Impossible de relever les compteurs système : "
                     f"{type(exc).__name__}."
