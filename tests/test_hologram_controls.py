@@ -410,3 +410,33 @@ def test_hologram_write_button_keeps_compact_hud_and_busy_state(qapp):
         assert panel.write_button.text() == "ÉCRIRE"
     finally:
         panel.close()
+
+
+def test_hologram_task_command_opens_existing_task_centre(qapp):
+    """Use the one already-created task manager; no second agent or queue."""
+    from types import SimpleNamespace
+    from desktop_app.app import ATLASSystemTray
+    from desktop_app.hologram_panel import HologramPanel
+
+    called = []
+    tray = object.__new__(ATLASSystemTray)
+    tray.task_centre = SimpleNamespace(
+        show=lambda: called.append("show"),
+        raise_=lambda: called.append("raise"),
+        activateWindow=lambda: called.append("activate"),
+    )
+    panel = HologramPanel()
+    panel.task_view_requested.connect(tray.show_task_centre)
+    try:
+        panel.resize(450, 340)
+        panel.show()
+        qapp.processEvents()
+        assert panel.task_button.text() == "TÂCHES"
+        panel.task_button.click()
+        assert called == ["show", "raise", "activate"]
+        panel.resize(265, 240)
+        qapp.processEvents()
+        assert panel.task_button.text() == "TÂCH."
+        assert panel.task_button.accessibleName() == "Ouvrir le centre des tâches ATLAS"
+    finally:
+        panel.close()
