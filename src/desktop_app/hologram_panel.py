@@ -146,7 +146,9 @@ class HologramPanel(QWidget):
         self.set_voice_control(running=False)
 
         self._timer = QTimer(self)
-        self._timer.setInterval(85)
+        # Four visual refreshes per second only during activity.
+        # Idle glass remains painted without a perpetual timer.
+        self._timer.setInterval(250)
         self._timer.timeout.connect(self.update)
 
     @staticmethod
@@ -242,8 +244,12 @@ class HologramPanel(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
-        self._revealed_at = time.monotonic()
-        self._timer.start()
+        if self._state in _ACTIVE:
+            self._revealed_at = time.monotonic()
+            self._timer.start()
+        else:
+            self._revealed_at = None
+            self._timer.stop()
 
     def hideEvent(self, event):
         self._timer.stop()
@@ -255,6 +261,12 @@ class HologramPanel(QWidget):
         self.status.setStyleSheet(
             "color: #7fe3ff;" if state in _ACTIVE else "color: #ffc082;"
         )
+        if state in _ACTIVE and self.isVisible():
+            if not self._timer.isActive():
+                self._timer.start()
+        else:
+            self._timer.stop()
+        # Repaint once on state change even when animation is suspended.
         self.update()
 
     def ingest_log(self, line: str) -> None:
@@ -504,7 +516,8 @@ class ProjectionBridge(QWidget):
         self._state = "asleep"
         self._phase_origin = time.monotonic()
         self._timer = QTimer(self)
-        self._timer.setInterval(110)
+        # No continuous redraw of a transparent surface in standby.
+        self._timer.setInterval(250)
         self._timer.timeout.connect(self.update)
 
     def set_vertical(self, vertical: bool) -> None:
@@ -522,11 +535,17 @@ class ProjectionBridge(QWidget):
 
     def set_activity(self, state: str) -> None:
         self._state = state
+        if state in _ACTIVE and self.isVisible():
+            if not self._timer.isActive():
+                self._timer.start()
+        else:
+            self._timer.stop()
         self.update()
 
     def showEvent(self, event):
         super().showEvent(event)
-        self._timer.start()
+        if self._state in _ACTIVE:
+            self._timer.start()
 
     def hideEvent(self, event):
         self._timer.stop()
