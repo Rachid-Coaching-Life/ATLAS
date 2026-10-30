@@ -267,3 +267,46 @@ def test_hologram_stop_follows_chat_completion_and_daemon_shutdown(qapp):
     finally:
         chat.close()
         panel.close()
+
+
+def test_hologram_copy_action_uses_current_visible_plain_text(qapp):
+    """No clipboard side effect until the user chooses Copy on a card."""
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtGui import QAction
+    from desktop_app.hologram_panel import HologramPanel
+
+    panel = HologramPanel()
+    clipboard = qapp.clipboard()
+    prior = clipboard.text()
+    try:
+        clipboard.setText("valeur témoin")
+        panel.set_conversation_preview(
+            "<b>Demande confidentielle</b>",
+            "Réponse initiale",
+        )
+        assert clipboard.text() == "valeur témoin"
+        assert panel.heard.textFormat() == Qt.TextFormat.PlainText
+        assert panel.reply.textFormat() == Qt.TextFormat.PlainText
+
+        for label in (panel.heard, panel.reply):
+            assert label.contextMenuPolicy() == Qt.ContextMenuPolicy.ActionsContextMenu
+            actions = label.findChildren(QAction, "atlas_hud_copy_visible_text")
+            assert len(actions) == 1
+            assert actions[0].text() == "Copier le texte affiché"
+
+        panel.heard.actions()[0].trigger()
+        assert clipboard.text() == "<b>Demande confidentielle</b>"
+
+        # A single QAction always copies the latest displayed answer.
+        panel.set_conversation_preview("Une autre demande", "Nouvelle réponse")
+        assert clipboard.text() == "<b>Demande confidentielle</b>"
+        panel.reply.actions()[0].trigger()
+        assert clipboard.text() == "Nouvelle réponse"
+
+        # Copy only the text truly displayed, never imply full long reply.
+        panel.set_conversation_preview("Question", "x" * 300)
+        panel.reply.actions()[0].trigger()
+        assert clipboard.text() == "x" * 250
+    finally:
+        clipboard.setText(prior)
+        panel.close()
