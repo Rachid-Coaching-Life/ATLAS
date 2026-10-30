@@ -84,3 +84,26 @@ def test_projection_voice_command_uses_existing_daemon_controls():
     tray.is_listening = True
     tray._handle_hologram_voice_request()
     assert events == ["start", "pause_or_resume"]
+
+
+def test_portrait_only_diagnostic_is_opt_in_and_preserves_atlas_art(qapp, monkeypatch):
+    """Leave normal startup untouched; diagnostic removes only the projection."""
+    from desktop_app.app import _diagnostic_hologram_enabled
+    from desktop_app.face_widget import FaceWindow
+
+    monkeypatch.delenv("ATLAS_DIAGNOSTIC_NO_HOLOGRAM", raising=False)
+    assert _diagnostic_hologram_enabled() is True
+    monkeypatch.setenv("ATLAS_DIAGNOSTIC_NO_HOLOGRAM", "0")
+    assert _diagnostic_hologram_enabled() is True
+    monkeypatch.setenv("ATLAS_DIAGNOSTIC_NO_HOLOGRAM", "1")
+    assert _diagnostic_hologram_enabled() is False
+
+    window = FaceWindow(hologram=_diagnostic_hologram_enabled())
+    try:
+        assert not window._hologram_enabled
+        assert not hasattr(window, "hologram")
+        assert not hasattr(window, "bridge")
+        assert not window.face._portrait.isNull()
+        assert window.windowTitle() == "🤖 ATLAS"
+    finally:
+        window.close()
