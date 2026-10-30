@@ -216,3 +216,55 @@ Référence sur les écarts entre compteurs CPU :
 https://www.hwinfo.com/forum/threads/cpu-usage-question.4162/
 Référence Moniteur de fiabilité :
 https://learn.microsoft.com/fr-be/windows-server/administration/windows-commands/perfmon
+
+
+## 30 octobre — Profilage Qt hors écran et mode holographique allégé
+
+Après l'analyse du pilote AMD et du journal Kernel-PnP (quatre événements
+anciens, du 25 août et 4 septembre ; aucun événement du 30 octobre dans
+cette vue), les extinctions ne sont toujours **pas attribuables avec
+certitude au rendu**. Le GTR7 est toujours alimenté par USB-C 140 W
+nominal, avec négociation électrique inconnue.
+
+Audit du code :
+- Le panneau et le pont utilisent un `QTimer` actif à 250 ms (4 Hz).
+- Le portrait utilise séparément un `QTimer` à 33 ms pendant certaines
+  activités, 50 ms en état idle, et 250 ms en repos `asleep`.
+- Chaque rendu du panneau produit trois dégradés radiaux, des reflets,
+  un fin quadrillage, des détails électroniques et des particules.
+  Leur existence est vérifiée ; leur coût réel sur le GTR7 **n'est pas
+  encore mesuré**. Le coût DWM/Windows reste en dehors du raster Qt.
+
+Correction isolée :
+- `src/desktop_app/hologram_panel.py` : variable d'environnement
+  facultative `ATLAS_HOLOGRAM_LOW_EFFECTS=1` ; supprime uniquement
+  dégradés radiaux décoratifs, facettes lumineuses, quadrillage,
+  microdétails et particules ; panneau/pont à 500 ms pendant l'activité.
+  Maintient îlots, surfaces de texte, commandes vocales et échanges,
+  émetteur de liaison. Ne touche ni portrait, ni dimensions, ni GPU API.
+- **Sans** cette variable, l'hologramme reste strictement dans
+  le mode de dessin et à 250 ms comme avant.
+- `scripts/profile_atlas_hologram_offscreen.py` : mesure
+  `QWidget.render(QImage)` pour panneau normal/allégé (idle/listening),
+  pont normal/allégé et portrait (idle/speaking), puis exporte
+  `%TEMP%\\ATLAS_offscreen_render_profile.json`.
+  Utilise `QT_QPA_PLATFORM=offscreen`, pas de démarrage du démon vocal,
+  pas de nouvelle fenêtre native ni d'appel OpenGL.
+
+Reproduction sur le GTR7 **sans lancer ATLAS interactif** :
+
+```powershell
+cd C:\\Users\\cheha\\ATLAS
+git pull --ff-only origin develop-atlas
+$env:PYTHONPATH = "$PWD\\src"
+.\\.venv\\Scripts\\python.exe -m pytest -q tests/test_hologram_controls.py tests/test_hologram_panel.py tests/test_atlas_portrait.py
+.\\.venv\\Scripts\\python.exe scripts\\profile_atlas_hologram_offscreen.py
+Get-Content "$env:TEMP\\ATLAS_offscreen_render_profile.json"
+```
+
+Le profil fournit des durées de **raster CPU hors écran par image**. Elles
+ne mesurent pas les watts, la négociation USB-PD, le GPU, la consommation
+du compositeur Windows ni la stabilité d'une fenêtre native. Une
+différence de millisecondes n'établit donc pas une cause des coupures.
+Les résultats de benchmark et tests sur Windows restent à confirmer
+après ce commit.
