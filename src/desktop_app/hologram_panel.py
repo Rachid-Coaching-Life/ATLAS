@@ -343,6 +343,23 @@ class HologramPanel(QWidget):
         # Repaint once on state change even when animation is suspended.
         self.update()
 
+    def set_conversation_preview(self, request: str, response: str) -> None:
+        """Reflect real text-chat turns in the same hologram as voice activity.
+
+        Qt owns the labels and the originating chat signal is delivered on
+        the UI thread. PlainText ensures user-supplied markup is never parsed.
+        An empty response denotes a query that has not answered yet.
+        """
+        if not isinstance(request, str) or not isinstance(response, str):
+            return
+        if request:
+            self.heard.setText(request[:230])
+        if response:
+            self.reply.setText(response[:250])
+        elif request:
+            self.reply.setText("ATLAS prépare sa réponse…")
+        self._await_reply_line = False
+
     def ingest_log(self, line: str) -> None:
         """Keep existing speech messages without interpreting them as markup."""
         if not isinstance(line, str):
