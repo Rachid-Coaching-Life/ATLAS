@@ -2,11 +2,107 @@
 
 import os
 import stat
+import time
+from collections import deque
 from pathlib import Path
 from typing import Dict, Any, Optional
 from ...debug import debug_log
 from ..base import Tool, ToolContext
 from ..types import ToolExecutionResult
+
+
+_SEARCH_MAX_DIRS = 120
+_SEARCH_MAX_ENTRIES = 3000
+_SEARCH_MAX_RESULTS = 50
+_SEARCH_MAX_DEPTH = 5
+_SEARCH_MAX_SECONDS = 3.0
+
+
+def _bounded_pdf_search(root: Path, home_root: Path) -> str:
+    """Bounded read-only listing of PDF names, without following reparse points.
+
+    Deadline is cooperative: it is checked between filesystem calls. An OS
+    directory scan that itself blocks cannot be forcibly interrupted here.
+    """
+    if not root.is_dir():
+        raise NotADirectoryError("Dossier de recherche inexistant")
+    if not root.resolve().is_relative_to(home_root.resolve()):
+        raise PermissionError("Recherche hors du profil non autorisée")
+
+    queued = deque([(root, 0)])
+    matches = []
+    dirs = 0
+    entries = 0
+    skipped = 0
+    partial_reason = ""
+    deadline = time.monotonic() + _SEARCH_MAX_SECONDS
+
+    while queued and not partial_reason:
+        if time.monotonic() >= deadline:
+            partial_reason = "limite de durée atteinte"
+            break
+        if dirs >= _SEARCH_MAX_DIRS:
+            partial_reason = "limite de dossiers atteinte"
+            break
+        directory, depth = queued.popleft()
+        dirs += 1
+        try:
+            with os.scandir(directory) as iterator:
+                for entry in iterator:
+                    if time.monotonic() >= deadline:
+                        partial_reason = "limite de durée atteinte"
+                        break
+                    if entries >= _SEARCH_MAX_ENTRIES:
+                        partial_reason = "limite d'entrées inspectées atteinte"
+                        break
+                    entries += 1
+                    try:
+                        info = entry.stat(follow_symlinks=False)
+                        # Windows junctions are reparse points; also skip
+                        # ordinary symlinks on Windows, Linux and macOS.
+                        if (stat.S_ISLNK(info.st_mode) or
+                                getattr(info, "st_file_attributes", 0)
+                                & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)):
+                            skipped += 1
+                            continue
+                        if stat.S_ISDIR(info.st_mode):
+                            if depth >= _SEARCH_MAX_DEPTH:
+                                skipped += 1
+                                continue
+                            candidate = Path(entry.path).resolve()
+                            if candidate.is_relative_to(home_root):
+                                queued.append((candidate, depth + 1))
+                            else:
+                                skipped += 1
+                        elif stat.S_ISREG(info.st_mode) and entry.name.casefold().endswith(".pdf"):
+                            matches.append(str(Path(entry.path).relative_to(root)))
+                            if len(matches) >= _SEARCH_MAX_RESULTS:
+                                partial_reason = "limite de résultats atteinte"
+                                break
+                    except OSError:
+                        skipped += 1
+        except OSError:
+            if depth == 0:
+                raise
+            skipped += 1
+
+    lines = [
+        f"Recherche locale de PDF dans {root} et ses sous-dossiers.",
+        f"Dossiers visités : {dirs} ; entrées inspectées : {entries}.",
+        f"Résultats ({len(matches)} au maximum {_SEARCH_MAX_RESULTS}) :",
+    ]
+    lines.extend("  PDF: " + name for name in sorted(matches, key=str.casefold))
+    if not matches:
+        lines.append("  Aucun PDF trouvé dans le périmètre parcouru.")
+    if partial_reason or skipped:
+        details = [partial_reason] if partial_reason else []
+        if skipped:
+            details.append(f"{skipped} entrées ou dossiers ignorés/inaccessibles")
+        lines.append("Recherche partielle : " + " ; ".join(details) + ".")
+    else:
+        lines.append("Recherche terminée dans le périmètre autorisé.")
+    lines.append("Lecture seule : aucun contenu PDF ouvert, aucun fichier modifié.")
+    return "\n".join(lines)
 
 
 class LocalFilesTool(Tool):
@@ -18,18 +114,19 @@ class LocalFilesTool(Tool):
 
     @property
     def description(self) -> str:
-        return "Safely read, write, list, append, or delete files within your home directory."
+        return "Read-only bounded PDF search, or list, read, write, append and delete home files."
 
     @property
     def inputSchema(self) -> Dict[str, Any]:
         return {
             "type": "object",
             "properties": {
-                "operation": {"type": "string", "description": "Operation to perform: list, read, write, append, delete"},
+                "operation": {"type": "string", "description": "Operation to perform: list, search, read, write, append, delete"},
                 "path": {"type": "string", "description": "File or directory path (relative to home directory)"},
                 "content": {"type": "string", "description": "Content to write/append (for write/append operations)"},
                 "glob": {"type": "string", "description": "Glob pattern for listing (default: *)"},
-                "recursive": {"type": "boolean", "description": "Whether to search recursively (for list operation)"}
+                "recursive": {"type": "boolean", "description": "Whether to search recursively (for list operation)"},
+                "file_type": {"type": "string", "description": "For bounded search: pdf only"}
             },
             "required": ["operation", "path"]
         }
@@ -71,6 +168,25 @@ class LocalFilesTool(Tool):
                 return ToolExecutionResult(success=False, reply_text="localFiles requires 'operation' and 'path'.")
 
             target = _resolve_safe(path_arg)
+
+            # Dedicated bounded recursive search. Existing list() behaviour
+            # and its callers are intentionally unchanged.
+            if operation == "search":
+                if args.get("file_type") != "pdf":
+                    return ToolExecutionResult(
+                        success=False, reply_text="Recherche limitée au type PDF."
+                    )
+                try:
+                    return ToolExecutionResult(
+                        success=True,
+                        reply_text=_bounded_pdf_search(target, home_root),
+                    )
+                except OSError as exc:
+                    debug_log(f"PDF search failed: {type(exc).__name__}", "tools")
+                    return ToolExecutionResult(
+                        success=False,
+                        reply_text="Recherche impossible : dossier inaccessible ou absent.",
+                    )
 
             # list
             if operation == "list":
