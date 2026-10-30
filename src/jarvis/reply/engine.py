@@ -117,6 +117,30 @@ FRENCH_FALLBACK_REPLY = (
     "Je n'ai pas réussi à traiter votre demande. Pouvez-vous réessayer ?"
 )
 
+def _remove_unrequested_atlas_introduction(reply: str, query: str) -> str:
+    """Remove only a stock self-introduction before an actual answer.
+
+    Narrow fallback for local models ignoring the system prompt. Explicit
+    requests for ATLAS to present itself are never altered. Do not delete
+    the entire reply if it only contains an introduction.
+    """
+    if not isinstance(reply, str) or not reply.strip():
+        return reply
+    if _is_atlas_self_introduction_request(query):
+        return reply
+    prefix = re.match(
+        r"^\\s*(?:(?:bonjour|bonsoir|salut)[\\s.,!?:;]+)?"
+        r"(?:je\\s+suis|moi[\\s,]+c[’']est)\\s+atlas"
+        r"[\\s.,!?:;]+",
+        reply,
+        flags=re.IGNORECASE,
+    )
+    if prefix is None:
+        return reply
+    rest = reply[prefix.end():].strip()
+    return rest if rest else reply
+
+
 _ATLAS_SELF_INTRO_RESPONSE = (
     "Je suis ATLAS, votre assistant personnel local. "
     "Je peux discuter avec vous en français et vous aider à accomplir des "
@@ -1149,6 +1173,7 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
                 )
                 reply = extract_text_from_response(response) if response else ""
                 reply = reply.strip() if isinstance(reply, str) else ""
+                reply = _remove_unrequested_atlas_introduction(reply, redacted)
             except Exception as exc:
                 debug_log(f"simple conversation unavailable: {type(exc).__name__}", "reply")
                 reply = ""
@@ -3029,6 +3054,7 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
     # Step 10: Output and memory update
     if cancel_event is not None and cancel_event.is_set():
         return None
+    reply = _remove_unrequested_atlas_introduction(reply, redacted)
     safe_reply = reply.strip()
     if not safe_reply:
         safe_reply = FRENCH_FALLBACK_REPLY
