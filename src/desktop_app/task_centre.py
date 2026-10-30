@@ -1,4 +1,4 @@
-"""Interactive desktop control centre for local Jarvis tasks."""
+"""Centre de commande local pour les tâches d'ATLAS."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ _STATUS_LABELS = {
 
 
 class TaskCentreWindow(QDialog):
-    """Create, monitor, and cancel prompts executed by Jarvis."""
+    """Créer, suivre et annuler les tâches exécutées par ATLAS."""
 
     def __init__(
         self,
@@ -45,7 +45,7 @@ class TaskCentreWindow(QDialog):
         *, max_history: int = DEFAULT_TASK_HISTORY,
     ) -> None:
         super().__init__(parent)
-        self.setWindowTitle("🧭 Jarvis Task Centre")
+        self.setWindowTitle("🧭 ATLAS — Centre des tâches")
         self.setMinimumSize(720, 520)
         self.setStyleSheet(JARVIS_THEME_STYLESHEET)
         self._submit_callback = submit_callback
@@ -61,10 +61,10 @@ class TaskCentreWindow(QDialog):
         self._submission_timer.timeout.connect(self._submission_timed_out)
 
         layout = QVBoxLayout(self)
-        title = QLabel("🧭 Task Centre")
+        title = QLabel("🧭 ATLAS / TÂCHES")
         title.setObjectName("title")
         layout.addWidget(title)
-        subtitle = QLabel("Queue prompts for Jarvis and follow their progress.")
+        subtitle = QLabel("Décrivez une action, puis suivez son exécution et son résultat.")
         subtitle.setObjectName("subtitle")
         layout.addWidget(subtitle)
 
@@ -83,17 +83,17 @@ class TaskCentreWindow(QDialog):
 
         input_row = QHBoxLayout()
         self.prompt = QTextEdit()
-        self.prompt.setPlaceholderText("Describe what Jarvis should do…")
+        self.prompt.setPlaceholderText("Décrivez la tâche à exécuter…")
         self.prompt.setFixedHeight(78)
         input_row.addWidget(self.prompt, 1)
-        self.submit_button = QPushButton("🚀 Run Task")
+        self.submit_button = QPushButton("▶ Exécuter la tâche")
         self.submit_button.setObjectName("primary")
         self.submit_button.clicked.connect(self._submit)
         input_row.addWidget(self.submit_button)
         layout.addLayout(input_row)
 
         actions = QHBoxLayout()
-        self.cancel_button = QPushButton("🛑 Cancel Selected")
+        self.cancel_button = QPushButton("■ Annuler la tâche sélectionnée")
         self.cancel_button.setObjectName("danger")
         self.cancel_button.clicked.connect(self._cancel_selected)
         actions.addWidget(self.cancel_button)
@@ -174,7 +174,7 @@ class TaskCentreWindow(QDialog):
         if self._pending_request is not None:
             self._finish_submission(
                 self._pending_request, accepted=False,
-                error="No confirmation from Jarvis. Check the task list before trying again.",
+                error="Aucune confirmation d’ATLAS. Vérifiez les tâches avant de réessayer.",
             )
 
     def _submit(self) -> None:
