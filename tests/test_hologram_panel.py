@@ -472,3 +472,55 @@ def test_spectral_layers_render_at_small_and_large_sizes(qapp):
             assert panel.reply.textFormat() == Qt.TextFormat.PlainText
         finally:
             panel.close()
+
+
+def test_orbital_glass_emitter_respects_cutouts_and_idles_without_repaint(qapp):
+    """The added instruments are real Qt painting, not an additional timer."""
+    from PyQt6.QtGui import QImage
+    from desktop_app.hologram_panel import HologramPanel
+
+    panel = HologramPanel()
+    try:
+        panel.resize(505, 330)
+        panel.show()
+        qapp.processEvents()
+        assert not panel._timer.isActive()
+        assert panel._timer.interval() == 250
+        canvas = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        canvas.fill(0)
+        panel.render(canvas)
+        # Hologram remains a shaped glass projection, not a solid widget box.
+        assert canvas.pixelColor(0, 0).alpha() == 0
+        assert canvas.pixelColor(504, 0).alpha() == 0
+        assert canvas.pixelColor(252, 165).alpha() > 0
+        assert canvas.pixelColor(470, 165).alpha() > 0
+
+        panel.set_activity("listening")
+        assert panel._timer.isActive()
+        assert panel._timer.interval() == 250
+        panel.set_activity("asleep")
+        assert not panel._timer.isActive()
+    finally:
+        panel.close()
+
+
+def test_new_hologram_instruments_skip_narrow_compact_geometry(qapp):
+    """Detail embellishments cannot obscure the 210px mobile-style layout."""
+    from PyQt6.QtGui import QImage
+    from desktop_app.hologram_panel import HologramPanel
+
+    panel = HologramPanel()
+    try:
+        panel.resize(210, 205)
+        panel.show()
+        qapp.processEvents()
+        canvas = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        canvas.fill(0)
+        panel.render(canvas)
+        assert canvas.pixelColor(0, 0).alpha() == 0
+        assert canvas.pixelColor(105, 100).alpha() > 0
+        assert panel.heard.text() == "Prononcez « Atlas » pour commencer."
+        assert panel.voice_button.isVisible()
+        assert panel.exchanges_button.isVisible()
+    finally:
+        panel.close()
