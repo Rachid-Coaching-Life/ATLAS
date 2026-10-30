@@ -102,6 +102,13 @@ class HologramPanel(QWidget):
             os.environ.get("ATLAS_HOLOGRAM_SCULPTED") == "1"
             and self._cached_effects and self._low_effects
         )
+        # One-time optical pane materials. This option requires the low-cost,
+        # cached sculptural mode; the normal desktop HUD remains untouched.
+        self._optical = (
+            os.environ.get("ATLAS_HOLOGRAM_OPTICAL") == "1"
+            and self._sculpted
+        )
+        self._optical_card_cache = {}
         self._spectral_cache = None
         self._spectral_cache_key = None
         self._phase_origin = time.monotonic()
@@ -436,6 +443,142 @@ class HologramPanel(QWidget):
                              QPointF(right - 8, bottom - 1))
             painter.drawLine(QPointF(right - 6, bottom - 2),
                              QPointF(right - 1, top + 11))
+
+    def _optical_card_image(self, label: QLabel, accent: QColor) -> QImage:
+        """Rasterise a floating glass material once, apart from the live text.
+
+        Two small translucent panes cost only Qt QImage memory, not a GPU
+        texture or a new timer. Invalidate after layout geometry or DPI change.
+        Never cache the QLabel itself: speech content stays interactive/live.
+        """
+        w, h = self.width(), self.height()
+        dpr = max(1.0, float(self.devicePixelRatioF()))
+        r = label.geometry()
+        top = self._glass_card_top(label)
+        is_reply = label is self.reply
+        key = (
+            "reply" if is_reply else "heard",
+            w, h, dpr, r.x(), r.y(), r.width(), r.height(), top,
+        )
+        cached = self._optical_card_cache.get(key)
+        if cached is not None:
+            return cached
+
+        # Keep no more than one raster per card, avoiding stale DPI/size
+        # buffers during drag between displays.
+        if len(self._optical_card_cache) >= 2:
+            self._optical_card_cache.clear()
+        image = QImage(
+            max(1, round(w * dpr)), max(1, round(h * dpr)),
+            QImage.Format.Format_ARGB32_Premultiplied,
+        )
+        if image.isNull():
+            raise RuntimeError("Allocation de la surface optique ATLAS impossible")
+        image.setDevicePixelRatio(dpr)
+        image.fill(0)
+        painter = QPainter(image)
+        try:
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            self._paint_optical_card_material(painter, label, accent, float(w), top)
+        finally:
+            painter.end()
+        self._optical_card_cache[key] = image
+        return image
+
+    def _paint_optical_card_material(
+        self, painter: QPainter, label: QLabel, accent: QColor, w: float,
+        top: float,
+    ) -> None:
+        """Three stationary glass planes, bevel and side lens, cached as pixels.
+
+        Deliberately replaces the oversized response notch with a shallow
+        optical bevel; no widget, text, hit-region or portrait geometry moves.
+        """
+        if w < 390 or self.height() < 300:
+            return
+        r = label.geometry()
+        bottom = float(r.bottom() + 7)
+        reply = label is self.reply
+        offset = 12 if reply else 0
+        left = max(16.0, float(r.left() - 10 + offset))
+        right = min(w - 14.0, float(r.right() + 11 - (14 if reply else 0)))
+        if bottom <= top + 20 or right - left < 120:
+            return
+
+        face = QPainterPath(QPointF(left + 23, top + 1))
+        face.lineTo(right - 61, top + 1)
+        face.lineTo(right - 38, top + 8)
+        face.lineTo(right - 20, top + 7)
+        face.cubicTo(right + 5, top + 10, right + 7, bottom - 10,
+                     right - 14, bottom - 5)
+        face.lineTo(right - 36, bottom - 1)
+        face.lineTo(left + 31, bottom - 1)
+        face.lineTo(left + 7, bottom - 11)
+        face.lineTo(left + 7, top + 14)
+        face.closeSubpath()
+
+        painter.save()
+        # Rear sheet is offset downward. A hard glass edge, never a blur.
+        back = QPainterPath(face)
+        back.translate(-4, 5)
+        painter.fillPath(back, QColor(2, 17, 41, 140))
+        painter.setPen(QPen(QColor(accent.red(), accent.green(),
+                                  accent.blue(), 87), 1.3))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPath(back)
+
+        # The central dark plane maintains legibility on a bright desktop.
+        pane = QLinearGradient(QPointF(left, top), QPointF(right, bottom))
+        pane.setColorAt(0, QColor(7, 76, 117, 205))
+        pane.setColorAt(.38, QColor(3, 36, 74, 222))
+        pane.setColorAt(.75, QColor(2, 24, 60, 225))
+        pane.setColorAt(1, QColor(5, 52, 87, 199))
+        painter.fillPath(face, QBrush(pane))
+
+        painter.save()
+        painter.setClipPath(face)
+        # A broad diagonal refraction reads as a transparent upper plane.
+        sheen = QPainterPath(QPointF(left + 14, top + 3))
+        sheen.lineTo(right - 90, top + 3)
+        sheen.lineTo(right - 131, bottom - 2)
+        sheen.lineTo(left + 44, bottom - 2)
+        sheen.closeSubpath()
+        refraction = QLinearGradient(
+            QPointF(left, top), QPointF(right - 75, bottom)
+        )
+        refraction.setColorAt(0, QColor(152, 235, 255, 68))
+        refraction.setColorAt(.43, QColor(41, 190, 255, 25))
+        refraction.setColorAt(1, QColor(11, 103, 174, 0))
+        painter.fillPath(sheen, QBrush(refraction))
+
+        # A contrasting prism cap on the robot-facing side, outside the text.
+        prism = QPainterPath(QPointF(right - 57, top + 10))
+        prism.lineTo(right - 18, top + 8)
+        prism.lineTo(right - 8, bottom - 11)
+        prism.lineTo(right - 39, bottom - 3)
+        prism.closeSubpath()
+        prism_tint = QLinearGradient(
+            QPointF(right - 59, top), QPointF(right - 10, bottom)
+        )
+        prism_tint.setColorAt(0, QColor(20, 173, 241, 19))
+        prism_tint.setColorAt(1, QColor(255, 160, 77, 62 if reply else 22))
+        painter.fillPath(prism, QBrush(prism_tint))
+        painter.restore()
+
+        # Opposed cool/warm facets provide distinct material depth.
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(QPen(QColor(136, 239, 255, 195), 1.4))
+        painter.drawLine(QPointF(left + 23, top + 1),
+                         QPointF(right - 61, top + 1))
+        painter.drawLine(QPointF(left + 7, top + 14),
+                         QPointF(left + 7, bottom - 11))
+        painter.setPen(QPen(QColor(accent.red(), accent.green(),
+                                  accent.blue(), 179), 1.6))
+        painter.drawLine(QPointF(right - 38, top + 8),
+                         QPointF(right - 20, top + 7))
+        painter.drawLine(QPointF(right - 36, bottom - 1),
+                         QPointF(left + 31, bottom - 1))
+        painter.restore()
 
     def _paint_neural_details(
         self, painter: QPainter, w: float, h: float, phase: float, activity: bool
@@ -939,8 +1082,12 @@ class HologramPanel(QWidget):
         self._paint_instruments(painter, w, h)
         self._paint_orbital_core(painter, w, h)
         self._paint_telemetry(painter, w, h, phase, activity)
-        self._glass_card(painter, self.heard, _CYAN, w)
-        self._glass_card(painter, self.reply, _AMBER, w)
+        if self._optical and w >= 390 and h >= 300:
+            painter.drawImage(QPointF(0, 0), self._optical_card_image(self.heard, _CYAN))
+            painter.drawImage(QPointF(0, 0), self._optical_card_image(self.reply, _AMBER))
+        else:
+            self._glass_card(painter, self.heard, _CYAN, w)
+            self._glass_card(painter, self.reply, _AMBER, w)
         self._paint_message_symbol(painter, self.heard, _CYAN, microphone=True)
         self._paint_message_symbol(painter, self.reply, _AMBER, microphone=False)
 
