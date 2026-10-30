@@ -1843,6 +1843,9 @@ class ATLASSystemTray:
                 self._handle_hologram_voice_request
             )
             self.face_window.hologram.exchange_view_requested.connect(self.show_chat)
+            self.face_window.hologram.stop_response_requested.connect(
+                self._handle_hologram_stop_request
+            )
 
         # Create dictation history window (hidden by default)
         from desktop_app.dictation_history import DictationHistoryWindow
@@ -2323,6 +2326,15 @@ class ATLASSystemTray:
         face = getattr(self, "face_window", None)
         if face is not None and getattr(face, "_hologram_enabled", False):
             chat_window.conversation_preview_changed.connect(face.ingest_chat_preview)
+            chat_window.query_activity_changed.connect(
+                face.hologram.set_chat_response_pending
+            )
+
+    def _handle_hologram_stop_request(self) -> None:
+        """Cancel only an ongoing text-chat response, not the voice daemon."""
+        chat = getattr(self, "chat_window", None)
+        if chat is not None and chat._query_in_flight:
+            chat._stop()
 
     def show_chat(self) -> None:
         """Show the text chat window (created lazily on first open)."""
