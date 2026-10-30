@@ -31,7 +31,7 @@ pytestmark = pytest.mark.unit
         (
             "Bonjour Atlas, réponds",
             "Bonjour. Je suis ATLAS.",
-            "Bonjour. Je suis ATLAS.",
+            "Je n'ai pas de réponse fiable. Pouvez-vous préciser votre demande ?",
         ),
     ],
 )
