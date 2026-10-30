@@ -37,8 +37,8 @@ def main():
         parser.error("Run from the repository root")
     if git("branch", "--show-current") != "develop-atlas":
         parser.error("Only develop-atlas is allowed")
-    if git("status", "--porcelain"):
-        parser.error("Commit or stash all changes first, including untracked files")
+    if git("diff", "--name-only") or git("diff", "--cached", "--name-only"):
+        parser.error("Commit or stash changes to tracked files before migration")
     if not Path("src", OLD).is_dir() or Path("src", NEW).exists():
         parser.error("Source package missing or destination already present")
 
