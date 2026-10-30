@@ -138,7 +138,7 @@ def _remove_unrequested_atlas_introduction(reply: str, query: str) -> str:
     if prefix is None:
         return reply
     rest = reply[prefix.end():].strip()
-    return rest if rest else reply
+    return rest if rest else "Je n'ai pas de réponse fiable. Pouvez-vous préciser votre demande ?"
 
 
 _ATLAS_SELF_INTRO_RESPONSE = (
