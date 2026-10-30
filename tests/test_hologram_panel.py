@@ -493,11 +493,12 @@ def test_spectral_layers_render_at_small_and_large_sizes(qapp):
             panel.close()
 
 
-def test_orbital_glass_emitter_respects_cutouts_and_idles_without_repaint(qapp):
-    """The added instruments are real Qt painting, not an additional timer."""
+def test_orbital_glass_emitter_respects_cutouts_and_idles_without_repaint(qapp, monkeypatch):
+    """Check the normal 250-ms cadence independently of inherited shell modes."""
     from PyQt6.QtGui import QImage
     from desktop_app.hologram_panel import HologramPanel
 
+    monkeypatch.delenv("ATLAS_HOLOGRAM_LOW_EFFECTS", raising=False)
     panel = HologramPanel()
     try:
         panel.resize(505, 330)
@@ -621,10 +622,11 @@ def test_separated_hologram_islands_keep_open_negative_space(qapp):
         panel.close()
 
 
-def test_hologram_islands_keep_real_controls_and_compact_fallback(qapp):
-    """No extra widgets or new timer; Qt controls remain interactive."""
+def test_hologram_islands_keep_real_controls_and_compact_fallback(qapp, monkeypatch):
+    """Default mode controls remain interactive regardless of shell settings."""
     from desktop_app.hologram_panel import HologramPanel
 
+    monkeypatch.delenv("ATLAS_HOLOGRAM_LOW_EFFECTS", raising=False)
     for width, height in ((210, 205), (505, 330)):
         panel = HologramPanel()
         calls = []
