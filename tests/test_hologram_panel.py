@@ -728,9 +728,75 @@ def test_offscreen_profiler_generates_json_without_native_desktop(tmp_path):
     for name in (
         "hologram_normal_idle", "hologram_normal_listening",
         "hologram_alleger_idle", "hologram_alleger_listening",
+        "hologram_hybride_idle", "hologram_hybride_listening",
         "bridge_normal_idle", "bridge_alleger_listening",
+        "bridge_hybride_listening",
         "portrait_idle", "portrait_speaking",
     ):
         assert data["measurements"][name]["median_ms"] >= 0
     assert data["measurements"]["hologram_normal_listening"]["timer_ms"] == 250
     assert data["measurements"]["hologram_alleger_listening"]["timer_ms"] == 500
+
+
+def test_hybrid_hologram_caches_static_light_and_keeps_real_controls(qapp, monkeypatch):
+    """Cache build is once per size/DPR, including animated panel repaints."""
+    from PyQt6.QtGui import QImage
+    from desktop_app.hologram_panel import HologramPanel
+
+    monkeypatch.setenv("ATLAS_HOLOGRAM_LOW_EFFECTS", "1")
+    monkeypatch.setenv("ATLAS_HOLOGRAM_CACHED_EFFECTS", "1")
+    panel = HologramPanel()
+    events = []
+    try:
+        panel.resize(505, 330)
+        panel.voice_command_requested.connect(lambda: events.append("voice"))
+        panel.exchange_view_requested.connect(lambda: events.append("exchanges"))
+        panel.show()
+        qapp.processEvents()
+        assert panel._cached_effects
+        assert panel._low_effects
+        assert panel._timer.interval() == 500
+        first = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        first.fill(0)
+        panel.render(first)
+        assert panel._spectral_cache is not None
+        key = panel._spectral_cache.cacheKey()
+        cache = panel._spectral_cache
+        again = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        again.fill(0)
+        panel.render(again)
+        assert panel._spectral_cache is cache
+        assert panel._spectral_cache.cacheKey() == key
+        assert first.pixelColor(0, 0).alpha() == 0
+        assert first.pixelColor(252, 165).alpha() > 0
+        panel.voice_button.click()
+        panel.exchanges_button.click()
+        assert events == ["voice", "exchanges"]
+
+        panel.resize(420, 310)
+        qapp.processEvents()
+        resized = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        resized.fill(0)
+        panel.render(resized)
+        assert panel._spectral_cache_key[:2] == (420, 310)
+        assert panel._spectral_cache is not cache
+        panel.set_activity("idle")
+        assert not panel._timer.isActive()
+    finally:
+        panel.close()
+
+
+def test_hologram_cached_effects_are_opt_in(qapp, monkeypatch):
+    """Unmodified normal rendering must allocate no spectral cache."""
+    from desktop_app.hologram_panel import HologramPanel
+
+    monkeypatch.delenv("ATLAS_HOLOGRAM_CACHED_EFFECTS", raising=False)
+    monkeypatch.delenv("ATLAS_HOLOGRAM_LOW_EFFECTS", raising=False)
+    panel = HologramPanel()
+    try:
+        assert not panel._cached_effects
+        assert not panel._low_effects
+        assert panel._timer.interval() == 250
+        assert panel._spectral_cache is None
+    finally:
+        panel.close()
