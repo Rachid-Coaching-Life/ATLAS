@@ -293,3 +293,53 @@ L'exécution réelle sur les dossiers Windows sera ensuite
 vérifiée depuis le centre des tâches. Une recherche récursive
 contrôlée devra être conçue séparément avec une limite de
 dossiers et de durée avant d'être activée.
+
+
+## 30 octobre 2026 — Recherche PDF bornée dans les sous-dossiers
+
+L'utilisateur a confirmé `24 passed in 1.85s` pour l'inventaire local
+non récursif (commit `a9327f7`). Ce résultat ne valide pas encore la
+nouvelle recherche en sous-dossiers.
+
+**Audit :** le mode `recursive=True` de l'outil `localFiles` appelle
+`Path.rglob` sans plafond sur le nombre de répertoires inspectés.
+Le plafonnement à 50 noms intervient seulement après l'exploration ;
+il n'aurait donc pas été sûr d'activer ce mode tel quel pour une tâche
+de recherche directe.
+
+**Modification ciblée :**
+- `src/jarvis/tools/builtin/local_files.py` : nouvelle opération
+  `search` limitée aux PDF. Parcours local en lecture seule avec
+  budgets fixes : 120 dossiers, 3 000 entrées, 50 résultats,
+  profondeur maximale de 5 niveaux, contrôle de durée à 3 secondes.
+  La durée n'est pas une interruption forcée d'un appel `os.scandir`
+  qui bloquerait : le contrôle s'effectue entre les accès système.
+  Liens symboliques et points de réanalyse Windows ignorés,
+  restrictions au profil local inchangées.
+  Si une limite est atteinte ou qu'une entrée est inaccessible,
+  le résultat mentionne explicitement « Recherche partielle » ;
+  les fichiers PDF ne sont pas ouverts ni modifiés.
+- `src/jarvis/tasks.py` : commandes directes exactes telles que
+  « Recherche les PDF dans mes documents et sous-dossiers »,
+  « ... dans mes téléchargements et sous-dossiers » ou
+  « ... dans mon bureau et sous-dossiers ».
+  Le trajet réutilise `localFiles.search` et le centre des
+  tâches existant, sans appel au modèle IA. Les demandes composées
+  ou destructives ne correspondent pas au raccourci direct.
+- `tests/test_file_inventory.py` : tests de fichiers fictifs imbriqués,
+  de non-lecture des contenus, de limite de parcours, de liens
+  symboliques, de refus d'un autre profil et de routage strict.
+
+Les commandes d'inventaire non récursif conservent leur fonctionnement
+existant. Aucun changement du portrait ni de `main`.
+
+**À valider sur Windows :**
+
+```powershell
+git pull --ff-only origin develop-atlas
+.\.venv\Scripts\python.exe -m pytest -q tests/test_file_inventory.py tests/test_tools.py
+```
+
+Après validation automatisée, lancer une recherche non destructive
+depuis `TÂCHES` et confronter la liste aux fichiers réels. Ne pas
+qualifier la recherche d'exhaustive lorsqu'elle annonce un résultat partiel.
