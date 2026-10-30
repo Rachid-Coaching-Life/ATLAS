@@ -404,3 +404,41 @@ def test_premium_hologram_compact_mode_omits_glyph_indent(qapp):
         assert panel.exchanges_button.isVisible()
     finally:
         panel.close()
+
+
+def test_offscreen_preview_loads_real_unicode_font_and_exports_png():
+    """Regression: an offscreen Qt preview must not silently show square glyphs.
+
+    The preview performs an actual proportional-glyph metrics check and saves
+    only a detached PNG; it does not start the desktop app or voice daemon.
+    """
+    import os
+    from pathlib import Path
+    import subprocess
+    import sys
+    import tempfile
+    from PyQt6.QtGui import QImage
+
+    root = Path(__file__).resolve().parent.parent
+    preview = root / "scripts" / "preview_atlas_hologram_offscreen.py"
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(root / "src")
+    result = subprocess.run(
+        [sys.executable, str(preview)],
+        cwd=root,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=25,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + "\n" + result.stderr
+    assert "Police Qt hors écran :" in result.stdout
+    assert "Prévisualisation ATLAS enregistrée :" in result.stdout
+
+    image = QImage(str(Path(tempfile.gettempdir()) / "ATLAS_hologram_preview.png"))
+    assert not image.isNull()
+    assert image.width() == 505
+    assert image.height() == 330
+    assert image.pixelColor(0, 0).alpha() == 0
+    assert image.pixelColor(252, 165).alpha() > 0
