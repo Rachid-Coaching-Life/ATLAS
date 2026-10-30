@@ -343,3 +343,74 @@ git pull --ff-only origin develop-atlas
 Après validation automatisée, lancer une recherche non destructive
 depuis `TÂCHES` et confronter la liste aux fichiers réels. Ne pas
 qualifier la recherche d'exhaustive lorsqu'elle annonce un résultat partiel.
+
+
+## 30 octobre 2026 — Ouverture explicite d'un PDF local
+
+Résultat confirmé par l'utilisateur pour la recherche récursive :
+`45 passed, 1 skipped in 2.33s` sur Windows. Le scénario ignoré
+est celui de la création d'un lien symbolique lorsque Windows ne
+l'autorise pas ; cette protection reste couverte par le code,
+mais ce test n'a pas été exécuté dans cet environnement.
+
+**Audit :** le gestionnaire `TaskManager` sait retrouver des PDF
+et afficher les chemins relatifs, mais aucun outil intégré n'est
+chargé d'ouvrir un document. Ajouter une opération `open` à
+l'outil général exposé aux modèles IA rendrait possible une
+ouverture non sollicitée. L'ouverture est donc limitée à une
+instruction textuelle explicite reçue par le centre des tâches,
+sans ajout à la liste des outils LLM.
+
+### Fonction ajoutée
+
+Exemple de commande à saisir dans **TÂCHES → Nouvelle tâche…** :
+
+`Ouvre le PDF Documents\\Archives\\facture 2026.pdf`
+
+- `src/jarvis/tasks.py` : reconnaissance de la demande exacte
+  « Ouvre le PDF … », résolution à partir de
+  `Documents`, `Downloads`/Téléchargements ou
+  `Desktop`/Bureau. Les chemins absolus, lecteurs externes,
+  `..`, caractères de contrôle, jokers, liens symboliques
+  et jonctions Windows sont refusés.
+- Le fichier doit exister, être sous le dossier du profil
+  déjà autorisé et présenter l'extension `.pdf` et l'en-tête
+  binaire `%PDF-`. ATLAS ne lit que les cinq octets nécessaires
+  à cette vérification et n'écrit aucun fichier.
+- ATLAS appelle uniquement `os.startfile` sous Windows,
+  qui utilise l'association de fichiers de l'utilisateur.
+  Le résultat dit précisément que la **demande d'ouverture
+  a été transmise à Windows** ; il ne prétend pas que
+  le lecteur PDF a affiché le contenu.
+- Tout chemin invalide dans une demande explicite
+  « Ouvre le PDF … » produit un statut `failed` :
+  **aucun repli sur le routeur IA**. Les autres tâches
+  demeurent inchangées.
+- `tests/test_file_inventory.py` : vérification du parcours
+  de soumission, du maintien du contenu du fichier, du
+  lanceur Windows simulé, de l'absence d'appel au LLM, des
+  chemins interdits, des en-têtes incorrects, des liens et
+  des échecs de lancement.
+
+### Limites de validation
+
+Cette fonction n'est **pas encore testée sur un vrai GTR7**.
+Les tests peuvent valider la transmission au lanceur simulé
+et le maintien des fichiers de test. La confirmation
+visuelle de l'ouverture dans le lecteur PDF Windows
+exige un essai manuel non destructif. Les contrôles de
+chemin restent soumis aux conditions normales du système
+de fichiers et ne constituent pas une garantie de sûreté
+contre un utilisateur malveillant modifiant les fichiers
+simultanément.
+
+Validation :
+
+```powershell
+git pull --ff-only origin develop-atlas
+.\.venv\Scripts\python.exe -m pytest -q tests/test_file_inventory.py
+```
+
+Puis demande explicite d'ouverture d'un PDF non sensible
+avec un chemin relatif précis, et confirmation
+que le document s'ouvre sans être modifié.
