@@ -311,3 +311,27 @@ def test_recursive_pdf_search_requires_exact_safe_command(prompt, expected):
     from jarvis.tasks import _direct_recursive_pdf_folder
 
     assert _direct_recursive_pdf_folder(prompt) == expected
+
+
+@pytest.mark.parametrize(
+    ("limit_name", "limit_value", "expected"),
+    [
+        ("_SEARCH_MAX_DIRS", 1, "limite de dossiers"),
+        ("_SEARCH_MAX_DEPTH", 0, "ignorés/inaccessibles"),
+        ("_SEARCH_MAX_RESULTS", 1, "limite de résultats"),
+    ],
+)
+def test_recursive_pdf_search_respects_other_budgets(
+    isolated_profile, monkeypatch, limit_name, limit_value, expected,
+):
+    from jarvis.tools.builtin import local_files
+
+    root = isolated_profile / "Documents"
+    nested = root / "Alpha"
+    nested.mkdir(parents=True)
+    (root / "a.pdf").write_bytes(b"PDF")
+    (nested / "b.pdf").write_bytes(b"PDF")
+    monkeypatch.setattr(local_files, limit_name, limit_value)
+    text = local_files._bounded_pdf_search(root, isolated_profile)
+    assert "Recherche partielle" in text
+    assert expected in text
