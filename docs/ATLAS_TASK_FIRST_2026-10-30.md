@@ -239,3 +239,9 @@ Puis, ATLAS démarré : clic droit sur **TÂCHES** →
 **TÂCHES** pour observer la mesure locale, le statut et les
 limitations explicitement affichées. Ne pas interpréter ce
 relevé comme un test matériel.
+
+
+## Inventaire de fichiers en lecture seule (30 octobre 2026)
+
+Validation précédente : 10 tests du diagnostic système réussis sur Windows en 1,76 s.
+La tâche directe « Liste mes documents » et ses variantes pour les téléchargements et le bureau réutilisent l'outil localFiles existant, sans IA ni mutation des fichiers. Les dossiers sont limités au profil de l'utilisateur. Les commandes composées restent dans le parcours normal. Les tests unitaires ajoutés dans tests/test_file_inventory.py restent à exécuter sur Windows ; aucun fonctionnement réel n'est encore revendiqué.
