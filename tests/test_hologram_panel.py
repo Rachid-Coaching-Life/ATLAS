@@ -826,3 +826,46 @@ def test_card_upper_edges_stay_below_section_titles_at_both_sizes(qapp, monkeypa
             assert panel.exchanges_button.isVisible()
         finally:
             panel.close()
+
+
+def test_hybrid_card_depth_rail_adds_optical_edge_without_layout_change(qapp, monkeypatch):
+    """Compare the exact card-only raster with/without optional extrusion."""
+    from PyQt6.QtGui import QColor, QImage, QPainter
+    from desktop_app.hologram_panel import HologramPanel
+
+    monkeypatch.setenv("ATLAS_HOLOGRAM_LOW_EFFECTS", "1")
+    monkeypatch.setenv("ATLAS_HOLOGRAM_CACHED_EFFECTS", "1")
+    panel = HologramPanel()
+    try:
+        panel.resize(505, 330)
+        panel.show()
+        qapp.processEvents()
+        frame_size = panel.size()
+        heard_rect = panel.heard.geometry()
+        caption_bottom = panel.heard_caption.geometry().bottom()
+
+        def render_card(extrusion):
+            panel._cached_effects = extrusion
+            image = QImage(frame_size, QImage.Format.Format_ARGB32_Premultiplied)
+            image.fill(0)
+            painter = QPainter(image)
+            try:
+                panel._glass_card(painter, panel.heard, QColor(59, 209, 255),
+                                  float(panel.width()))
+            finally:
+                painter.end()
+            return image
+
+        flat = render_card(False)
+        deep = render_card(True)
+        x = heard_rect.left() + 70
+        y = heard_rect.bottom() + 7 + 4
+        assert 0 <= x < frame_size.width()
+        assert 0 <= y < frame_size.height()
+        assert deep.pixelColor(x, y).alpha() > flat.pixelColor(x, y).alpha()
+        assert panel._glass_card_top(panel.heard) > caption_bottom
+        assert panel.heard.geometry() == heard_rect
+        assert deep.pixelColor(0, 0).alpha() == 0
+        assert panel._timer.interval() == 500
+    finally:
+        panel.close()
