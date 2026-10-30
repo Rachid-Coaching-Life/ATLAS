@@ -3422,6 +3422,21 @@ class ServerCheckWorker(KeepAliveWorker):
             self.check_done.emit(False, None)
 
 
+def _create_diagnostic_visual_tray(splash):
+    """Launch the Qt portrait/HUD without Ollama, setup checks or voice.
+
+    The caller sets the diagnostic environment variables and owns the
+    event loop. The runtime ownership is explicitly non-owning: nothing
+    external is started or stopped by this display-only entry path.
+    """
+    print("ATLAS diagnostic: skipping Ollama, model checks and voice autostart", flush=True)
+    splash.set_status("Diagnostic: interface Qt uniquement")
+    tray = ATLASSystemTray(ollama_runtime_ownership=OllamaRuntimeOwnership())
+    splash.close_splash()
+    tray.show_launch_windows()
+    return tray
+
+
 def main() -> int:
     """Main entry point for the desktop app."""
     # Smoke-test fast path: runs before any UI, crash logging, or setup checks.
@@ -3545,6 +3560,15 @@ def main() -> int:
         splash.show()
         splash.set_status("Initializing...")
         app.processEvents()
+
+        # Explicit visual-only diagnostics must short-circuit *before*
+        # setup wizard checks, provider checks or Ollama process startup.
+        # A prior implementation suppressed only the final voice daemon
+        # and unintentionally started Ollama even with diagnostic=1.
+        if not _diagnostic_autostart_enabled():
+            tray_instance = _create_diagnostic_visual_tray(splash)
+            print("Starting diagnostic event loop (no Ollama/voice startup)...", flush=True)
+            return tray_instance.run()
 
         # Check if setup wizard is needed
         splash.set_status("Checking setup status...")
