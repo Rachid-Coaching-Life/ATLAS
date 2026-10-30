@@ -1852,6 +1852,15 @@ class ATLASSystemTray:
             self.face_window.hologram.task_view_requested.connect(
                 self.show_task_centre
             )
+            self.face_window.hologram.task_input_requested.connect(
+                self._handle_hologram_task_request
+            )
+            self.task_centre.task_updated.connect(
+                self.face_window.hologram.set_task_update
+            )
+            self.task_centre.task_submission_state_changed.connect(
+                self.face_window.hologram.set_task_submission_state
+            )
 
         # Create dictation history window (hidden by default)
         from desktop_app.dictation_history import DictationHistoryWindow
@@ -2288,6 +2297,32 @@ class ATLASSystemTray:
         self.task_centre.show()
         self.task_centre.raise_()
         self.task_centre.activateWindow()
+
+    def _request_hologram_task_text(self) -> tuple[str, bool]:
+        """Focusable quick-task entry; the HUD window cannot own keyboard focus."""
+        from PyQt6.QtWidgets import QInputDialog
+        return QInputDialog.getMultiLineText(
+            None, "ATLAS — Nouvelle tâche", "Action à exécuter :",
+            "", Qt.WindowType.Dialog | Qt.WindowType.WindowStaysOnTopHint,
+        )
+
+    def _handle_hologram_task_request(self) -> None:
+        """Use the existing task centre's single admission and result pipeline."""
+        from PyQt6.QtWidgets import QMessageBox
+
+        if not self.is_listening:
+            QMessageBox.information(
+                None, "ATLAS", "Démarrez ATLAS avant de lancer une tâche."
+            )
+            return
+        if self.task_centre._pending_request is not None:
+            return
+        prompt, accepted = self._request_hologram_task_text()
+        if not accepted or not isinstance(prompt, str) or not prompt.strip():
+            return
+        if not self.is_listening:
+            return
+        self.task_centre.submit_hologram_task(prompt)
 
     def submit_task(self, prompt: str, *, request_id: str):
         """Submit a prompt to the in-process or subprocess daemon."""
