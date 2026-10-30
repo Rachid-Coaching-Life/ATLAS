@@ -2,7 +2,7 @@ Param()
 
 $ErrorActionPreference = 'Stop'
 
-function Write-Info($msg) { Write-Host "[jarvis] $msg" }
+function Write-Info($msg) { Write-Host "[ATLAS] $msg" }
 
 # Repo root
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
