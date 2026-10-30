@@ -119,3 +119,60 @@ def test_diagnostic_voice_autostart_is_opt_in(monkeypatch):
     assert _diagnostic_autostart_enabled()
     monkeypatch.setenv("ATLAS_DIAGNOSTIC_NO_AUTOSTART", "1")
     assert not _diagnostic_autostart_enabled()
+
+
+def test_diagnostic_main_skips_setup_ollama_and_voice_before_start(qapp, monkeypatch):
+    """Test the actual main() entry path, not just the flag helper."""
+    import signal
+    from desktop_app import app as desktop
+    from desktop_app import splash_screen
+
+    created = []
+    events = []
+
+    class FakeSplash:
+        def show(self):
+            events.append("splash")
+        def set_status(self, value):
+            events.append(("status", value))
+        def close_splash(self):
+            events.append("close_splash")
+
+    class FakeTray:
+        def __init__(self, *, ollama_runtime_ownership):
+            assert not ollama_runtime_ownership.started_by_jarvis
+            created.append(self)
+        def show_launch_windows(self):
+            events.append("portrait")
+        def start_daemon(self):
+            pytest.fail("Diagnostic must not start the voice/AI daemon")
+        def run(self):
+            events.append("event_loop")
+            return 0
+
+    def forbid_process(*_args, **_kwargs):
+        pytest.fail("Diagnostic must not launch Ollama or other processes")
+
+    def forbid_setup(*_args, **_kwargs):
+        pytest.fail("Diagnostic must skip Ollama/setup wizard checks")
+
+    monkeypatch.setenv("ATLAS_DIAGNOSTIC_NO_HOLOGRAM", "1")
+    monkeypatch.setenv("ATLAS_DIAGNOSTIC_NO_AUTOSTART", "1")
+    monkeypatch.setattr(desktop, "acquire_single_instance_lock", lambda: True)
+    monkeypatch.setattr(desktop, "check_previous_crash", lambda: False)
+    monkeypatch.setattr(desktop, "setup_crash_logging", lambda: None)
+    monkeypatch.setattr(desktop, "mark_session_started", lambda: None)
+    monkeypatch.setattr(desktop, "mark_session_clean_exit", lambda: None)
+    monkeypatch.setattr(desktop.atexit, "register", lambda callback: None)
+    monkeypatch.setattr(signal, "signal", lambda *_args: None)
+    monkeypatch.setattr(splash_screen, "SplashScreen", FakeSplash)
+    monkeypatch.setattr(desktop, "ATLASSystemTray", FakeTray)
+    monkeypatch.setattr(desktop, "SetupCheckWorker", forbid_setup)
+    monkeypatch.setattr(desktop, "ServerCheckWorker", forbid_setup)
+    monkeypatch.setattr(desktop.subprocess, "Popen", forbid_process)
+
+    assert desktop.main() == 0
+    assert len(created) == 1
+    assert "portrait" in events
+    assert "event_loop" in events
+    assert events.index("close_splash") < events.index("portrait")
