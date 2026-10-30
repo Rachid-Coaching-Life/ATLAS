@@ -440,3 +440,95 @@ def test_hologram_task_command_opens_existing_task_centre(qapp):
         assert panel.task_button.accessibleName() == "Ouvrir le centre des tâches ATLAS"
     finally:
         panel.close()
+
+
+def test_hologram_quick_task_uses_real_centre_and_displays_confirmed_events(qapp):
+    """Right-click action submits without opening a second queue or chat."""
+    from types import SimpleNamespace
+    from PyQt6.QtGui import QAction
+    from desktop_app.app import ATLASSystemTray
+    from desktop_app.hologram_panel import HologramPanel
+    from desktop_app.task_centre import TaskCentreWindow
+
+    admissions = []
+    centre = TaskCentreWindow(
+        lambda prompt, *, request_id: admissions.append((prompt, request_id)) or None,
+        lambda task_id: None,
+    )
+    panel = HologramPanel()
+    tray = object.__new__(ATLASSystemTray)
+    tray.is_listening = True
+    tray.task_centre = centre
+    tray._request_hologram_task_text = lambda: ("  Contrôle les sauvegardes  ", True)
+    panel.task_input_requested.connect(tray._handle_hologram_task_request)
+    centre.task_submission_state_changed.connect(panel.set_task_submission_state)
+    centre.task_updated.connect(panel.set_task_update)
+    try:
+        panel.resize(440, 330)
+        panel.show()
+        qapp.processEvents()
+        actions = panel.task_button.findChildren(QAction, "atlas_hud_new_task")
+        assert len(actions) == 1
+        assert actions[0].text() == "Nouvelle tâche…"
+        assert not centre.isVisible()
+        centre.prompt.setPlainText("Brouillon du centre")
+        actions[0].trigger()
+        assert admissions[0][0] == "Contrôle les sauvegardes"
+        assert centre.prompt.toPlainText() == "Brouillon du centre"
+        assert not centre.isVisible()
+        assert panel.heard_caption.text() == "INSTRUCTION DE TÂCHE"
+        assert "Envoi au service" in panel.reply.text()
+
+        # The GUI must never announce success before an actual task event.
+        assert "terminé" not in panel.reply.text().lower()
+        centre.add_or_update_task({
+            "type": "task", "id": "atlas-1", "status": "queued",
+            "prompt": "Contrôle les sauvegardes", "result": None, "error": None,
+        })
+        assert panel.reply.text() == "En attente d'exécution"
+        centre.add_or_update_task({
+            "type": "task", "id": "atlas-1", "status": "running",
+            "prompt": "Contrôle les sauvegardes", "result": None, "error": None,
+        })
+        assert panel.reply.text() == "Exécution en cours"
+        centre.add_or_update_task({
+            "type": "task", "id": "atlas-1", "status": "completed",
+            "prompt": "Contrôle les sauvegardes", "result": "Aucune erreur détectée",
+            "error": None,
+        })
+        assert "Traitement terminé" in panel.reply.text()
+        assert "Aucune erreur détectée" in panel.reply.text()
+        assert "Aucune erreur détectée" in centre.details.toPlainText()
+
+        centre.add_or_update_task({
+            "type": "task", "id": "atlas-2", "status": "failed",
+            "prompt": "Autre tâche", "result": None, "error": "Accès refusé",
+        })
+        assert panel.reply.text() == "Échec de la tâche — Accès refusé"
+        panel.set_conversation_preview("Question vocale", "Réponse vocale")
+        assert panel.reply_caption.text() == "RÉPONSE"
+        assert panel.reply.text() == "Réponse vocale"
+    finally:
+        panel.close()
+        centre.close()
+
+
+def test_hologram_task_cancelled_quick_entry_does_not_submit(qapp):
+    from desktop_app.app import ATLASSystemTray
+    from desktop_app.task_centre import TaskCentreWindow
+
+    received = []
+    centre = TaskCentreWindow(
+        lambda prompt, *, request_id: received.append(prompt) or "admitted",
+        lambda task_id: None,
+    )
+    tray = object.__new__(ATLASSystemTray)
+    tray.is_listening = True
+    tray.task_centre = centre
+    tray._request_hologram_task_text = lambda: ("Ne pas envoyer", False)
+    try:
+        tray._handle_hologram_task_request()
+        assert received == []
+        assert centre._pending_request is None
+    finally:
+        centre.close()
