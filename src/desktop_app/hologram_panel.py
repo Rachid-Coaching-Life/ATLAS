@@ -119,12 +119,12 @@ class HologramPanel(QWidget):
         self.status.setStyleSheet("color: #ffbd69; letter-spacing: .6px;")
         self._outer.addWidget(self.status)
 
-        self._label(self._outer, "DERNIÈRE DEMANDE")
+        self.heard_caption = self._label(self._outer, "DERNIÈRE DEMANDE")
         self.heard = self._message("Prononcez « Atlas » pour commencer.")
         self.heard.setObjectName("atlas_hud_heard")
         self._outer.addWidget(self.heard, 1)
 
-        self._label(self._outer, "RÉPONSE")
+        self.reply_caption = self._label(self._outer, "RÉPONSE")
         self.reply = self._message("Prêt à vous accompagner.")
         self.reply.setObjectName("atlas_hud_reply")
         self._outer.addWidget(self.reply, 1)
@@ -165,6 +165,7 @@ class HologramPanel(QWidget):
         label = QLabel(value)
         label.setStyleSheet("color: #65dfff; font-size: 11px; letter-spacing: .4px;")
         layout.addWidget(label)
+        return label
 
     @staticmethod
     def _control_button(text: str, name: str) -> QPushButton:
@@ -309,10 +310,20 @@ class HologramPanel(QWidget):
         # Coarse polygon construction is cheap, unlike pixmap-alpha scanning.
         return QRegion(self.projection_shape().toFillPolygon().toPolygon())
 
+    def _glass_card_top(self, label: QLabel) -> float:
+        """Keep floating-card upper border below its live section heading.
+
+        The narrow and desktop layouts use different Qt spacing, so a
+        constant top offset previously crossed the label text.
+        """
+        caption = self.reply_caption if label is self.reply else self.heard_caption
+        content_top = label.geometry().top()
+        return float(min(content_top - 2, max(content_top - 15, caption.geometry().bottom() + 4)))
+
     def _glass_card(self, painter: QPainter, label: QLabel, accent: QColor, w: float):
         """Cut glass strips follow live label placement, not hard-coded text."""
         r = label.geometry()
-        top = r.top() - 15
+        top = self._glass_card_top(label)
         bottom = r.bottom() + 7
         if bottom <= top:
             return
