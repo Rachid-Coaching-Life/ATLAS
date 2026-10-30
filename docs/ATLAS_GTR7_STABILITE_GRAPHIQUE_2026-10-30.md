@@ -108,3 +108,75 @@ Select-Object TimeCreated,Id,ProviderName,Message | Format-List
 
 Ne pas assimiler tous les événements portant l'identifiant 18 à des erreurs
 matérielles : vérifier le champ `ProviderName`.
+
+
+## Instrumentation sans charge (30 octobre 2026)
+
+L'utilisateur souhaite avancer et distinguer la panne matérielle d'une erreur
+graphique. Le PC est pour le moment alimenté en USB-C par un bloc annoncé
+140 W ; la puissance effectivement négociée est **inconnue**. Des
+spécifications publiées pour le GTR7 indiquent 100 W USB-PD sur les ports
+USB4, et le support Beelink cite une mise à jour du BIOS améliorant la
+compatibilité de l'alimentation PD ; **ne pas mettre le BIOS à jour dans
+le cadre de ce diagnostic**.
+
+Sources :
+- https://www.hwinfo.com/download/ (éditeur officiel REALiX)
+- https://www.hwinfo.com/version-history/
+- https://www.notebookcheck.net/Beelink-GTR7-and-GTR7-Pro-now-available-with-AMD-Ryzen-7-7840HS-and-Ryzen-9-7940HS.720457.0.html
+- https://www.bee-link.com.cn/cms/support/driverhardware?product_id=117
+- https://learn.microsoft.com/fr-fr/troubleshoot/windows-client/performance/event-id-41-restart
+
+### Premier relevé recommandé
+
+1. Télécharger HWiNFO64 depuis **hwinfo.com**, de préférence en
+   version portable. Il peut charger un pilote signé pour lire les
+   capteurs ; tout ajout logiciel peut présenter des risques.
+2. Ouvrir **Sensors-only** et repérer si disponibles : température
+   CPU/Tctl/Tdie, température GPU, CPU package power, GPU power,
+   charge CPU/GPU, fréquence, indicateurs de throttling.
+3. Activer le **CSV sensor logging** (icône disque) dans un dossier
+   local hors du dépôt ; utiliser un intervalle modéré (par exemple
+   2000-5000 ms) et commencer uniquement au repos, sans lancer ATLAS.
+4. Enregistrer une courte session normale, puis arrêter l'enregistrement.
+   Les données ne donnent pas la puissance réelle du contrat USB-PD.
+   En cas de coupure brutale, les dernières lignes peuvent manquer.
+5. Éviter stress tests CPU/GPU, OCCT/FurMark, changements de TDP/BIOS,
+   ou répétitions volontaires de l'extinction avec l'alimentation actuelle.
+
+### Mesures Windows passives, sans logiciel supplémentaire
+
+Dans PowerShell :
+
+```powershell
+Get-CimInstance Win32_VideoController |
+  Select-Object Name, DriverVersion, DriverDate |
+  Format-List
+Get-CimInstance Win32_BIOS |
+  Select-Object Manufacturer, SMBIOSBIOSVersion, ReleaseDate |
+  Format-List
+Get-CimInstance Win32_ComputerSystem |
+  Select-Object Manufacturer, Model |
+  Format-List
+```
+
+Les résultats permettent de vérifier la configuration de départ. Ne pas
+faire de mise à jour du pilote AMD sur la seule foi du code 41.
+
+### Diagnostic logiciel déjà préparé, ne pas utiliser comme stress test
+
+Sur `develop-atlas`, dans `src/desktop_app/app.py` :
+
+- `ATLAS_DIAGNOSTIC_NO_HOLOGRAM=1` : portrait seul ;
+- `ATLAS_DIAGNOSTIC_NO_AUTOSTART=1` : pas de démarrage vocal/IA
+  automatique (ajouté séparément) ;
+- par défaut, aucune des deux variables n'est active.
+
+Ces options permettent de distinguer visuel / audio lors d'essais
+**seulement lorsque l'alimentation est reconnue stable et l'essai jugé
+acceptable**. Elles ne garantissent pas la sécurité de l'essai, car
+le moteur Qt, la fenêtre translucide et certaines animations restent actifs.
+
+Test de non-régression ajouté dans
+`tests/test_hologram_controls.py`. Les tests n'ont pas encore été
+exécutés après l'ajout ; aucun gain de stabilité matérielle n'est revendiqué.
