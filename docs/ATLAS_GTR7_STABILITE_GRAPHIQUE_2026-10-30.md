@@ -695,3 +695,59 @@ hors écran et test de lisibilité sur fond clair et sombre.
 Ne pas assimiler les gains de `QWidget.render(QImage)` à une mesure
 de consommation électrique, de DWM ou de stabilité système.
 Les coupures brutales avec alimentation USB-C restent inexpliquées.
+
+
+## Essai natif borné demandé par l'utilisateur (30 octobre)
+
+L'utilisateur demande de voir si l'interface tient sur le GTR7,
+malgré les trois coupures d'alimentation antérieures. **Ce n'est pas
+une autorisation à exécuter des stress tests ni des essais répétés
+jusqu'à la prochaine extinction.**
+
+Audit confirmé : `ATLAS_DIAGNOSTIC_NO_AUTOSTART=1` supprime le
+démarrage du démon vocal dans `app.py`, **mais `main()` effectue
+encore l'assistant de configuration et la vérification / éventuel
+démarrage d'Ollama avant cette condition**. Ne PAS recommander
+`python -m desktop_app` comme essai graphique isolé.
+
+Ajout d'un lanceur spécifique :
+`scripts/probe_atlas_native_window.py`, construit directement
+`FaceWindow(hologram=True, portrait=True)`, sans importer
+`desktop_app.app`, sans appeler le démon vocal ni le code
+d'installation ou de démarrage d'Ollama. Le portrait et l'interface
+restent dans leur géométrie native (avec composition Windows).
+Ce lanceur applique **uniquement dans son propre processus** les
+variables optique + sculpté + cache + allégé, ne modifie ni
+`main`, ni les images, ni les réglages PowerShell, et quitte par
+`QTimer.singleShot` après 8 secondes (paramètre `--seconds`
+borné de 1 à 15).
+
+Les marqueurs `DEBUT`, `FENETRE_AFFICHEE`,
+`FIN_RETOUR_BOUCLE_QT` sont ajoutés avec flush et fsync au journal
+`%TEMP%\ATLAS_native_window_diagnostic.log` pour faciliter
+l'analyse en cas de panne. **Une perte d'alimentation peut empêcher
+l'écriture des dernières lignes.** Ne pas assimiler ce journal
+à une preuve de stabilité GPU.
+
+Avant l'essai : sauvegarder les fichiers, fermer les applications
+importantes et, si souhaité, activer HWiNFO Sensors Logging en CSV
+sur une session courte ; vérifier le câble et le bloc secteur.
+Ne pas tenter si chauffe anormale, odeur ou connecteur douteux.
+Pour minimiser les risques, attendre plutôt l'alimentation compatible
+que l'utilisateur a commandée.
+
+Une seule tentative optionnelle (risque explicitement accepté) :
+```powershell
+cd C:\Users\cheha\ATLAS
+git pull --ff-only origin develop-atlas
+$env:PYTHONPATH = "$PWD\src"
+.\.venv\Scripts\python.exe -m pytest -q tests/test_hologram_panel.py
+.\.venv\Scripts\python.exe scripts\probe_atlas_native_window.py --seconds 8
+Get-Content "$env:TEMP\ATLAS_native_window_diagnostic.log" -Tail 6
+```
+
+N'ouvrir ni Ollama ni l'application complète pour cet essai.
+Si une coupure ou un blocage se produit, **ne pas réessayer**.
+Si les 8 secondes se passent sans incident, cela indique seulement
+un succès bref du rendu natif dans ces conditions, pas l'absence de
+défaut d'alimentation. Tests du nouveau lanceur à exécuter sur Windows.
