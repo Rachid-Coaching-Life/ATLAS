@@ -457,3 +457,33 @@ Test de géométrie ajouté pour les tailles 505×330 et 210×205.
 sur Windows au moment de ce commit.** Avant de poursuivre la
 complexité visuelle, vérifier lisibilité, non-régression et coût
 du rendu, uniquement hors écran avec l'alimentation USB-C actuelle.
+
+
+## 30 octobre — Contrôle visuel après correction des légendes
+
+L'utilisateur a fourni une nouvelle image `ATLAS_hologram_sur_fond_clair.png`
+après la correction du positionnement des rails des cartes. Les
+titres « DERNIÈRE DEMANDE » et « RÉPONSE » ne sont plus traversés
+par leur bord supérieur dans cette capture. Cette vérification est
+**visuelle uniquement** : le message ne contient pas le résultat du
+nouveau test de géométrie.
+
+La lecture reste suffisante sur le fond clair simulé, mais les îlots
+demeurent assez plats comparés à la référence artistique ATLAS.
+Une retouche **minimale et facultative** a donc été apportée uniquement
+à `src/desktop_app/hologram_panel.py` : trois fins traits forment une
+lame de verre décalée derrière chaque carte. L'effet est activé
+seulement si `ATLAS_HOLOGRAM_CACHED_EFFECTS=1` ET
+`ATLAS_HOLOGRAM_LOW_EFFECTS=1`, sur panneau large (>=390 px).
+Le mode normal, l'allégé simple, le portrait et les minuteries ne
+changent pas. Il n'y a ni nouvelle image GPU, ni filtre flou, ni
+nouvelle surface, ni moteur graphique.
+
+Un test compare le bord translucide d'une même carte avec et sans
+la nouvelle lame et vérifie la position du titre. **Le test et le coût
+du rendu doivent encore être vérifiés sur Windows.** Si le surcoût
+dépasse le bénéfice perçu, revenir à la version hybride mesurée
+(`4899c7f`) ou supprimer les trois traits, sans toucher au portrait.
+
+Avant tout lancement complet, la compatibilité et la stabilité
+de l'alimentation USB-C du GTR7 restent à confirmer.
