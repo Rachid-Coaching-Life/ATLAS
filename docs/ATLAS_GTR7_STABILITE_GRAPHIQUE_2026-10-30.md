@@ -268,3 +268,48 @@ du compositeur Windows ni la stabilité d'une fenêtre native. Une
 différence de millisecondes n'établit donc pas une cause des coupures.
 Les résultats de benchmark et tests sur Windows restent à confirmer
 après ce commit.
+
+
+## Mesure reçue du GTR7 — rendu Qt normal / allégé
+
+Après mise à jour jusqu'au commit `d06192b`, les tests demandés ont réussi :
+**44 passed in 5.48s**.
+
+Commande utilisée :
+`python scripts/profile_atlas_hologram_offscreen.py --samples 8 --warmup 2`.
+
+| Composant (médiane) | Normal | Allégé | Observation |
+|---|---:|---:|---|
+| HUD idle | 9,778 ms | 5,504 ms | −43,7 % |
+| HUD listening | 9,704 ms | 5,763 ms | −40,6 % |
+| Pont idle | 0,289 ms | 0,288 ms | Quasiment identique |
+| Pont listening | 0,395 ms | 0,326 ms | Gain modeste |
+| Portrait idle | 0,221 ms | sans objet | Pas modifié |
+| Portrait speaking | 0,391 ms | sans objet | Pas modifié |
+
+**Calcul de charge de dessin périodique (modèle, pas mesure réelle
+Windows) :** au cours de l'écoute, HUD normal :
+`9,704 ms × 4 Hz = 38,816 ms CPU/seconde` ; HUD allégé :
+`5,763 ms × 2 Hz = 11,526 ms CPU/seconde` ; réduction
+théorique de 70,3 % du temps de rendu périodique du panneau.
+Les rafraîchissements déclenchés par d'autres événements Qt,
+le compositor DWM, la charge graphique AMD, les watts et les pointes
+électriques **ne sont pas mesurés**.
+
+**Décision :** conserver le portrait tel quel et le mode normal par
+défaut ; maintenir le mode allégé facultatif tant que sa lisibilité
+sur fond réel n'a pas été évaluée. Pas d'essai de l'application complète
+avec l'alimentation USB-C actuelle.
+
+### Validation visuelle sans écran natif
+
+```powershell
+$env:ATLAS_HOLOGRAM_LOW_EFFECTS = "1"
+.\\.venv\\Scripts\\python.exe scripts\\preview_atlas_hologram_offscreen.py
+start "$env:TEMP\\ATLAS_hologram_sur_fond.png"
+Remove-Item Env:ATLAS_HOLOGRAM_LOW_EFFECTS
+```
+
+Ces commandes ne lancent pas le démon vocal ; elles produisent une
+image de la projection uniquement. Elles ne prouvent pas la stabilité
+matérielle de Windows.
