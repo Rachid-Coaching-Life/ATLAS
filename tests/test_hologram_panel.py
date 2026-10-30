@@ -309,3 +309,51 @@ def test_neural_light_rails_keep_real_glass_cutouts(qapp):
         assert panel.input_region().contains(panel.voice_button.geometry().center())
     finally:
         panel.close()
+
+
+def test_hologram_redraw_is_dormant_while_offline(qapp):
+    """Static projection must not repaint on a perpetual timer when idle."""
+    from desktop_app.hologram_panel import HologramPanel
+
+    panel = HologramPanel()
+    try:
+        panel.show()
+        qapp.processEvents()
+        assert not panel._timer.isActive()
+        panel.set_activity("idle")
+        assert not panel._timer.isActive()
+        panel.set_activity("listening")
+        assert panel._timer.isActive()
+        assert panel._timer.interval() >= 200
+        panel.set_activity("thinking")
+        assert panel._timer.isActive()
+        panel.set_activity("asleep")
+        assert not panel._timer.isActive()
+        panel.set_activity("speaking")
+        assert panel._timer.isActive()
+        panel.hide()
+        assert not panel._timer.isActive()
+    finally:
+        panel.close()
+
+
+def test_projection_bridge_redraw_pauses_when_inactive(qapp):
+    """Do not animate the energy bridge with no active assistant operation."""
+    from desktop_app.hologram_panel import ProjectionBridge
+
+    bridge = ProjectionBridge()
+    try:
+        bridge.show()
+        qapp.processEvents()
+        assert not bridge._timer.isActive()
+        bridge.set_activity("listening")
+        assert bridge._timer.isActive()
+        assert bridge._timer.interval() >= 200
+        bridge.set_activity("idle")
+        assert not bridge._timer.isActive()
+        bridge.set_activity("speaking")
+        assert bridge._timer.isActive()
+        bridge.hide()
+        assert not bridge._timer.isActive()
+    finally:
+        bridge.close()
