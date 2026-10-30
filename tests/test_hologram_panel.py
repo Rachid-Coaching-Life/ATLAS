@@ -357,3 +357,50 @@ def test_projection_bridge_redraw_pauses_when_inactive(qapp):
         assert not bridge._timer.isActive()
     finally:
         bridge.close()
+
+
+def test_premium_hologram_keeps_text_readable_and_glass_transparent(qapp):
+    """Actual Qt render at desktop width with glyphs, no new graphics engine."""
+    from PyQt6.QtGui import QImage
+    from desktop_app.hologram_panel import HologramPanel
+
+    panel = HologramPanel()
+    try:
+        panel.resize(505, 330)
+        panel.show()
+        qapp.processEvents()
+        assert panel.heard.contentsMargins().left() == 43
+        assert panel.reply.contentsMargins().left() == 43
+        assert panel.heading.font().pointSize() == 11
+        assert panel.status.font().pointSize() == 14
+        assert panel.heard.geometry().width() > 260
+        assert panel.voice_button.isVisible()
+        assert panel.exchanges_button.isVisible()
+        assert not panel._timer.isActive()  # no continuous idle graphics work
+
+        canvas = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        canvas.fill(0)
+        panel.render(canvas)
+        assert canvas.pixelColor(0, 0).alpha() == 0
+        assert canvas.pixelColor(504, 0).alpha() == 0
+        assert canvas.pixelColor(252, 165).alpha() > 0
+        assert panel.input_region().contains(panel.voice_button.geometry().center())
+    finally:
+        panel.close()
+
+
+def test_premium_hologram_compact_mode_omits_glyph_indent(qapp):
+    """Keep real conversational text and controls legible on narrow screens."""
+    from desktop_app.hologram_panel import HologramPanel
+
+    panel = HologramPanel()
+    try:
+        panel.resize(210, 205)
+        panel.show()
+        qapp.processEvents()
+        assert panel.heard.contentsMargins().left() == 0
+        assert panel.reply.contentsMargins().left() == 0
+        assert panel.voice_button.isVisible()
+        assert panel.exchanges_button.isVisible()
+    finally:
+        panel.close()
