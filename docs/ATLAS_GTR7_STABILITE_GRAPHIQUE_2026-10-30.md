@@ -313,3 +313,38 @@ Remove-Item Env:ATLAS_HOLOGRAM_LOW_EFFECTS
 Ces commandes ne lancent pas le démon vocal ; elles produisent une
 image de la projection uniquement. Elles ne prouvent pas la stabilité
 matérielle de Windows.
+
+
+## Validation visuelle du mode allégé sur plusieurs fonds
+
+L'utilisateur a fourni la vue hors écran `ATLAS_hologram_sur_fond.png`
+du **mode allégé**. Elle confirme que sur un fond sombre :
+- les deux cartes de dialogue restent lisibles ;
+- la plaque titre, la télémétrie, les commandes et l'émetteur sont visibles ;
+- l'effet 3D est plus discret qu'un véritable hologramme volumique.
+
+Cela **ne valide pas la lisibilité sur fond clair** et ne constitue
+aucune mesure de consommation GPU ou électrique.
+
+Pour éviter une retouche prématurée du moteur de dessin, le script
+`scripts/preview_atlas_hologram_offscreen.py` génère désormais
+une troisième image sur fond clair simulé
+(`%TEMP%\ATLAS_hologram_sur_fond_clair.png`), en superposant
+la **même** image Qt transparente que la vue sombre. Aucun changement
+du panneau normal ni du portrait ; aucune animation supplémentaire.
+
+Commande (PowerShell, depuis le dépôt) :
+
+```powershell
+git pull --ff-only origin develop-atlas
+$env:PYTHONPATH = "$PWD\src"
+$env:ATLAS_HOLOGRAM_LOW_EFFECTS = "1"
+.\.venv\Scripts\python.exe scripts\preview_atlas_hologram_offscreen.py
+Remove-Item Env:ATLAS_HOLOGRAM_LOW_EFFECTS
+start "$env:TEMP\ATLAS_hologram_sur_fond_clair.png"
+```
+
+Un test d'export du nouveau PNG et de sa géométrie a été ajouté dans
+`tests/test_hologram_panel.py`. **À exécuter sur le GTR7**.
+La version normale est toujours le réglage par défaut et les coupures
+d'alimentation USB-PD restent non résolues.
