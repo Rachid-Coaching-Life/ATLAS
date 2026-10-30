@@ -120,3 +120,77 @@ def test_external_onedrive_relocation_is_rejected(isolated_profile, monkeypatch)
     finally:
         (external / "Downloads").rmdir()
         external.rmdir()
+
+
+def test_direct_pdf_inventory_filters_without_loading_file_contents(isolated_profile, monkeypatch):
+    from jarvis import tasks
+
+    documents = isolated_profile / "Documents"
+    documents.mkdir()
+    pdf = documents / "attestation.pdf"
+    pdf.write_bytes(b"%PDF-1.4\nPRIVATE PDF DATA\n")
+    (documents / "liste.txt").write_text("texte prive", encoding="utf-8")
+    nested = documents / "Archives"
+    nested.mkdir()
+    (nested / "ancien.pdf").write_bytes(b"%PDF-1.4\n")
+
+    def forbid_model(*args, **kwargs):
+        raise AssertionError("La liste de PDF ne doit pas appeler le modèle")
+
+    monkeypatch.setattr(tasks, "run_reply_engine", forbid_model)
+    manager = tasks.TaskManager(
+        db=object(), cfg=SimpleNamespace(), dialogue_memory=None,
+    )
+    try:
+        identity = manager.submit("Liste les PDF de mes documents")
+        manager.wait_for_idle(timeout=5)
+        task = manager.get(identity)
+        assert task.status == tasks.TaskStatus.COMPLETED
+        assert "Inventaire en lecture seule : PDF du dossier Documents" in task.result
+        assert "premier niveau uniquement" in task.result
+        assert "attestation.pdf" in task.result
+        assert "liste.txt" not in task.result
+        assert "ancien.pdf" not in task.result
+        assert "PRIVATE PDF DATA" not in task.result
+        assert pdf.read_bytes().startswith(b"%PDF-1.4")
+    finally:
+        manager.shutdown()
+
+
+def test_direct_pdf_inventory_no_match_is_a_valid_empty_result(isolated_profile):
+    from jarvis import tasks
+
+    downloads = isolated_profile / "Downloads"
+    downloads.mkdir()
+    (downloads / "notice.txt").write_text("texte", encoding="utf-8")
+    manager = tasks.TaskManager(
+        db=object(), cfg=SimpleNamespace(), dialogue_memory=None,
+    )
+    try:
+        identity = manager.submit("Liste les PDF de mes téléchargements.")
+        manager.wait_for_idle(timeout=5)
+        task = manager.get(identity)
+        assert task.status == tasks.TaskStatus.COMPLETED
+        assert "No files found matching '*.pdf'" in task.result
+    finally:
+        manager.shutdown()
+
+
+@pytest.mark.parametrize(
+    ("prompt", "folder"),
+    [
+        ("Liste les PDF de mes documents", "Documents"),
+        ("Liste les fichiers PDF de mes documents", "Documents"),
+        ("LISTE LES PDF DE MES TÉLÉCHARGEMENTS !", "Downloads"),
+        ("Liste les PDF de mon bureau.", "Desktop"),
+        ("Cherche tous les PDF de mes documents et supprime les doublons", None),
+        ("Liste les PDF de tout mon ordinateur", None),
+        ("Liste les PDF du disque D", None),
+        ("Ouvre chaque PDF et analyse son contenu", None),
+        ("Liste mes documents", None),
+    ],
+)
+def test_pdf_inventory_exact_intents_only(prompt, folder):
+    from jarvis.tasks import _direct_pdf_list_folder
+
+    assert _direct_pdf_list_folder(prompt) == folder
