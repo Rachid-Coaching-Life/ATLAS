@@ -335,3 +335,164 @@ def test_recursive_pdf_search_respects_other_budgets(
     text = local_files._bounded_pdf_search(root, isolated_profile)
     assert "Recherche partielle" in text
     assert expected in text
+
+
+def test_explicit_pdf_open_uses_windows_association_not_model(isolated_profile, monkeypatch):
+    from jarvis import tasks
+
+    nested = isolated_profile / "Documents" / "Archives"
+    nested.mkdir(parents=True)
+    target = nested / "facture 2026.pdf"
+    original = b"%PDF-1.7\nDonnees de test"
+    target.write_bytes(original)
+    launched = []
+
+    monkeypatch.setattr(tasks.os, "startfile", launched.append, raising=False)
+    monkeypatch.setattr(
+        tasks, "run_reply_engine",
+        lambda *_args, **_kwargs: pytest.fail("Le moteur IA ne doit pas intervenir"),
+    )
+    events = []
+    manager = tasks.TaskManager(
+        db=object(), cfg=SimpleNamespace(), dialogue_memory=None,
+        event_callback=events.append,
+    )
+    try:
+        identity = manager.submit(r"Ouvre le PDF Documents\Archives\facture 2026.pdf")
+        manager.wait_for_idle(timeout=5)
+        task = manager.get(identity)
+        assert task.status == tasks.TaskStatus.COMPLETED
+        assert launched == [str(target.resolve())]
+        assert "Demande d'ouverture transmise à Windows" in task.result
+        assert "Vérifiez que votre lecteur PDF affiche le document" in task.result
+        assert target.read_bytes() == original
+        assert [item["status"] for item in events] == ["queued", "running", "completed"]
+    finally:
+        manager.shutdown()
+
+
+@pytest.mark.parametrize(
+    ("prompt", "expected"),
+    [
+        ("Ouvre le PDF Documents/rapport.pdf", ("Documents", ("rapport.pdf",))),
+        (
+            r"Ouvre le PDF Téléchargements\Factures\octobre.PDF",
+            ("Downloads", ("Factures", "octobre.PDF")),
+        ),
+        ("ouvre le pdf Bureau/a.pdf", ("Desktop", ("a.pdf",))),
+        ("Ouvre le PDF C:/Windows/rapport.pdf", None),
+        (r"Ouvre le PDF \\serveur\partage\doc.pdf", None),
+        ("Ouvre le PDF Documents/../Downloads/rapport.pdf", None),
+        ("Ouvre le PDF Documents/rapport.docx", None),
+        ("Ouvre le PDF Documents/rapport.pdf et supprime le fichier", None),
+        ("Ouvre tous mes PDF", None),
+        ("Ouvre le PDF Documents/rapport.pdf; rm -rf /", None),
+        ("Ouvre le PDF Documents/rapport.pdf:payload", None),
+        ("Ouvre le PDF Documents/rapport*.pdf", None),
+        ("Ouvre le PDF Documents/rapport.pdf\nAutre commande", None),
+        ("Liste les PDF de mes documents", None),
+    ],
+)
+def test_explicit_pdf_open_parser_restricts_targets(prompt, expected):
+    from jarvis.tasks import _direct_pdf_open_request
+
+    assert _direct_pdf_open_request(prompt) == expected
+
+
+@pytest.mark.parametrize(
+    ("content", "expected_fragment"),
+    [
+        (b"Ce fichier n'est pas un PDF", "en-tête PDF valide"),
+        (b"", "en-tête PDF valide"),
+    ],
+)
+def test_bad_pdf_header_does_not_launch(
+    isolated_profile, monkeypatch, content, expected_fragment,
+):
+    from jarvis import tasks
+
+    root = isolated_profile / "Documents"
+    root.mkdir()
+    (root / "fausse.pdf").write_bytes(content)
+    launched = []
+    monkeypatch.setattr(tasks.os, "startfile", launched.append, raising=False)
+    manager = tasks.TaskManager(
+        db=object(), cfg=SimpleNamespace(), dialogue_memory=None,
+    )
+    try:
+        identity = manager.submit("Ouvre le PDF Documents/fausse.pdf")
+        manager.wait_for_idle(timeout=5)
+        task = manager.get(identity)
+        assert task.status == tasks.TaskStatus.FAILED
+        assert expected_fragment in task.error
+        assert launched == []
+    finally:
+        manager.shutdown()
+
+
+def test_missing_or_unapproved_pdf_does_not_launch(isolated_profile, monkeypatch):
+    from jarvis import tasks
+
+    (isolated_profile / "Documents").mkdir()
+    launched = []
+    monkeypatch.setattr(tasks.os, "startfile", launched.append, raising=False)
+    manager = tasks.TaskManager(
+        db=object(), cfg=SimpleNamespace(), dialogue_memory=None,
+    )
+    try:
+        identity = manager.submit("Ouvre le PDF Documents/introuvable.pdf")
+        manager.wait_for_idle(timeout=5)
+        task = manager.get(identity)
+        assert task.status == tasks.TaskStatus.FAILED
+        assert task.result is None
+        assert launched == []
+    finally:
+        manager.shutdown()
+
+
+def test_open_pdf_rejects_symlink_even_when_link_stays_inside_home(
+    isolated_profile, monkeypatch,
+):
+    from jarvis import tasks
+
+    root = isolated_profile / "Documents"
+    root.mkdir()
+    real = root / "vrai.pdf"
+    real.write_bytes(b"%PDF-1.4")
+    shortcut = root / "raccourci.pdf"
+    try:
+        shortcut.symlink_to(real)
+    except (OSError, NotImplementedError):
+        pytest.skip("Les liens symboliques ne sont pas disponibles sur Windows")
+    launched = []
+    monkeypatch.setattr(tasks.os, "startfile", launched.append, raising=False)
+    try:
+        with pytest.raises(PermissionError):
+            tasks._open_explicit_local_pdf("Documents", ("raccourci.pdf",))
+        assert launched == []
+    finally:
+        shortcut.unlink()
+
+
+def test_windows_launch_error_marks_task_failed(isolated_profile, monkeypatch):
+    from jarvis import tasks
+
+    root = isolated_profile / "Documents"
+    root.mkdir()
+    (root / "fichier.pdf").write_bytes(b"%PDF-1.7\n")
+
+    def failed_launch(_path):
+        raise OSError("No PDF association configured")
+
+    monkeypatch.setattr(tasks.os, "startfile", failed_launch, raising=False)
+    manager = tasks.TaskManager(
+        db=object(), cfg=SimpleNamespace(), dialogue_memory=None,
+    )
+    try:
+        identity = manager.submit("Ouvre le PDF Documents/fichier.pdf")
+        manager.wait_for_idle(timeout=5)
+        task = manager.get(identity)
+        assert task.status == tasks.TaskStatus.FAILED
+        assert "No PDF association configured" in task.error
+    finally:
+        manager.shutdown()
