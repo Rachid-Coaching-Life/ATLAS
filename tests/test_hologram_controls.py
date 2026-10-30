@@ -177,3 +177,93 @@ def test_diagnostic_main_skips_setup_ollama_and_voice_before_start(qapp, monkeyp
     assert "portrait" in events
     assert "event_loop" in events
     assert events.index("close_splash") < events.index("portrait")
+
+
+def test_hologram_can_stop_hidden_chat_query(qapp):
+    """Stop a real queued chat turn without opening chat or stopping voice."""
+    from types import SimpleNamespace
+    from desktop_app.app import ATLASSystemTray
+    from desktop_app.chat_window import ChatWindow
+    from desktop_app.hologram_panel import HologramPanel
+
+    sent, cancelled = [], []
+    chat = ChatWindow(
+        submit_fn=sent.append,
+        cancel_fn=lambda: cancelled.append("chat_only"),
+        daemon_available=True,
+    )
+    panel = HologramPanel()
+    tray = object.__new__(ATLASSystemTray)
+    tray.chat_window = chat
+    tray.face_window = SimpleNamespace(
+        _hologram_enabled=True,
+        hologram=panel,
+        ingest_chat_preview=panel.set_conversation_preview,
+    )
+    tray._connect_chat_to_hologram(chat)
+    panel.stop_response_requested.connect(tray._handle_hologram_stop_request)
+    try:
+        panel.resize(430, 330)
+        panel.show()
+        qapp.processEvents()
+        assert panel.stop_response_button.isHidden()
+        assert not chat.isVisible()
+
+        chat.input_widget.setPlainText("Quel est le statut de mon projet ?")
+        chat._send()
+        qapp.processEvents()
+        assert sent == ["Quel est le statut de mon projet ?"]
+        assert panel.stop_response_button.isVisible()
+        assert panel.stop_response_button.isEnabled()
+        assert panel.reply.text() == "ATLAS prépare sa réponse…"
+
+        panel.stop_response_button.click()
+        qapp.processEvents()
+        assert cancelled == ["chat_only"]
+        assert not chat._query_in_flight
+        assert panel.stop_response_button.isHidden()
+        assert panel.reply.text() == "Réponse interrompue."
+
+        chat._on_complete("Réponse arrivée trop tard")
+        assert panel.reply.text() == "Réponse interrompue."
+        tray._handle_hologram_stop_request()
+        assert cancelled == ["chat_only"]  # no duplicate cancellation
+    finally:
+        chat.close()
+        panel.close()
+
+
+def test_hologram_stop_follows_chat_completion_and_daemon_shutdown(qapp):
+    from types import SimpleNamespace
+    from desktop_app.app import ATLASSystemTray
+    from desktop_app.chat_window import ChatWindow
+    from desktop_app.hologram_panel import HologramPanel
+
+    chat = ChatWindow(submit_fn=lambda text: None, daemon_available=True)
+    panel = HologramPanel()
+    tray = object.__new__(ATLASSystemTray)
+    tray.chat_window = chat
+    tray.face_window = SimpleNamespace(
+        _hologram_enabled=True, hologram=panel,
+        ingest_chat_preview=panel.set_conversation_preview,
+    )
+    tray._connect_chat_to_hologram(chat)
+    try:
+        panel.show()
+        qapp.processEvents()
+        chat.input_widget.setPlainText("Première demande")
+        chat._send()
+        assert not panel.stop_response_button.isHidden()
+        chat._on_complete("Réponse finale")
+        assert panel.stop_response_button.isHidden()
+        assert panel.reply.text() == "Réponse finale"
+
+        chat.input_widget.setPlainText("Deuxième demande")
+        chat._send()
+        assert not panel.stop_response_button.isHidden()
+        chat.set_daemon_status("stopped")
+        assert panel.stop_response_button.isHidden()
+        assert not chat._query_in_flight
+    finally:
+        chat.close()
+        panel.close()
