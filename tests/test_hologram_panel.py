@@ -451,6 +451,17 @@ def test_offscreen_preview_loads_real_unicode_font_and_exports_png():
     assert backdrop.size() == image.size()
     assert backdrop.pixelColor(0, 0).alpha() == 255
 
+    # The same genuine Qt projection must also be legible on bright desktops.
+    assert "Vue de lisibilité (fond clair simulé) :" in result.stdout
+    daylight = QImage(
+        str(Path(tempfile.gettempdir()) / "ATLAS_hologram_sur_fond_clair.png")
+    )
+    assert not daylight.isNull()
+    assert daylight.size() == image.size()
+    assert daylight.pixelColor(0, 0).alpha() == 255
+    # Different backdrops, same actual HUD alpha and shape.
+    assert daylight.pixelColor(0, 0) != backdrop.pixelColor(0, 0)
+
 
 def test_spectral_layers_render_at_small_and_large_sizes(qapp):
     """Real Qt rendering of static spectral glass at both layout extremes.
