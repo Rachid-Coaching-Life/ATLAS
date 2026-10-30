@@ -1150,6 +1150,9 @@ class VoiceListener(threading.Thread):
                     pending_pdf_title=pending_title,
                 )
                 task_service = getattr(self, "_task_manager", None)
+                if direct_prompt is None:
+                    # A new unrelated request invalidates an old PDF choice.
+                    self._pending_pdf_clarification = None
                 if direct_prompt is not None and task_service is not None:
                     if not self._transcription_is_current(generation):
                         return
