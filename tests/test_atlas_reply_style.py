@@ -16,7 +16,7 @@ pytestmark = pytest.mark.unit
         (
             "Quelle est l'heure ?",
             "Je suis Atlas, votre assistant. Il est 16 h.",
-            "votre assistant. Il est 16 h.",
+            "Il est 16 h.",
         ),
         (
             "Lance cette tâche",
