@@ -214,6 +214,7 @@ def _direct_spoken_pdf_request(prompt: str) -> Optional[tuple[str, Optional[str]
     if not _has_spoken_pdf_open_intent(prompt):
         return None
     remainder = _SPOKEN_OPEN_PREFIX.sub("", prompt.strip(), count=1).strip()
+    remainder = remainder.rstrip(" .!?").strip()
     if re.search(r'[\\/:*?"<>|\x00-\x1f]', remainder):
         return None
     if re.search(
