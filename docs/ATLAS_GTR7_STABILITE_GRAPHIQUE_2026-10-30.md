@@ -916,3 +916,67 @@ n'a pas été testée et les compteurs CPU/RAM ne mesurent ni le
 GPU, ni la consommation électrique, ni les températures.
 Aucune nouvelle fenêtre native complète n'a été lancée pour
 cette validation.
+
+
+## Développement fonctionnel — conversations réelles sur l'hologramme
+
+Le développement ne se limite plus à la mesure des performances.
+Audit préalable des chemins Qt : la fenêtre de conversation
+`ChatWindow` possède un flux structuré de messages saisis,
+réponses et retours IPC, mais le panneau holographique ne lisait
+que des lignes de journal via `HologramPanel.ingest_log()`.
+Ce flux de journaux peut manquer les réponses du chat écrit.
+De plus, la création de la fenêtre de chat sur événement IPC
+n'injectait pas `control_fn`, alors que la création par le bouton
+`ÉCHANGES` le faisait : un rembobinage provenant de cette fenêtre
+n'avait donc pas de passerelle de contrôle fournie.
+
+**Nouvelles fonctions (branche `develop-atlas`) :**
+
+- `src/desktop_app/chat_window.py` : signal Qt
+  `conversation_preview_changed(str, str)` émis sur l'ajout réel
+  de messages utilisateur/assistant depuis la conversation en mémoire ;
+  réémission après un rembobinage ; affichage explicite de l'annulation,
+  du moteur occupé ou d'une réponse vide ; aucune requête supplémentaire
+  n'est envoyée à l'IA pour alimenter l'hologramme.
+- `src/desktop_app/hologram_panel.py` : API
+  `set_conversation_preview(request, response)` qui actualise les
+  cartes existantes `DERNIÈRE DEMANDE` et `RÉPONSE`.
+  Affiche `ATLAS prépare sa réponse…` tant que la réponse est absente.
+  Préserve `QLabel.PlainText` pour ne pas interpréter le HTML contenu
+  dans les messages.
+- `src/desktop_app/face_widget.py` : transmission de l'aperçu
+  textuel au panneau quand l'hologramme est actif, sans changement
+  du widget portrait ni de sa géométrie.
+- `src/desktop_app/app.py` : branche le signal de chat vers la
+  projection quelle que soit la voie de création du chat
+  (bouton `ÉCHANGES` ou événement IPC) ; fournit aussi
+  `control_fn` à la fenêtre créée depuis un événement IPC.
+- `tests/test_chat_window.py` : scénarios du texte brut, de
+  l'aperçu en attente, de la réponse complète, de l'annulation,
+  de la réponse tardive ignorée, du rembobinage et du routage
+  d'une réponse IPC.
+
+**Invariants :** pas de modification de l'image `atlas_portrait.png`,
+de son format, de sa taille ou de sa place ; pas de nouveaux
+widgets graphiques, dépendances, minuteurs, processus ou modèles.
+Le chemin de réponse vocale existant fondé sur les logs demeure.
+
+**Validation :** code enregistré dans GitHub, mais tests ajoutés
+non encore exécutés sur le Windows GTR7. Les 56 tests précédents
+réussis sont le dernier état de test communiqué avant ces ajouts.
+Exécuter, après récupération de la branche :
+
+```powershell
+cd C:\Users\cheha\ATLAS
+git pull --ff-only origin develop-atlas
+$env:PYTHONPATH = "$PWD\src"
+.\.venv\Scripts\python.exe -m pytest -q tests/test_chat_window.py tests/test_hologram_controls.py tests/test_hologram_panel.py tests/test_atlas_portrait.py
+```
+
+**À valider ensuite en usage réel :** le texte saisi dans
+`ÉCHANGES` doit apparaître immédiatement dans le panneau ; la
+réponse de l'IA doit remplacer l'attente ; un rembobinage ne doit
+pas conserver une réponse obsolète. Ces comportements ne sont pas
+annoncés comme validés tant que l'intégration réelle n'a pas été
+observée.
