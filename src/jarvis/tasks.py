@@ -132,13 +132,13 @@ def _direct_pdf_open_request(prompt: str) -> Optional[tuple[str, tuple[str, ...]
     """
     if not isinstance(prompt, str):
         return None
-    match = re.fullmatch(r"ouvre\\s+le\\s+pdf\\s+(.+)", prompt.strip(), re.IGNORECASE)
+    match = re.fullmatch(r"ouvre\s+le\s+pdf\s+(.+)", prompt.strip(), re.IGNORECASE)
     if match is None:
         return None
     raw_path = match.group(1)
-    if re.search(r'[\\x00-\\x1f<>:"|?*]', raw_path):
+    if re.search(r'[\x00-\x1f<>:"|?*]', raw_path):
         return None
-    parts = re.split(r"[\\\\/]", raw_path)
+    parts = re.split(r"[\\/]", raw_path)
     if len(parts) < 2 or any(
         not part or part in {".", ".."} or part.endswith((" ", "."))
         for part in parts
