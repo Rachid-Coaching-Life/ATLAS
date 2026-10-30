@@ -63,10 +63,14 @@ def profile(*, samples: int, warmup: int) -> dict:
     results = {}
     initial = os.environ.get("ATLAS_HOLOGRAM_LOW_EFFECTS")
     initial_cache = os.environ.get("ATLAS_HOLOGRAM_CACHED_EFFECTS")
+    initial_sculpted = os.environ.get("ATLAS_HOLOGRAM_SCULPTED")
     try:
-        for mode in ("normal", "alleger", "hybride"):
+        for mode in ("normal", "alleger", "hybride", "sculpte"):
             os.environ["ATLAS_HOLOGRAM_LOW_EFFECTS"] = "0" if mode == "normal" else "1"
-            os.environ["ATLAS_HOLOGRAM_CACHED_EFFECTS"] = "1" if mode == "hybride" else "0"
+            os.environ["ATLAS_HOLOGRAM_CACHED_EFFECTS"] = (
+                "1" if mode in ("hybride", "sculpte") else "0"
+            )
+            os.environ["ATLAS_HOLOGRAM_SCULPTED"] = "1" if mode == "sculpte" else "0"
             for state in ("idle", "listening"):
                 panel = HologramPanel()
                 bridge = ProjectionBridge()
@@ -117,6 +121,10 @@ def profile(*, samples: int, warmup: int) -> dict:
             os.environ.pop("ATLAS_HOLOGRAM_CACHED_EFFECTS", None)
         else:
             os.environ["ATLAS_HOLOGRAM_CACHED_EFFECTS"] = initial_cache
+        if initial_sculpted is None:
+            os.environ.pop("ATLAS_HOLOGRAM_SCULPTED", None)
+        else:
+            os.environ["ATLAS_HOLOGRAM_SCULPTED"] = initial_sculpted
 
     return {
         "tool": "ATLAS Qt offscreen raster profiler",
