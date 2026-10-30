@@ -272,3 +272,54 @@ def test_task_updates_preserve_an_unchanged_results_reading_position(qapp):
         view.close()
         view.deleteLater()
         qapp.processEvents()
+
+
+def test_hologram_task_submission_uses_same_admission_and_preserves_draft(qapp):
+    sent = []
+    view = TaskCentreWindow(
+        lambda prompt, *, request_id: sent.append((prompt, request_id)) or None,
+        lambda task_id: None,
+    )
+    states = []
+    view.task_submission_state_changed.connect(
+        lambda prompt, state: states.append((prompt, state))
+    )
+    try:
+        view.prompt.setPlainText("Brouillon non envoyé")
+        assert view.submit_hologram_task("  Vérifie le dossier Documents  ") is True
+        assert len(sent) == 1
+        assert sent[0][0] == "Vérifie le dossier Documents"
+        assert view.prompt.toPlainText() == "Brouillon non envoyé"
+        assert view.submit_hologram_task("Seconde tâche") is False
+        assert len(sent) == 1
+        assert states[0][1] == "Envoi au service de tâches…"
+        ack = {"type": "submission", "request_id": sent[0][1],
+               "accepted": True, "task_id": "atlas-task"}
+        assert view.process_log_line("__TASK__:" + json.dumps(ack))
+        assert view.prompt.toPlainText() == "Brouillon non envoyé"
+        assert view.submit_button.isEnabled()
+        assert states[-1][1] == "Demande acceptée ; suivi en cours."
+    finally:
+        view.close()
+
+
+def test_hologram_submission_rejection_never_claims_success(qapp):
+    def deny(prompt, *, request_id):
+        raise RuntimeError("queue full")
+
+    view = TaskCentreWindow(deny, lambda task_id: None)
+    states = []
+    view.task_submission_state_changed.connect(
+        lambda prompt, state: states.append((prompt, state))
+    )
+    try:
+        view.prompt.setPlainText("Brouillon")
+        assert view.submit_hologram_task("Une tâche") is True
+        assert view.prompt.toPlainText() == "Brouillon"
+        assert view.submit_button.isEnabled()
+        assert states[0][1] == "Envoi au service de tâches…"
+        assert "Envoi refusé" in states[-1][1]
+        assert "queue full" in states[-1][1]
+        assert not any("acceptée" in state for _, state in states)
+    finally:
+        view.close()
