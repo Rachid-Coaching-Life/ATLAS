@@ -550,7 +550,15 @@ class HologramPanel(QWidget):
             light = QRadialGradient(centre, radius * w)
             light.setColorAt(0, color)
             light.setColorAt(1, QColor(0, 0, 0, 0))
-            painter.fillRect(QRectF(0, 0, w, h), QBrush(light))
+            # Paint only the visible light footprint, not the whole pane.
+            # This bounds pixel work on the GTR7 for each active repaint.
+            reach = radius * w
+            x0 = max(0.0, centre.x() - reach)
+            y0 = max(0.0, centre.y() - reach)
+            x1 = min(w, centre.x() + reach)
+            y1 = min(h, centre.y() + reach)
+            if x1 > x0 and y1 > y0:
+                painter.fillRect(QRectF(x0, y0, x1 - x0, y1 - y0), QBrush(light))
         # Narrow facet reflections, kept away from headings and text. Large
         # opaque triangles previously made the panel look like flat polygons.
         faces = (
