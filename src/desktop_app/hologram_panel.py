@@ -377,7 +377,7 @@ class HologramPanel(QWidget):
         # Hybrid-only optical extrusion: two offset rails suggest a second
         # floating glass skin without another gradient, blur or timer.
         # All strokes stay beneath the live conversation labels.
-        if self._cached_effects and self._low_effects and w >= 390:
+        if self._cached_effects and self._low_effects and not self._sculpted and w >= 390:
             painter.save()
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.setPen(QPen(QColor(3, 14, 33, 105), 3.0))
@@ -641,6 +641,28 @@ class HologramPanel(QWidget):
         if control_top - reply_bottom < 21:
             return
         centre = (reply_bottom + control_top) / 2.0
+        if self._sculpted:
+            # Two physically separate data crystals; the transparent space
+            # between them is the design, not another noisy overlay.
+            painter.save()
+            for left, right, tint, accent in (
+                (.17 * w, .59 * w, QColor(2, 40, 75, 155), _CYAN),
+                (.68 * w, .87 * w, QColor(48, 35, 32, 143), _AMBER),
+            ):
+                crystal = QPainterPath(QPointF(left + 13, centre - 10))
+                crystal.lineTo(right - 14, centre - 10)
+                crystal.lineTo(right, centre)
+                crystal.lineTo(right - 12, centre + 10)
+                crystal.lineTo(left, centre + 10)
+                crystal.lineTo(left - 8, centre)
+                crystal.closeSubpath()
+                painter.fillPath(crystal, tint)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.setPen(QPen(QColor(accent.red(), accent.green(),
+                                          accent.blue(), 135), 1.0))
+                painter.drawPath(crystal)
+            painter.restore()
+            return
         left, right = .175 * w, .87 * w
         top, bottom = centre - 11, centre + 11
         crystal = QPainterPath(QPointF(left + 11, top))
@@ -740,10 +762,15 @@ class HologramPanel(QWidget):
         painter.save()
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.setPen(QPen(QColor(55, 196, 248, 65), .8))
-        painter.drawLine(QPointF(.18*w, y), QPointF(.86*w, y))
+        if self._sculpted:
+            painter.drawLine(QPointF(.20*w, y), QPointF(.56*w, y))
+            painter.drawLine(QPointF(.71*w, y), QPointF(.84*w, y))
+        else:
+            painter.drawLine(QPointF(.18*w, y), QPointF(.86*w, y))
         # Subdued waveform that reacts only to already-confirmed activity.
-        for i in range(21):
-            x = (.23 + i * .017) * w
+        for i in range(13 if self._sculpted else 21):
+            x = ((.215 + i * .025) if self._sculpted
+                 else (.23 + i * .017)) * w
             strength = (0.55 + 0.45 * math.sin(i * 1.9 + (
                 phase * 2.8 if activity else 0.0
             )))
