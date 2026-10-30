@@ -1046,3 +1046,91 @@ def test_chat_activity_lines_reach_log_without_protocol_duplicates():
     assert _should_emit_as_log('🤖 Jarvis\n')
     assert _should_emit_as_log('  London.\n')
     assert not _should_emit_as_log(CHAT_IPC_PREFIX + '{"type":"complete","data":"London."}\n')
+
+
+@pytest.mark.unit
+class TestAtlasHologramChatPreview:
+    """Real typed exchanges must flow to the projection without log parsing."""
+
+    def test_live_chat_updates_hologram_and_keeps_plain_text(self, qapp):
+        from desktop_app.chat_window import ChatWindow
+        from desktop_app.hologram_panel import HologramPanel
+
+        sent = []
+        chat = ChatWindow(submit_fn=sent.append, daemon_available=True)
+        panel = HologramPanel()
+        chat.conversation_preview_changed.connect(panel.set_conversation_preview)
+        try:
+            chat.input_widget.setPlainText("<b>Raconte-moi ATLAS</b>")
+            chat._send()
+            assert sent == ["<b>Raconte-moi ATLAS</b>"]
+            assert panel.heard.text() == "<b>Raconte-moi ATLAS</b>"
+            assert panel.reply.text() == "ATLAS prépare sa réponse…"
+            assert panel.heard.textFormat().name == "PlainText"
+
+            chat._on_complete("ATLAS répond <script>invisible</script>")
+            assert panel.reply.text() == "ATLAS répond <script>invisible</script>"
+
+            chat.input_widget.setPlainText("Deuxième question")
+            chat._send()
+            assert panel.heard.text() == "Deuxième question"
+            assert panel.reply.text() == "ATLAS prépare sa réponse…"
+        finally:
+            chat.close()
+            panel.close()
+
+    def test_rewind_removes_stale_holographic_answer(self, qapp):
+        from desktop_app.chat_window import ChatWindow
+        from desktop_app.hologram_panel import HologramPanel
+
+        sent = []
+        controls = []
+        chat = ChatWindow(
+            submit_fn=sent.append, daemon_available=True,
+            control_fn=lambda action, data: controls.append((action, data)),
+        )
+        panel = HologramPanel()
+        chat.conversation_preview_changed.connect(panel.set_conversation_preview)
+        try:
+            chat.input_widget.setPlainText("Première")
+            chat._send()
+            chat._on_complete("Réponse A")
+            chat.input_widget.setPlainText("Deuxième")
+            chat._send()
+            chat._on_complete("Réponse B")
+            assert panel.reply.text() == "Réponse B"
+
+            chat._rewind_to_user(1, "Première")
+            assert controls == [("rewind", {"user_index": 1})]
+            assert sent[-1] == "Première"
+            assert panel.heard.text() == "Première"
+            assert panel.reply.text() == "ATLAS prépare sa réponse…"
+        finally:
+            chat.close()
+            panel.close()
+
+    def test_ipc_created_chat_forwards_reply_to_hologram(self, qapp):
+        from types import SimpleNamespace
+        from desktop_app.app import ATLASSystemTray
+        from jarvis.daemon import CHAT_IPC_PREFIX
+
+        updates = []
+        tray = object.__new__(ATLASSystemTray)
+        tray.chat_window = None
+        tray._chat_submit_fn = None
+        tray._chat_cancel_fn = None
+        tray._chat_control_fn = lambda action, details: None
+        tray.is_listening = True
+        tray.face_window = SimpleNamespace(
+            _hologram_enabled=True,
+            ingest_chat_preview=lambda request, response: updates.append((request, response)),
+        )
+        try:
+            tray._on_chat_ipc_line(
+                f'{CHAT_IPC_PREFIX}{{"type":"complete","data":"Réponse structurée"}}'
+            )
+            assert updates == [("", "Réponse structurée")]
+            assert tray.chat_window._control_fn is tray._chat_control_fn
+        finally:
+            if tray.chat_window is not None:
+                tray.chat_window.close()
