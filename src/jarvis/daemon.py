@@ -48,6 +48,27 @@ from .listening.listener import VoiceListener
 from .utils.location import get_location_context, is_location_available
 
 
+_ATLAS_STARTUP_GREETING = (
+    "Bonjour, je suis ATLAS. Je suis prêt à exécuter vos tâches."
+)
+
+
+def _announce_atlas_startup(tts) -> bool:
+    """Queue the one startup introduction only when speech is available.
+
+    Called once by the normal runtime, after all services have started.
+    Never invoked by the smoke-test path or for individual requests.
+    """
+    if tts is None or not getattr(tts, "enabled", False):
+        return False
+    try:
+        tts.speak(_ATLAS_STARTUP_GREETING)
+    except Exception as exc:
+        debug_log(f"startup greeting unavailable: {type(exc).__name__}", "tts")
+        return False
+    return True
+
+
 def _start_tts_engine(tts) -> None:
     """Start local speech output and report its runtime availability."""
     if not tts.enabled:
@@ -1197,6 +1218,9 @@ def _run_daemon(smoke_test: bool = False) -> None:
         _global_dictation_engine = None
 
         return
+
+    # A single audible self-introduction on normal startup; never per reply.
+    _announce_atlas_startup(tts)
 
     # Periodic diary update checking
     last_diary_check = time.time()
