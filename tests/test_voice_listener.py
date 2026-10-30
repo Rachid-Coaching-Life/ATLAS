@@ -1111,6 +1111,10 @@ class TestSampleRateFallback:
                             mock_db = MagicMock()
                             mock_cfg = _create_mock_config(voice_device='Test Headset', whisper_device='cpu')
                             mock_tts = MagicMock()
+                            # This test exercises audio capture, not the startup greeting.
+                            # A plain MagicMock reports TTS enabled but never calls its
+                            # terminal callback, leaving capture permanently paused.
+                            mock_tts.enabled = False
                             mock_dialogue_memory = MagicMock()
 
                             listener = VoiceListener(mock_db, mock_cfg, mock_tts, mock_dialogue_memory)
