@@ -371,3 +371,53 @@ chaque test.
 Les 2 tests corrigés **n'ont pas encore été réexécutés sur Windows**
 au moment de ce commit. La vue sur fond clair a bien été générée
 par le script ; sa lisibilité reste à évaluer à partir de la capture.
+
+
+## Étape suivante — calque holographique statique en cache CPU
+
+Objectif : récupérer une partie de la profondeur lumineuse du mode normal
+sans redessiner toutes les lumières et les microcircuits à chaque image.
+Le portrait et sa fréquence d'animation restent **intouchés**.
+
+Implémentation expérimentale sur `develop-atlas` :
+- `src/desktop_app/hologram_panel.py` ajoute
+  `ATLAS_HOLOGRAM_CACHED_EFFECTS=1` (désactivé par défaut).
+- Les reflets, dégradés radiaux et microcircuits **déjà présents** sont
+  calculés une fois dans un `QImage` prémultiplié, transparent et découpé
+  selon la même silhouette. Le calque est réutilisé au prochain
+  `paintEvent`, et reconstruit si largeur, hauteur ou échelle DPI change.
+- La surface ne dépasse pas les dimensions du panneau ; à 505x330 et
+  DPR 1, buffer d'environ 0,64 Mio. Aucun shader, OpenGL, moteur 3D,
+  ressource téléchargée, boucle d'animation, modification de portrait.
+- En combinant `ATLAS_HOLOGRAM_LOW_EFFECTS=1` et la nouvelle variable,
+  la lumière statique est restaurée, mais les ornements dynamiques
+  allégés et le timer à 500 ms sont conservés.
+- Sans les variables, mode d'origine préservé.
+
+Le banc `scripts/profile_atlas_hologram_offscreen.py` compare désormais
+trois profils : `normal` (4 Hz), `alleger` (2 Hz, sans cette couche)
+et `hybride` (2 Hz, couche en cache) ; il mesure toujours uniquement
+`QWidget.render(QImage)` sans démarrer l'application.
+Deux tests contrôlent cache / redimensionnement / commandes et opt-in.
+**Les performances de cette nouvelle méthode ne sont pas encore
+mesurées sur le GTR7**, et ne doivent pas être annoncées comme acquises.
+
+Commandes de validation, sans fenêtre native ni moteur vocal :
+
+```powershell
+cd C:\Users\cheha\ATLAS
+git pull --ff-only origin develop-atlas
+$env:PYTHONPATH = "$PWD\src"
+.\.venv\Scripts\python.exe -m pytest -q tests/test_hologram_controls.py tests/test_hologram_panel.py tests/test_atlas_portrait.py
+.\.venv\Scripts\python.exe scripts\profile_atlas_hologram_offscreen.py --samples 8 --warmup 2
+$env:ATLAS_HOLOGRAM_LOW_EFFECTS = "1"
+$env:ATLAS_HOLOGRAM_CACHED_EFFECTS = "1"
+.\.venv\Scripts\python.exe scripts\preview_atlas_hologram_offscreen.py
+start "$env:TEMP\ATLAS_hologram_sur_fond_clair.png"
+Remove-Item Env:ATLAS_HOLOGRAM_CACHED_EFFECTS -ErrorAction SilentlyContinue
+Remove-Item Env:ATLAS_HOLOGRAM_LOW_EFFECTS -ErrorAction SilentlyContinue
+```
+
+Comparer d'abord les temps réels et la lisibilité du mode hybride
+avant de modifier le réglage par défaut. **Ne pas lancer l'application
+complète avec l'alimentation USB-C actuelle.**
