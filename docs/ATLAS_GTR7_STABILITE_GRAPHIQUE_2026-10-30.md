@@ -846,3 +846,52 @@ d'abord la charge CPU/GPU et les températures si une nouvelle session
 native courte est acceptée. Ne pas dépasser la limite existante
 du script (15 s). Ne pas ajouter de charge vocale/IA avant
 d'avoir évalué la stabilité de l'alimentation.
+
+
+## 30 octobre 2026 — Confirmation visuelle et instrumentation facultative
+
+L'utilisateur confirme explicitement que, durant l'essai natif court
+de 15:16:44 à 15:16:49, **le portrait original et le panneau
+holographique à gauche étaient tous deux visibles**. Cela valide
+l'affichage perçu pour cette session de cinq secondes, pas sa
+stabilité prolongée.
+
+**Écart identifié dans l'audit :** le script
+`scripts/probe_atlas_native_window.py` journalisait uniquement
+le début, l'affichage demandé et le retour de Qt. Il n'offrait
+aucun relevé CPU ou mémoire.
+
+**Correction de diagnostic (sans changement de l'interface) :**
+- `scripts/probe_atlas_native_window.py` : argument opt-in
+  `--metrics` ; deux lectures non bloquantes de `psutil`, déjà
+  une dépendance d'ATLAS ; aucune nouvelle minuterie, boucle,
+  fenêtre de console ou sous-processus. Mesure moyenne CPU du
+  processus (en pourcentage d'un cœur logique) et du système
+  sur l'intervalle ; valeurs RAM du processus et RAM système
+  à la fin. Résultats sous `MESURES_MOYENNES`.
+- `tests/test_hologram_panel.py` : nouveau test offscreen
+  de la production des compteurs avec `--metrics`, et assertion
+  que l'exécution sans cet argument ne produit pas de métriques.
+- Aucun module IA, aucun élément du portrait ou du panneau,
+  aucun réglage matériel ou dépendance additionnelle modifiés.
+
+**Limites explicites :** aucun GPU, DWM, watt, température ou
+pic de consommation n'est mesuré ; les pourcentages CPU sont
+des moyennes sur un test très court, non une causalité de coupure.
+Les nouveaux tests ne sont pas encore exécutés sur le GTR7
+après ce commit.
+
+Validation logicielle à faire avant toute nouvelle session native :
+
+```powershell
+cd C:\Users\cheha\ATLAS
+git pull --ff-only origin develop-atlas
+$env:PYTHONPATH = "$PWD\src"
+.\.venv\Scripts\python.exe -m pytest -q tests/test_hologram_controls.py tests/test_hologram_panel.py tests/test_atlas_portrait.py
+```
+
+Pour un éventuel essai **ultérieur**, lorsque les risques
+d'alimentation seront évalués, l'option de relevé se combine
+au script : `scripts/probe_atlas_native_window.py --seconds 5
+--metrics`. Ne pas lancer ce test supplémentaire pour le seul
+besoin de statistiques tant que les coupures restent inexpliquées.
