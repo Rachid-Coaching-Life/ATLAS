@@ -1059,6 +1059,42 @@ def test_native_window_probe_completes_offscreen_without_backend(tmp_path):
     assert result.returncode == 0, result.stdout + "\n" + result.stderr
     assert "FENETRE_AFFICHEE" in result.stdout
     assert "FIN_RETOUR_BOUCLE_QT" in result.stdout
+    assert "MESURES_MOYENNES" not in result.stdout  # opt-in only
+
+
+def test_native_window_probe_reports_cpu_ram_without_gpu_claim():
+    """Measure only process/system CPU and RAM in an offscreen 1-second run."""
+    import os
+    from pathlib import Path
+    import re
+    import subprocess
+    import sys
+
+    root = Path(__file__).resolve().parents[1]
+    script = root / "scripts" / "probe_atlas_native_window.py"
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = str(root / "src")
+    environment["QT_QPA_PLATFORM"] = "offscreen"
+    result = subprocess.run(
+        [sys.executable, str(script), "--seconds", "1", "--metrics"],
+        cwd=root, env=environment, capture_output=True,
+        text=True, timeout=20, check=False,
+    )
+    assert result.returncode == 0, result.stdout + "\\n" + result.stderr
+    assert "FIN_RETOUR_BOUCLE_QT" in result.stdout
+    measurement = next(
+        (line for line in result.stdout.splitlines() if "MESURES_MOYENNES" in line),
+        None,
+    )
+    assert measurement is not None, result.stdout
+    for key in (
+        "duree_s", "cpu_processus_pct_un_coeur", "cpu_systeme_pct",
+        "ram_processus_fin_mib", "ram_systeme_fin_pct",
+    ):
+        match = re.search(rf"\\b{key}=([0-9]+(?:\\.[0-9]+)?)", measurement)
+        assert match is not None, measurement
+        assert float(match.group(1)) >= 0.0
+    assert "gpu_et_temperatures_non_mesures=1" in measurement
 
 
 def test_native_window_probe_limits_runtime_to_fifteen_seconds(tmp_path):
