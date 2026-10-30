@@ -813,3 +813,36 @@ consulter son état, sans arrêter aveuglément tous les processus :
 la stabilité électrique et GPU sous la projection entière ne sont
 pas démontrées par le portrait seul. Ne pas traiter ce résultat
 comme une autorisation de lancer l'hologramme complet.
+
+
+## 30 octobre 2026 à 15:16 — Premier test natif court réussi
+
+Après mise à jour de `develop-atlas` au commit `9c18311`, les tests
+automatisés ont donné **55 passed in 8.51s** (résultat communiqué par
+l'utilisateur). Puis le script `scripts/probe_atlas_native_window.py`
+a été exécuté avec `--seconds 5` sur le GTR7, en mode optique allégé.
+
+Journal transmis (horodatage local UTC+01:00) :
+- `15:16:44 DEBUT essai fenêtre native uniquement ; optique allégé ; aucun moteur vocal/IA lancé`
+- `15:16:44 FENETRE_AFFICHEE duree_max=5s`
+- `15:16:49 FIN_RETOUR_BOUCLE_QT`
+
+**Conclusion limitée :** la construction et l'affichage demandés à
+`FaceWindow` puis la boucle d'événements Qt sont revenus normalement
+après les 5 secondes programmées. Aucun arrêt brusque n'a été rapporté
+pendant cette session. La présence effective des effets visuels sur le
+bureau, leur fréquence, la consommation GPU/DWM et l'état électrique
+du GTR7 ne sont pas mesurés par ce journal. Le test ne charge pas
+Ollama/IA/microphone, ne doit pas être assimilé à une validation
+du fonctionnement complet d'ATLAS ou de l'alimentation USB-PD.
+
+L'affichage `fenÃªtre` dans `Get-Content` est un décodage
+erroné de caractères UTF-8 lors de la lecture du fichier ; pour
+lire les accents sous PowerShell :
+`Get-Content "$env:TEMP\\ATLAS_native_window_diagnostic.log" -Encoding utf8 -Tail 5`.
+
+**Suite :** ne pas répéter des tests sans instrumentation ; observer
+d'abord la charge CPU/GPU et les températures si une nouvelle session
+native courte est acceptée. Ne pas dépasser la limite existante
+du script (15 s). Ne pas ajouter de charge vocale/IA avant
+d'avoir évalué la stabilité de l'alimentation.
