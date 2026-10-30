@@ -1,0 +1,53 @@
+# ATLAS — Stabilisation graphique GTR7 (30 octobre 2026)
+
+## Contexte vérifié
+
+- L'application a affiché le vrai portrait ATLAS accompagné d'une projection Qt. La projection obtenue reste très différente du concept holographique approuvé : rendu trop plat, faibles contrastes, détails insuffisants, typographie minuscule.
+- Le système Windows du GTR7 a subi des arrêts inattendus. Le journal fourni mentionne Kernel-Power 41 autour de 07:39:54 et 08:00:15 ; les événements 6008 récapitulent des arrêts précédents non prévus. **Aucune preuve ne relie encore ces arrêts au rendu Qt, au pilote AMD ou à ATLAS.**
+- L'utilisateur rapporte qu'un autre logiciel (OnlyOffice) devenait stable après désactivation de son accélération graphique. C'est un contexte pertinent, **pas une preuve de mécanisme commun**.
+- 27 tests de projection/portrait/commandes avaient réussi dans la venv Windows Python 3.11.9, **avant les modifications de stabilisation décrites ci-dessous**.
+- Le portrait local `src/desktop_app/desktop_assets/atlas_portrait.png` a été signalé modifié (`M`) et ne doit être ni restauré ni remplacé.
+
+## Correction minimale sur `develop-atlas`
+
+- `src/desktop_app/hologram_panel.py` : une projection « asleep » ou « idle » ne redessine plus continuellement ; en état actif, limite la minuterie de projection à 250 ms (4 rafraîchissements/s), et celle du pont lumineux également à 250 ms. Les transitions d'état continuent à déclencher immédiatement un rendu. Le portrait et son animation ne changent pas.
+- `tests/test_hologram_panel.py` : deux nouveaux tests de cycle de vie des minuteries et de changement d'état. **Non exécutés sur GTR7 à l'écriture.**
+- `scripts/preview_atlas_hologram_offscreen.py` : génère une capture PNG de la vraie projection Qt à l'aide du moteur offscreen, sans lancer de services vocaux, de modèles, de system tray ou de fenêtre native. C'est un outil de prévisualisation et non un test de stabilité de Windows.
+
+Les effets de transparence, le masque natif Windows et l'animation du portrait subsistent : aucun correctif définitif de crash n'est revendiqué.
+
+## Validation progressive — sans lancer immédiatement l'application complète
+
+Dans PowerShell depuis la racine du dépôt ATLAS :
+
+```powershell
+git switch develop-atlas
+git pull --ff-only origin develop-atlas
+$env:PYTHONPATH = "$PWD\src"
+.\.venv\Scripts\python.exe -m pytest -q tests/test_hologram_controls.py tests/test_hologram_panel.py tests/test_atlas_portrait.py
+```
+
+Si les tests réussissent, réaliser une **prévisualisation hors écran uniquement** :
+
+```powershell
+.\.venv\Scripts\python.exe scripts\preview_atlas_hologram_offscreen.py
+```
+
+Le script indique le chemin du PNG dans le dossier temporaire Windows. Contrôler ensuite le rendu sans démarrer ATLAS en mode interactif. Le lancement complet reste conditionné à un protocole d'essai prudent et à une surveillance du GTR7.
+
+## Décisions de développement
+
+1. Ne pas modifier `main`, le portrait, la géométrie faciale ou l'animation labiale.
+2. Ne pas ajouter de moteur 3D, shaders, dépendances lourdes ou promesses de stabilité sans mesures.
+3. Favoriser les tracés Qt simples, la mise en cache des éléments statiques et les rafraîchissements déclenchés par événements.
+4. Sur Windows, Qt Widgets utilise habituellement un chemin de peinture raster ; l'accélération du compositeur Windows et les composants QtWebEngine éventuels restent distincts. Ne pas assimiler automatiquement cette application à OnlyOffice.
+5. Après les nouveaux tests, produire une capture hors écran, puis examiner le dessin et les zones de commande pour améliorer la fidélité esthétique sans relancer une charge lourde.
+6. Conserver un relevé des événements Windows et utiliser la vraie application uniquement après les étapes précédentes, avec une validation manuelle explicite. Un nouvel arrêt du système interdit de multiplier les essais.
+
+## À faire
+
+- [ ] Exécuter tous les tests après stabilisation sur Windows.
+- [ ] Exécuter la prévisualisation hors écran et contrôler l'apparence réelle de l'hologramme.
+- [ ] Réaliser une vraie refonte du panneau selon la référence approuvée, en gardant les limites de charge.
+- [ ] Inspecter les performances CPU/GPU, la transparence et le comportement Windows avant de conclure à la stabilité.
+- [ ] Auditer séparément les références héritées de l'ancienne identité dans le code, scripts et documentation, sans remplacement aveugle.
