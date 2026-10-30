@@ -33,3 +33,12 @@ class TestBuildSystemPrompt:
         assert "even if the user speaks or writes another language" in prompt
         assert "Keep code, identifiers, file paths, proper names, URLs, and exact quotations unchanged" in prompt
         assert "phrased naturally in the user's language" not in prompt
+
+
+    def test_atlas_is_task_first_and_never_reintroduces_itself_every_turn(self):
+        prompt = build_system_prompt("ATLAS")
+        assert "execute useful computer tasks" in prompt
+        assert "Never start a routine answer with 'Bonjour, je suis ATLAS'" in prompt
+        assert "never claim an action completed" in prompt
+        assert "a British butler" not in prompt
+        assert "sarcastic" not in prompt
