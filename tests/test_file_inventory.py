@@ -640,6 +640,7 @@ def test_voice_tasks_only_accept_existing_direct_intents(spoken, expected):
     ("spoken", "expected"),
     [
         ("Ouvre mon certificat médical", ("certificat médical", None)),
+        ("Ouvre mon certificat médical ?", ("certificat médical", None)),
         ("Ouvre mon certificat médical sur le bureau",
          ("certificat medical", "Desktop")),
         ("Ouvre mon certificat médical dans mes documents",
