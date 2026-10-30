@@ -282,9 +282,9 @@ class TaskManager:
                         outcome.error_message or outcome.reply_text
                         or f"Impossible de lister {folder}."
                     )
-                scope = "PDF du dossier" if pdf_only else "dossier"
+                scope = "PDF du dossier " if pdf_only else ""
                 result = (
-                    f"Inventaire en lecture seule : {scope} {folder} "
+                    f"Inventaire en lecture seule : {scope}{folder} "
                     "(premier niveau uniquement, 50 entrées affichées au maximum).\n"
                     + (outcome.reply_text or "Aucun détail disponible.")
                 )
