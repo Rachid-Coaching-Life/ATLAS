@@ -732,45 +732,45 @@ class HologramPanel(QWidget):
         Both the original paint and the cached composition use these exact
         operations so no separately authored bitmap can alter the robot.
         """
-            # Spectral lighting gives the acrylic depth without applying a
-            # full-screen blur, OpenGL surface, or a new animation timer.
-            for cx, cy, radius, color in (
-                (.89, .09, .36, QColor(31, 139, 252, 19)),
-                (.13, .91, .30, QColor(20, 193, 252, 15)),
-                (.89, .90, .24, QColor(255, 151, 56, 12)),
-            ):
-                centre = QPointF(cx * w, cy * h)
-                light = QRadialGradient(centre, radius * w)
-                light.setColorAt(0, color)
-                light.setColorAt(1, QColor(0, 0, 0, 0))
-                # Paint only the visible light footprint, not the whole pane.
-                # This bounds pixel work on the GTR7 for each active repaint.
-                reach = radius * w
-                x0 = max(0.0, centre.x() - reach)
-                y0 = max(0.0, centre.y() - reach)
-                x1 = min(w, centre.x() + reach)
-                y1 = min(h, centre.y() + reach)
-                if x1 > x0 and y1 > y0:
-                    painter.fillRect(QRectF(x0, y0, x1 - x0, y1 - y0), QBrush(light))
-            # Sparse reflection slivers: clear negative space between projections.
-            faces = (
-                (((.70, .019), (.83, .019), (.95, .095), (.91, .20)),
-                 QColor(132, 230, 255, 14)),
-                (((.046, .64), (.078, .70), (.09, .90), (.05, .85)),
-                 QColor(46, 194, 249, 12)),
-                (((.80, .82), (.955, .85), (.84, .966), (.72, .954)),
-                 QColor(255, 165, 72, 13)),
-            )
-            for coords, color in faces:
-                painter.fillPath(_facet(coords, w, h), color)
+        # Spectral lighting gives the acrylic depth without applying a
+        # full-screen blur, OpenGL surface, or a new animation timer.
+        for cx, cy, radius, color in (
+            (.89, .09, .36, QColor(31, 139, 252, 19)),
+            (.13, .91, .30, QColor(20, 193, 252, 15)),
+            (.89, .90, .24, QColor(255, 151, 56, 12)),
+        ):
+            centre = QPointF(cx * w, cy * h)
+            light = QRadialGradient(centre, radius * w)
+            light.setColorAt(0, color)
+            light.setColorAt(1, QColor(0, 0, 0, 0))
+            # Paint only the visible light footprint, not the whole pane.
+            # This bounds pixel work on the GTR7 for each active repaint.
+            reach = radius * w
+            x0 = max(0.0, centre.x() - reach)
+            y0 = max(0.0, centre.y() - reach)
+            x1 = min(w, centre.x() + reach)
+            y1 = min(h, centre.y() + reach)
+            if x1 > x0 and y1 > y0:
+                painter.fillRect(QRectF(x0, y0, x1 - x0, y1 - y0), QBrush(light))
+        # Sparse reflection slivers: clear negative space between projections.
+        faces = (
+            (((.70, .019), (.83, .019), (.95, .095), (.91, .20)),
+             QColor(132, 230, 255, 14)),
+            (((.046, .64), (.078, .70), (.09, .90), (.05, .85)),
+             QColor(46, 194, 249, 12)),
+            (((.80, .82), (.955, .85), (.84, .966), (.72, .954)),
+             QColor(255, 165, 72, 13)),
+        )
+        for coords, color in faces:
+            painter.fillPath(_facet(coords, w, h), color)
 
-            # Thin tech weave and microcircuits are deliberately subtle to keep
-            # the actual conversation readable.
-            painter.setPen(QPen(QColor(67, 187, 224, 6), .6))
-            for row in range(16, int(h), 28):
-                painter.drawLine(QPointF(.09 * w, row), QPointF(.96 * w, row))
-            for col in range(22, int(w), 37):
-                painter.drawLine(QPointF(col, .07 * h), QPointF(col, .92 * h))
+        # Thin tech weave and microcircuits are deliberately subtle to keep
+        # the actual conversation readable.
+        painter.setPen(QPen(QColor(67, 187, 224, 6), .6))
+        for row in range(16, int(h), 28):
+            painter.drawLine(QPointF(.09 * w, row), QPointF(.96 * w, row))
+        for col in range(22, int(w), 37):
+            painter.drawLine(QPointF(col, .07 * h), QPointF(col, .92 * h))
 
     def _cached_spectral_layer(self) -> QImage:
         """Create one bounded CPU image per Qt size/DPR; no GPU surface.
