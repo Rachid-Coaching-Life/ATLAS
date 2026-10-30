@@ -47,14 +47,14 @@ def test_windows_installer_build_names_without_touching_identity_or_data():
         '#define MyAppName "Jarvis"\n'
         '#define MyAppExeName "Jarvis.exe"\n'
         'OutputBaseFilename=Jarvis-Setup-x64\n'
-        'Source: "..\\\\..\\\\dist\\\\Jarvis\\\\*"\n'
+        'Source: "..\\..\\dist\\Jarvis\\*"\n'
         'AppId={{B8A3D6F1-7C42-4E5A-9D12-3F8E6A1B5C90}\n'
     )
     result = tool.rewrite("installer/windows/jarvis_setup.iss", source)
     assert '#define MyAppName "ATLAS"' in result
     assert '#define MyAppExeName "ATLAS.exe"' in result
     assert 'OutputBaseFilename=ATLAS-Setup-x64' in result
-    assert "dist\\\\ATLAS\\\\*" in result
+    assert "dist\\ATLAS\\*" in result
     assert 'AppId={{B8A3D6F1-7C42-4E5A-9D12-3F8E6A1B5C90}' in result
 
 
