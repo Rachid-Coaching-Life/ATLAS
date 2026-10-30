@@ -194,3 +194,120 @@ def test_pdf_inventory_exact_intents_only(prompt, folder):
     from jarvis.tasks import _direct_pdf_list_folder
 
     assert _direct_pdf_list_folder(prompt) == folder
+
+
+def test_recursive_pdf_search_reads_names_only_in_nested_folders(isolated_profile, monkeypatch):
+    from jarvis import tasks
+
+    root = isolated_profile / "Documents"
+    nested = root / "Dossiers" / "Projet"
+    nested.mkdir(parents=True)
+    (root / "racine.pdf").write_bytes(b"PDF\nCONTENU PRIVE")
+    (nested / "facture.PDF").write_bytes(b"PDF\nSECRET DE FACTURE")
+    (nested / "notes.txt").write_text("Autre contenu", encoding="utf-8")
+
+    def forbid_model(*args, **kwargs):
+        raise AssertionError("Recherche directe : aucun modèle ne doit être appelé")
+
+    monkeypatch.setattr(tasks, "run_reply_engine", forbid_model)
+    manager = tasks.TaskManager(
+        db=object(), cfg=SimpleNamespace(), dialogue_memory=None,
+    )
+    try:
+        identity = manager.submit("Recherche les PDF dans mes documents et sous-dossiers")
+        manager.wait_for_idle(timeout=5)
+        task = manager.get(identity)
+        assert task.status == tasks.TaskStatus.COMPLETED
+        assert "racine.pdf" in task.result
+        assert "Dossiers" in task.result and "facture.PDF" in task.result
+        assert "notes.txt" not in task.result
+        assert "CONTENU PRIVE" not in task.result
+        assert "SECRET DE FACTURE" not in task.result
+        assert "Lecture seule" in task.result
+        assert (nested / "facture.PDF").read_bytes() == b"PDF\nSECRET DE FACTURE"
+    finally:
+        manager.shutdown()
+
+
+def test_bounded_pdf_search_reports_partial_when_entry_limit_hit(isolated_profile, monkeypatch):
+    from jarvis.tools.builtin import local_files
+
+    root = isolated_profile / "Downloads"
+    root.mkdir()
+    for index in range(8):
+        (root / f"doc-{index}.pdf").write_bytes(b"PDF")
+    monkeypatch.setattr(local_files, "_SEARCH_MAX_ENTRIES", 3)
+    text = local_files._bounded_pdf_search(root, isolated_profile)
+    assert "entrées inspectées : 3" in text
+    assert "Recherche partielle" in text
+    assert "limite d'entrées inspectées" in text
+
+
+def test_bounded_pdf_search_does_not_follow_links(isolated_profile):
+    from jarvis.tools.builtin import local_files
+
+    root = isolated_profile / "Documents"
+    root.mkdir()
+    outside = isolated_profile.parent / "atlas-other-user-test"
+    outside.mkdir(exist_ok=True)
+    (outside / "secret.pdf").write_bytes(b"CONFIDENTIEL")
+    shortcut = root / "raccourci"
+    try:
+        try:
+            shortcut.symlink_to(outside, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            pytest.skip("Ce Windows n'autorise pas les liens symboliques ici")
+        text = local_files._bounded_pdf_search(root, isolated_profile)
+        assert "secret.pdf" not in text
+        assert "Recherche partielle" in text
+        assert "ignorés/inaccessibles" in text
+    finally:
+        if shortcut.is_symlink():
+            shortcut.unlink()
+        (outside / "secret.pdf").unlink()
+        outside.rmdir()
+
+
+def test_bounded_pdf_search_rejects_outside_profile(isolated_profile):
+    from jarvis.tools.builtin import local_files
+
+    other = isolated_profile.parent / "atlas-outside-profile"
+    other.mkdir(exist_ok=True)
+    try:
+        with pytest.raises(PermissionError):
+            local_files._bounded_pdf_search(other, isolated_profile)
+    finally:
+        other.rmdir()
+
+
+def test_bounded_pdf_search_rejects_other_file_types(isolated_profile):
+    from jarvis.tools.builtin.local_files import LocalFilesTool
+
+    root = isolated_profile / "Documents"
+    root.mkdir()
+    tool = LocalFilesTool()
+    result = tool.run(
+        {"operation": "search", "path": str(root), "file_type": "exe"},
+        None,
+    )
+    assert result.success is False
+    assert "PDF" in result.reply_text
+
+
+@pytest.mark.parametrize(
+    ("prompt", "expected"),
+    [
+        ("Recherche les PDF dans mes documents et sous-dossiers", "Documents"),
+        ("Cherche les pdf dans mes téléchargements et sous dossiers", "Downloads"),
+        ("Recherche les PDF dans mon bureau et sous-dossiers", "Desktop"),
+        ("Recherche les PDF de tout mon PC", None),
+        ("Recherche les PDF dans mes documents et supprime les anciens", None),
+        ("Ouvre les PDF de mes documents", None),
+        ("Recherche dans le dossier D: et ses sous-dossiers", None),
+        ("Liste les PDF de mes documents", None),
+    ],
+)
+def test_recursive_pdf_search_requires_exact_safe_command(prompt, expected):
+    from jarvis.tasks import _direct_recursive_pdf_folder
+
+    assert _direct_recursive_pdf_folder(prompt) == expected
