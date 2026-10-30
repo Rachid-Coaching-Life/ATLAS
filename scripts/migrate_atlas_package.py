@@ -10,7 +10,7 @@ NEW = "atlas"
 ROOTS = ("src/", "tests/", "evals/", "scripts/", "installer/", ".github/")
 SUFFIXES = (".py", ".pyi", ".spec", ".ps1", ".bat", ".sh", ".yml", ".yaml", ".toml", ".ini", ".cfg")
 SPECIAL = ("jarvis_desktop.spec", "setup.py", "setup.cfg", "pytest.ini")
-DOTTED = re.compile(r"(?<![A-Za-z0-9_])" + OLD + r"(?=\.)")
+DOTTED = re.compile(r"(?<![A-Za-z0-9_./\\\\])" + OLD + r"(?=\.)")
 IMPORT = re.compile(r"(?m)\b(from|import)\s+" + OLD + r"(?=\s|$)")
 PKGPATH = re.compile(r"src[/\\]" + OLD + r"(?=[/\\])")
 BARE_SPEC = re.compile(r"(['\"])" + OLD + r"\1")
