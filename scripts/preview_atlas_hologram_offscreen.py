@@ -31,7 +31,11 @@ elif os.name == "nt":
     if _system_font_dir.is_dir():
         os.environ["QT_QPA_FONTDIR"] = str(_system_font_dir)
 
-from PyQt6.QtGui import QFont, QFontDatabase, QFontMetrics, QImage
+from PyQt6.QtCore import QPointF
+from PyQt6.QtGui import (
+    QBrush, QColor, QFont, QFontDatabase, QFontMetrics, QImage,
+    QLinearGradient, QPainter,
+)
 from PyQt6.QtWidgets import QApplication
 
 from desktop_app.hologram_panel import HologramPanel
@@ -116,8 +120,29 @@ def main() -> int:
         destination = Path(tempfile.gettempdir()) / "ATLAS_hologram_preview.png"
         if not image.save(str(destination), "PNG"):
             raise RuntimeError("Impossible d'enregistrer la prévisualisation PNG")
+
+        # A second, *diagnostic* copy composites the exact same Qt pixels over
+        # a neutral desktop-like background. This lets us evaluate how the
+        # transparency reads without displaying a native window on the GTR7.
+        # The transparent master PNG above remains untouched.
+        contrast = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        contrast.fill(QColor(12, 24, 43))
+        backdrop = QPainter(contrast)
+        background = QLinearGradient(
+            QPointF(0, 0), QPointF(float(panel.width()), float(panel.height()))
+        )
+        background.setColorAt(0, QColor(37, 57, 77))
+        background.setColorAt(1, QColor(13, 23, 43))
+        backdrop.fillRect(contrast.rect(), QBrush(background))
+        backdrop.drawImage(0, 0, image)
+        backdrop.end()
+        contrast_path = Path(tempfile.gettempdir()) / "ATLAS_hologram_sur_fond.png"
+        if not contrast.save(str(contrast_path), "PNG"):
+            raise RuntimeError("Impossible d'enregistrer la vue sur fond simulé")
+
         print(f"Police Qt hors écran : {loaded_family}")
         print(f"Prévisualisation ATLAS enregistrée : {destination}")
+        print(f"Vue de contraste (fond simulé) : {contrast_path}")
         return 0
     finally:
         panel.close()
