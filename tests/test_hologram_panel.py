@@ -729,6 +729,7 @@ def test_offscreen_profiler_generates_json_without_native_desktop(tmp_path):
         "hologram_normal_idle", "hologram_normal_listening",
         "hologram_alleger_idle", "hologram_alleger_listening",
         "hologram_hybride_idle", "hologram_hybride_listening",
+        "hologram_sculpte_idle", "hologram_sculpte_listening",
         "bridge_normal_idle", "bridge_alleger_listening",
         "bridge_hybride_listening",
         "portrait_idle", "portrait_speaking",
@@ -867,5 +868,83 @@ def test_hybrid_card_depth_rail_adds_optical_edge_without_layout_change(qapp, mo
         assert panel.heard.geometry() == heard_rect
         assert deep.pixelColor(0, 0).alpha() == 0
         assert panel._timer.interval() == 500
+    finally:
+        panel.close()
+
+
+def test_sculpted_hologram_creates_real_card_cutouts_and_data_gap(qapp, monkeypatch):
+    """Check silhouette changes, not decorative pixels or changed Qt labels."""
+    from PyQt6.QtGui import QColor, QImage, QPainter
+    from desktop_app.hologram_panel import HologramPanel
+
+    monkeypatch.setenv("ATLAS_HOLOGRAM_LOW_EFFECTS", "1")
+    monkeypatch.setenv("ATLAS_HOLOGRAM_CACHED_EFFECTS", "1")
+    monkeypatch.setenv("ATLAS_HOLOGRAM_SCULPTED", "1")
+    panel = HologramPanel()
+    try:
+        panel.resize(505, 330)
+        panel.show()
+        qapp.processEvents()
+        assert panel._sculpted
+        assert panel._timer.interval() == 500
+
+        reply_geometry = panel.reply.geometry()
+        heard_geometry = panel.heard.geometry()
+        def paint_reply(sculpted):
+            panel._sculpted = sculpted
+            image = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+            image.fill(0)
+            painter = QPainter(image)
+            try:
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                panel._glass_card(painter, panel.reply, QColor(255, 159, 71),
+                                  float(panel.width()))
+            finally:
+                painter.end()
+            return image
+
+        old = paint_reply(False)
+        new = paint_reply(True)
+        right = min(panel.width() - 14, reply_geometry.right() + 11 - 14)
+        bottom = reply_geometry.bottom() + 7
+        notch_x, notch_y = right - 94, bottom - 7
+        assert old.pixelColor(notch_x, notch_y).alpha() > 100
+        assert new.pixelColor(notch_x, notch_y).alpha() < 50
+        assert panel.reply.geometry() == reply_geometry
+        assert panel.heard.geometry() == heard_geometry
+        assert panel._glass_card_top(panel.reply) > panel.reply_caption.geometry().bottom()
+
+        panel._sculpted = True
+        entire = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        entire.fill(0)
+        panel.render(entire)
+        telemetry_y = (panel.reply.geometry().bottom() +
+                       panel.voice_button.geometry().top()) // 2
+        # The gap is an actual break between two data instruments.
+        gap_alpha = entire.pixelColor(round(.63 * panel.width()), telemetry_y).alpha()
+        data_alpha = entire.pixelColor(round(.46 * panel.width()), telemetry_y).alpha()
+        assert gap_alpha < data_alpha
+        assert entire.pixelColor(0, 0).alpha() == 0
+        events = []
+        panel.voice_command_requested.connect(lambda: events.append("voice"))
+        panel.exchange_view_requested.connect(lambda: events.append("exchanges"))
+        panel.voice_button.click()
+        panel.exchanges_button.click()
+        assert events == ["voice", "exchanges"]
+    finally:
+        panel.close()
+
+
+def test_sculpted_hologram_requires_explicit_hybrid_opt_in(qapp, monkeypatch):
+    """A stray sculpted flag may never silently alter the normal desktop."""
+    from desktop_app.hologram_panel import HologramPanel
+
+    monkeypatch.setenv("ATLAS_HOLOGRAM_SCULPTED", "1")
+    monkeypatch.delenv("ATLAS_HOLOGRAM_LOW_EFFECTS", raising=False)
+    monkeypatch.delenv("ATLAS_HOLOGRAM_CACHED_EFFECTS", raising=False)
+    panel = HologramPanel()
+    try:
+        assert not panel._sculpted
+        assert panel._timer.interval() == 250
     finally:
         panel.close()
