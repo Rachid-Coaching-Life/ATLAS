@@ -307,16 +307,23 @@ class HologramPanel(QWidget):
         bottom = r.bottom() + 7
         if bottom <= top:
             return
-        left = max(16, r.left() - 10)
-        right = min(w - 14, r.right() + 11)
+        reply = label is self.reply
+        # Stagger the floating panes independently of their real text layout.
+        # On compact screens retain the original footprint for accessibility.
+        offset = 12 if reply and w >= 390 else 0
+        left = max(16, r.left() - 10 + offset)
+        right = min(w - 14, r.right() + 11 - (14 if reply and w >= 390 else 0))
         if right - left < 16:
             return
-        slab = QPainterPath(QPointF(left + 8, top))
-        slab.lineTo(right - 12, top)
-        slab.lineTo(right, top + 11)
-        slab.lineTo(right - 6, bottom)
-        slab.lineTo(left, bottom)
-        slab.lineTo(left, top + 8)
+        slab = QPainterPath(QPointF(left + 12, top))
+        slab.lineTo(right - 31, top)
+        slab.lineTo(right - 7, top + 9)
+        slab.lineTo(right, top + 22)
+        slab.lineTo(right - 7, bottom - 6)
+        slab.lineTo(right - 25, bottom)
+        slab.lineTo(left + 9, bottom)
+        slab.lineTo(left, bottom - 9)
+        slab.lineTo(left + 2, top + 10)
         slab.closeSubpath()
         sheen = QLinearGradient(QPointF(left, top), QPointF(right, bottom))
         sheen.setColorAt(0, QColor(12, 98, 164, 183))
@@ -517,6 +524,45 @@ class HologramPanel(QWidget):
         painter.drawLine(QPointF(.17 * w, .666 * h), QPointF(.77 * w, .666 * h))
         painter.restore()
 
+    def _paint_header_island(self, painter: QPainter, w: float, h: float) -> None:
+        """Separate optical header plane with readable contrast behind live text.
+
+        The title and status are real Qt labels placed above this glass pane.
+        No native window, cache invalidation, timer, or face modification.
+        """
+        if w < 295 or h < 265:
+            return
+        left = .105 * w
+        right = .89 * w
+        top = .024 * h
+        bottom = .264 * h
+        island = QPainterPath(QPointF(left + 14, top))
+        island.lineTo(right - 39, top)
+        island.lineTo(right, top + 19)
+        island.lineTo(right - 7, bottom - 8)
+        island.lineTo(right - 33, bottom)
+        island.lineTo(left + 6, bottom)
+        island.lineTo(left, bottom - 10)
+        island.lineTo(left + 3, top + 11)
+        island.closeSubpath()
+        tint = QLinearGradient(QPointF(left, top), QPointF(right, bottom))
+        tint.setColorAt(0, QColor(2, 31, 64, 169))
+        tint.setColorAt(.56, QColor(3, 38, 73, 184))
+        tint.setColorAt(1, QColor(4, 23, 51, 139))
+        painter.save()
+        painter.fillPath(island, QBrush(tint))
+        painter.setPen(QPen(QColor(48, 210, 255, 112), 1.1))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPath(island)
+        painter.setPen(QPen(QColor(255, 162, 72, 145), 1.4))
+        painter.drawLine(QPointF(right - 38, top + .5),
+                         QPointF(right - 2, top + 19))
+        painter.restore()
+
+    def emitter_lens_geometry(self) -> tuple[float, float]:
+        """Internal lens center and radius; keeps every optic inside HUD bounds."""
+        return (.905 * float(self.width()), 27.0)
+
     def _paint_orbital_core(self, painter: QPainter, w: float, h: float) -> None:
         """A tiny stationary planetary instrument in the reserved left rail.
 
@@ -589,24 +635,25 @@ class HologramPanel(QWidget):
         """
         if w < 390:
             return
-        origin = QPointF(.94 * w, .50 * h)
+        center_x, radius = self.emitter_lens_geometry()
+        origin = QPointF(center_x, .50 * h)
         pulse = .94 + (.06 * math.sin(phase * 3.0) if activity else 0.0)
         painter.save()
-        halo = QRadialGradient(origin, 33)
+        halo = QRadialGradient(origin, radius)
         halo.setColorAt(0, QColor(194, 249, 255, int(150 * pulse)))
         halo.setColorAt(.13, QColor(53, 210, 255, int(100 * pulse)))
         halo.setColorAt(.55, QColor(14, 137, 255, 44))
         halo.setColorAt(1, QColor(0, 0, 0, 0))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QBrush(halo))
-        painter.drawEllipse(origin, 33, 33)
+        painter.drawEllipse(origin, radius, radius)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.setPen(QPen(QColor(38, 212, 255, 175), 1.3))
-        painter.drawEllipse(origin, 19, 19)
+        painter.drawEllipse(origin, 17, 17)
         painter.setPen(QPen(QColor(255, 164, 61, 235), 1.6))
-        painter.drawArc(QRectF(origin.x()-23, origin.y()-23, 46, 46),
+        painter.drawArc(QRectF(origin.x()-21, origin.y()-21, 42, 42),
                         32*16, 117*16)
-        painter.drawArc(QRectF(origin.x()-23, origin.y()-23, 46, 46),
+        painter.drawArc(QRectF(origin.x()-21, origin.y()-21, 42, 42),
                         220*16, 57*16)
         painter.setPen(QPen(QColor(138, 230, 255, 187), .9))
         painter.drawLine(QPointF(origin.x()-27, origin.y()),
@@ -632,9 +679,9 @@ class HologramPanel(QWidget):
         tint = QLinearGradient(QPointF(0, 0), QPointF(w, h))
         # Translucent carrier, not a single opaque tablet.  Opaque text
         # islands and light rails sit above the glass on separate planes.
-        tint.setColorAt(0, QColor(3, 32, 61, 115))
-        tint.setColorAt(.48, QColor(2, 16, 39, 87))
-        tint.setColorAt(1, QColor(2, 29, 53, 119))
+        tint.setColorAt(0, QColor(3, 32, 61, 39))
+        tint.setColorAt(.48, QColor(2, 16, 39, 24))
+        tint.setColorAt(1, QColor(2, 29, 53, 43))
         painter.fillPath(path, QBrush(tint))
 
         # Spectral lighting gives the acrylic depth without applying a
@@ -679,6 +726,7 @@ class HologramPanel(QWidget):
             painter.drawLine(QPointF(col, .07 * h), QPointF(col, .92 * h))
 
         self._paint_neural_details(painter, w, h, phase, activity)
+        self._paint_header_island(painter, w, h)
         self._paint_instruments(painter, w, h)
         self._paint_orbital_core(painter, w, h)
         self._paint_telemetry(painter, w, h, phase, activity)
