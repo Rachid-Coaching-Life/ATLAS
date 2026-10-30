@@ -451,6 +451,7 @@ class VoiceListener(threading.Thread):
         self.dialogue_memory = dialogue_memory
         self.on_low_confidence = on_low_confidence
         self._task_manager = task_manager
+        self._pending_pdf_clarification = None
         self._should_stop = False
         self._capture_pause_reasons = frozenset()
         self._capture_pause_reset_pending = False
@@ -1134,15 +1135,25 @@ class VoiceListener(threading.Thread):
                 # Deterministic voice tasks reuse the existing task queue,
                 # its events and permission checks, without a model round trip.
                 from concurrent.futures import TimeoutError as TaskTimeout
-                from ..tasks import _direct_voice_task_prompt, TaskStatus
+                from ..tasks import (
+                    _direct_voice_task_prompt, _direct_spoken_pdf_request,
+                    TaskStatus,
+                )
+                pending = getattr(self, "_pending_pdf_clarification", None)
+                pending_title = (
+                    pending[0]
+                    if pending and time.monotonic() < pending[1] else None
+                )
                 direct_prompt = _direct_voice_task_prompt(
                     query, getattr(self.cfg, "wake_word", "ATLAS"),
                     getattr(self.cfg, "wake_aliases", ()) or (),
+                    pending_pdf_title=pending_title,
                 )
                 task_service = getattr(self, "_task_manager", None)
                 if direct_prompt is not None and task_service is not None:
                     if not self._transcription_is_current(generation):
                         return
+                    self._pending_pdf_clarification = None
                     task_id = task_service.submit(direct_prompt)
                     try:
                         finished = task_service.wait_for_task(task_id, timeout=12.0)
@@ -1157,9 +1168,27 @@ class VoiceListener(threading.Thread):
                             failed = True
                         elif finished.status is TaskStatus.COMPLETED:
                             reply = finished.result or "Tâche terminée sans résultat détaillé."
+                            if reply.startswith("Demande d'ouverture transmise à Windows"):
+                                reply = (
+                                    "J'ai transmis la demande d'ouverture à Windows. "
+                                    "Vérifiez que le lecteur PDF affiche le fichier."
+                                )
+                            elif reply.startswith(("Inventaire en lecture seule :", "Recherche locale de PDF")):
+                                reply = "La liste des fichiers est disponible dans le centre des tâches."
                         elif finished.status is TaskStatus.FAILED:
                             reply = finished.error or "L'exécution de la tâche a échoué."
-                            failed = True
+                            if reply.startswith("Plusieurs PDF correspondent"):
+                                request = _direct_spoken_pdf_request(direct_prompt)
+                                if request is not None:
+                                    self._pending_pdf_clarification = (
+                                        request[0], time.monotonic() + 30.0
+                                    )
+                                # Allow a spoken follow-up within the hot window.
+                                failed = False
+                            elif "Précisez" in reply or "précisez" in reply:
+                                failed = False
+                            else:
+                                failed = True
                         elif finished.status is TaskStatus.CANCELLED:
                             reply = "La tâche a été annulée."
                             failed = True
