@@ -1032,3 +1032,51 @@ def test_optical_glass_requires_sculpted_hybrid_mode(qapp, monkeypatch):
         assert not panel._optical_card_cache
     finally:
         panel.close()
+
+
+def test_native_window_probe_completes_offscreen_without_backend(tmp_path):
+    """Exercise the *real* portrait/HUD assembly without Ollama, voice or GPU."""
+    import os
+    from pathlib import Path
+    import subprocess
+    import sys
+
+    root = Path(__file__).resolve().parents[1]
+    script = root / "scripts" / "probe_atlas_native_window.py"
+    source = script.read_text(encoding="utf-8")
+    assert "from desktop_app.app import" not in source
+    assert "start_daemon(" not in source
+    assert "start_ollama" not in source
+
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = str(root / "src")
+    environment["QT_QPA_PLATFORM"] = "offscreen"
+    result = subprocess.run(
+        [sys.executable, str(script), "--seconds", "1"],
+        cwd=root, env=environment, capture_output=True,
+        text=True, timeout=20, check=False,
+    )
+    assert result.returncode == 0, result.stdout + "\n" + result.stderr
+    assert "FENETRE_AFFICHEE" in result.stdout
+    assert "FIN_RETOUR_BOUCLE_QT" in result.stdout
+
+
+def test_native_window_probe_limits_runtime_to_fifteen_seconds(tmp_path):
+    """Prevents accidental prolonged stress sessions or negative delays."""
+    import os
+    from pathlib import Path
+    import subprocess
+    import sys
+
+    root = Path(__file__).resolve().parents[1]
+    script = root / "scripts" / "probe_atlas_native_window.py"
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = str(root / "src")
+    environment["QT_QPA_PLATFORM"] = "offscreen"
+    result = subprocess.run(
+        [sys.executable, str(script), "--seconds", "90"],
+        cwd=root, env=environment, capture_output=True,
+        text=True, timeout=10, check=False,
+    )
+    assert result.returncode != 0
+    assert "entre 1 et 15" in result.stderr
