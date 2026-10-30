@@ -312,6 +312,79 @@ class HologramPanel(QWidget):
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawLine(QPointF(left + 11, top + .5), QPointF(right - 13, top + .5))
         painter.drawLine(QPointF(left + 1, top + 8), QPointF(left + 1, bottom - 5))
+        # Offset glass edges suggest layered luminous plexiglas.
+        painter.setPen(QPen(QColor(accent.red(), accent.green(), accent.blue(), 62), .7))
+        painter.drawLine(QPointF(left + 9, bottom - 1), QPointF(right - 8, bottom - 1))
+        painter.drawLine(QPointF(right - 6, bottom - 2), QPointF(right - 1, top + 11))
+
+    def _paint_neural_details(
+        self, painter: QPainter, w: float, h: float, phase: float, activity: bool
+    ) -> None:
+        """Low-cost layered circuitry inside the glass, never on the portrait."""
+        painter.save()
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+
+        # Several faceted rails, with a faint halo and sharp luminous center.
+        rails = (
+            (((.103, .104), (.165, .067), (.47, .067), (.51, .052)), _CYAN),
+            (((.53, .050), (.635, .027), (.79, .027), (.914, .121)), _AMBER),
+            (((.079, .322), (.069, .37), (.069, .545)), _CYAN),
+            (((.078, .695), (.078, .846), (.193, .944), (.38, .944)), _CYAN),
+            (((.59, .950), (.82, .95), (.934, .855)), _AMBER),
+        )
+        for index, (coords, accent) in enumerate(rails):
+            points = [QPointF(x * w, y * h) for x, y in coords]
+            glow = QColor(accent)
+            glow.setAlpha(36 if activity else 25)
+            painter.setPen(QPen(glow, 4.0))
+            for a, b in zip(points, points[1:]):
+                painter.drawLine(a, b)
+            thin = QColor(accent)
+            thin.setAlpha(179 if index in (1, 4) else 139)
+            painter.setPen(QPen(thin, 1.05))
+            for a, b in zip(points, points[1:]):
+                painter.drawLine(a, b)
+
+        # Two floating plaques and a small vertical diagnostics rail.
+        for y, color in ((.295, QColor(65, 211, 255, 58)),
+                         (.675, QColor(255, 166, 71, 55))):
+            painter.setPen(QPen(color, .8))
+            painter.drawLine(QPointF(.17 * w, y * h), QPointF(.83 * w, y * h))
+        for offset in range(4):
+            y = (.129 + offset * .031) * h
+            alpha = 72 + (offset % 2) * 38
+            painter.setPen(QPen(QColor(57, 214, 255, alpha), 1.1))
+            painter.drawLine(QPointF(.105 * w, y), QPointF(.123 * w, y))
+
+        # Lightweight running bus: no added timer or platform-specific GPU.
+        start = .22 * w
+        end = .77 * w
+        for index in range(24):
+            x = start + (end - start) * index / 23
+            travel = (phase * (.55 if activity else .12) + index / 24) % 1.0
+            lit = travel < .28
+            color = QColor(_AMBER if index < 8 else _CYAN)
+            color.setAlpha(185 if lit and activity else 76)
+            painter.setPen(QPen(color, 1.3 if lit else .8))
+            painter.drawLine(QPointF(x, .906 * h),
+                             QPointF(x, (.914 if lit else .910) * h))
+
+        # Central optical core; the existing bridge reaches the robot.
+        core = QPointF(.52 * w, .963 * h)
+        halo = .70 + .30 * math.sin(phase * (4.1 if activity else 1.0))
+        for radius, color, alpha, thickness in (
+            (16, _CYAN, 48, 3.4),
+            (12, _CYAN, 165, 1.25),
+            (7.5, _AMBER, 195, 1.5),
+        ):
+            ring = QColor(color)
+            ring.setAlpha(int(alpha * halo))
+            painter.setPen(QPen(ring, thickness))
+            painter.drawEllipse(core, radius, radius)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(255, 183, 94, int(190 * halo)))
+        painter.drawEllipse(core, 2.7, 2.7)
+        painter.restore()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -330,9 +403,9 @@ class HologramPanel(QWidget):
         painter.save()
         painter.setClipPath(path)
         tint = QLinearGradient(QPointF(0, 0), QPointF(w, h))
-        tint.setColorAt(0, QColor(4, 36, 59, 154))
-        tint.setColorAt(.48, QColor(5, 24, 46, 139))
-        tint.setColorAt(1, QColor(3, 21, 38, 162))
+        tint.setColorAt(0, QColor(4, 31, 53, 176))
+        tint.setColorAt(.48, QColor(3, 18, 39, 158))
+        tint.setColorAt(1, QColor(3, 23, 43, 185))
         painter.fillPath(path, QBrush(tint))
 
         # Staggered prismatic layers give a projected multi-depth appearance.
@@ -357,6 +430,7 @@ class HologramPanel(QWidget):
         for col in range(22, int(w), 32):
             painter.drawLine(QPointF(col, .07 * h), QPointF(col, .92 * h))
 
+        self._paint_neural_details(painter, w, h, phase, activity)
         self._glass_card(painter, self.heard, _CYAN, w)
         self._glass_card(painter, self.reply, _AMBER, w)
 
