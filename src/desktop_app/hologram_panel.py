@@ -7,6 +7,7 @@ The face artwork, dimensions, geometry and lip animation are not altered.
 from __future__ import annotations
 
 import math
+import os
 import time
 
 from PyQt6.QtCore import QPointF, QRectF, Qt, QTimer, pyqtSignal
@@ -89,6 +90,9 @@ class HologramPanel(QWidget):
         # Unhandled pointer events bubble up to FaceWindow for drag and menu.
         # The two real control buttons must receive mouse events themselves.
         self._state = "asleep"
+        # Opt-in low effects for offscreen profiling and future diagnostics.
+        # Default visual geometry, text, controls and portrait are unchanged.
+        self._low_effects = os.environ.get("ATLAS_HOLOGRAM_LOW_EFFECTS") == "1"
         self._phase_origin = time.monotonic()
         self._revealed_at = None
         self._await_reply_line = False
@@ -146,9 +150,9 @@ class HologramPanel(QWidget):
         self.set_voice_control(running=False)
 
         self._timer = QTimer(self)
-        # Four visual refreshes per second only during activity.
-        # Idle glass remains painted without a perpetual timer.
-        self._timer.setInterval(250)
+        # Four visual refreshes per second by default, or two in diagnostic
+        # low-effects mode. No perpetual updates in idle state.
+        self._timer.setInterval(500 if self._low_effects else 250)
         self._timer.timeout.connect(self.update)
 
     @staticmethod
@@ -741,47 +745,49 @@ class HologramPanel(QWidget):
         tint.setColorAt(1, QColor(2, 29, 53, 16))
         painter.fillPath(path, QBrush(tint))
 
-        # Spectral lighting gives the acrylic depth without applying a
-        # full-screen blur, OpenGL surface, or a new animation timer.
-        for cx, cy, radius, color in (
-            (.89, .09, .36, QColor(31, 139, 252, 19)),
-            (.13, .91, .30, QColor(20, 193, 252, 15)),
-            (.89, .90, .24, QColor(255, 151, 56, 12)),
-        ):
-            centre = QPointF(cx * w, cy * h)
-            light = QRadialGradient(centre, radius * w)
-            light.setColorAt(0, color)
-            light.setColorAt(1, QColor(0, 0, 0, 0))
-            # Paint only the visible light footprint, not the whole pane.
-            # This bounds pixel work on the GTR7 for each active repaint.
-            reach = radius * w
-            x0 = max(0.0, centre.x() - reach)
-            y0 = max(0.0, centre.y() - reach)
-            x1 = min(w, centre.x() + reach)
-            y1 = min(h, centre.y() + reach)
-            if x1 > x0 and y1 > y0:
-                painter.fillRect(QRectF(x0, y0, x1 - x0, y1 - y0), QBrush(light))
-        # Sparse reflection slivers: clear negative space between projections.
-        faces = (
-            (((.70, .019), (.83, .019), (.95, .095), (.91, .20)),
-             QColor(132, 230, 255, 14)),
-            (((.046, .64), (.078, .70), (.09, .90), (.05, .85)),
-             QColor(46, 194, 249, 12)),
-            (((.80, .82), (.955, .85), (.84, .966), (.72, .954)),
-             QColor(255, 165, 72, 13)),
-        )
-        for coords, color in faces:
-            painter.fillPath(_facet(coords, w, h), color)
-
-        # Thin tech weave and microcircuits are deliberately subtle to keep
-        # the actual conversation readable.
-        painter.setPen(QPen(QColor(67, 187, 224, 6), .6))
-        for row in range(16, int(h), 28):
-            painter.drawLine(QPointF(.09 * w, row), QPointF(.96 * w, row))
-        for col in range(22, int(w), 37):
-            painter.drawLine(QPointF(col, .07 * h), QPointF(col, .92 * h))
-
-        self._paint_neural_details(painter, w, h, phase, activity)
+        if not self._low_effects:
+            # Spectral lighting gives the acrylic depth without applying a
+            # full-screen blur, OpenGL surface, or a new animation timer.
+            for cx, cy, radius, color in (
+                (.89, .09, .36, QColor(31, 139, 252, 19)),
+                (.13, .91, .30, QColor(20, 193, 252, 15)),
+                (.89, .90, .24, QColor(255, 151, 56, 12)),
+            ):
+                centre = QPointF(cx * w, cy * h)
+                light = QRadialGradient(centre, radius * w)
+                light.setColorAt(0, color)
+                light.setColorAt(1, QColor(0, 0, 0, 0))
+                # Paint only the visible light footprint, not the whole pane.
+                # This bounds pixel work on the GTR7 for each active repaint.
+                reach = radius * w
+                x0 = max(0.0, centre.x() - reach)
+                y0 = max(0.0, centre.y() - reach)
+                x1 = min(w, centre.x() + reach)
+                y1 = min(h, centre.y() + reach)
+                if x1 > x0 and y1 > y0:
+                    painter.fillRect(QRectF(x0, y0, x1 - x0, y1 - y0), QBrush(light))
+            # Sparse reflection slivers: clear negative space between projections.
+            faces = (
+                (((.70, .019), (.83, .019), (.95, .095), (.91, .20)),
+                 QColor(132, 230, 255, 14)),
+                (((.046, .64), (.078, .70), (.09, .90), (.05, .85)),
+                 QColor(46, 194, 249, 12)),
+                (((.80, .82), (.955, .85), (.84, .966), (.72, .954)),
+                 QColor(255, 165, 72, 13)),
+            )
+            for coords, color in faces:
+                painter.fillPath(_facet(coords, w, h), color)
+    
+            # Thin tech weave and microcircuits are deliberately subtle to keep
+            # the actual conversation readable.
+            painter.setPen(QPen(QColor(67, 187, 224, 6), .6))
+            for row in range(16, int(h), 28):
+                painter.drawLine(QPointF(.09 * w, row), QPointF(.96 * w, row))
+            for col in range(22, int(w), 37):
+                painter.drawLine(QPointF(col, .07 * h), QPointF(col, .92 * h))
+    
+        if not self._low_effects:
+            self._paint_neural_details(painter, w, h, phase, activity)
         self._paint_header_island(painter, w, h)
         self._paint_controls_island(painter, w, h)
         self._paint_telemetry_island(painter, w, h)
@@ -793,26 +799,29 @@ class HologramPanel(QWidget):
         self._paint_message_symbol(painter, self.heard, _CYAN, microphone=True)
         self._paint_message_symbol(painter, self.reply, _AMBER, microphone=False)
 
-        # Internal orbit / emitter circuitry near the robot-facing edge.
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        cx, cy = .94 * w, .50 * h
-        painter.setPen(QPen(QColor(57, 216, 255, 125), 1.1))
-        painter.drawArc(QRectF(cx - 13, cy - 13, 26, 26),
-                        int((phase * 35) % 360) * 16, 118 * 16)
-        painter.setPen(QPen(QColor(255, 160, 75, 125), 1))
-        painter.drawArc(QRectF(cx - 19, cy - 19, 38, 38),
-                        int((-phase * 22) % 360) * 16, 90 * 16)
-
+        if not self._low_effects:
+            # Internal orbit / emitter circuitry near the robot-facing edge.
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            cx, cy = .94 * w, .50 * h
+            painter.setPen(QPen(QColor(57, 216, 255, 125), 1.1))
+            painter.drawArc(QRectF(cx - 13, cy - 13, 26, 26),
+                            int((phase * 35) % 360) * 16, 118 * 16)
+            painter.setPen(QPen(QColor(255, 160, 75, 125), 1))
+            painter.drawArc(QRectF(cx - 19, cy - 19, 38, 38),
+                            int((-phase * 22) % 360) * 16, 90 * 16)
+    
+            if not self._low_effects:
+        
         # Several deterministic particles travel along an internal circuit.
-        for index in range(9):
-            p = (phase * (.07 if activity else .025) + index * .137) % 1
-            px = w * (.14 + .72 * p)
-            py = h * (.855 - .055 * math.sin(index * 3.2 + p * math.tau))
-            c = QColor(_CYAN if index % 3 else _AMBER)
-            c.setAlpha(80 if activity else 30)
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(c)
-            painter.drawEllipse(QPointF(px, py), 1.2, 1.2)
+            for index in range(9):
+                p = (phase * (.07 if activity else .025) + index * .137) % 1
+                px = w * (.14 + .72 * p)
+                py = h * (.855 - .055 * math.sin(index * 3.2 + p * math.tau))
+                c = QColor(_CYAN if index % 3 else _AMBER)
+                c.setAlpha(80 if activity else 30)
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(c)
+                painter.drawEllipse(QPointF(px, py), 1.2, 1.2)
         painter.restore()
 
         # Thin fractured perimeter and luminous contact pads. The exterior
@@ -865,10 +874,11 @@ class ProjectionBridge(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self._vertical = False
         self._state = "asleep"
+        self._low_effects = os.environ.get("ATLAS_HOLOGRAM_LOW_EFFECTS") == "1"
         self._phase_origin = time.monotonic()
         self._timer = QTimer(self)
-        # No continuous redraw of a transparent surface in standby.
-        self._timer.setInterval(250)
+        # No continuous redraw in standby. Slow the bridge with low effects.
+        self._timer.setInterval(500 if self._low_effects else 250)
         self._timer.timeout.connect(self.update)
 
     def set_vertical(self, vertical: bool) -> None:
