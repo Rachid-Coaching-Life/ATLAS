@@ -173,6 +173,15 @@ class HologramPanel(QWidget):
         self._timer.setInterval(500 if self._low_effects else 250)
         self._timer.timeout.connect(self.update)
 
+        # Real CPU/RAM in the existing optical telemetry crystal.
+        # No separate process, GPU probe or paint-time system call.
+        self._telemetry_cpu_pct = None
+        self._telemetry_ram_pct = None
+        self._telemetry_primed = False
+        self._telemetry_timer = QTimer(self)
+        self._telemetry_timer.setInterval(3000)
+        self._telemetry_timer.timeout.connect(self._refresh_live_telemetry)
+
     @staticmethod
     def _label(layout, value):
         label = QLabel(value)
@@ -272,6 +281,10 @@ class HologramPanel(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
+        if self._optical:
+            self._telemetry_primed = False
+            self._refresh_live_telemetry()
+            self._telemetry_timer.start()
         if self._state in _ACTIVE:
             self._revealed_at = time.monotonic()
             self._timer.start()
@@ -281,7 +294,40 @@ class HologramPanel(QWidget):
 
     def hideEvent(self, event):
         self._timer.stop()
+        self._telemetry_timer.stop()
         super().hideEvent(event)
+
+    def _refresh_live_telemetry(self) -> None:
+        """Read system CPU/RAM without blocking the Qt event loop.
+
+        CPU is a mean since the previous sample; it is not temperature or
+        electrical power. The first read establishes the baseline.
+        """
+        if not self._optical or not self.isVisible():
+            return
+        try:
+            import psutil  # Existing ATLAS dependency.
+            sample = psutil.cpu_percent(interval=None)
+            cpu = float(sample) if self._telemetry_primed else None
+            self._telemetry_primed = True
+            ram = float(psutil.virtual_memory().percent)
+            self._telemetry_cpu_pct = cpu
+            self._telemetry_ram_pct = ram
+        except Exception:
+            self._telemetry_cpu_pct = None
+            self._telemetry_ram_pct = None
+        cpu_text = (
+            f"{self._telemetry_cpu_pct:.0f} %"
+            if self._telemetry_cpu_pct is not None else "indisponible"
+        )
+        ram_text = (
+            f"{self._telemetry_ram_pct:.0f} %"
+            if self._telemetry_ram_pct is not None else "indisponible"
+        )
+        self.setAccessibleDescription(
+            f"Télémétrie système : CPU {cpu_text}, RAM {ram_text}"
+        )
+        self.update()
 
     def set_activity(self, state: str) -> None:
         self._state = state
@@ -905,6 +951,32 @@ class HologramPanel(QWidget):
         painter.save()
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.setPen(QPen(QColor(55, 196, 248, 65), .8))
+        if self._optical:
+            # Display sampled percentages instead of the decorative
+            # waveform. The existing crystal and layout are unchanged.
+            painter.setFont(QFont("Segoe UI", 9, QFont.Weight.DemiBold))
+            cpu_text = (
+                f"CPU  {self._telemetry_cpu_pct:.0f} %"
+                if self._telemetry_cpu_pct is not None else "CPU  --"
+            )
+            ram_text = (
+                f"RAM  {self._telemetry_ram_pct:.0f} %"
+                if self._telemetry_ram_pct is not None else "RAM  --"
+            )
+            painter.setPen(QPen(QColor(139, 235, 255, 233)))
+            painter.drawText(
+                QRectF(.215*w, y - 10, .31*w, 20),
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                cpu_text,
+            )
+            painter.setPen(QPen(QColor(255, 194, 121, 230)))
+            painter.drawText(
+                QRectF(.695*w, y - 10, .17*w, 20),
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                ram_text,
+            )
+            painter.restore()
+            return
         if self._sculpted:
             painter.drawLine(QPointF(.20*w, y), QPointF(.56*w, y))
             painter.drawLine(QPointF(.71*w, y), QPointF(.84*w, y))
