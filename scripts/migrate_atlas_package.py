@@ -35,7 +35,7 @@ def rewrite(path, source):
         target = target.replace('#define MyAppName "Jarvis"', '#define MyAppName "ATLAS"')
         target = target.replace('#define MyAppExeName "Jarvis.exe"', '#define MyAppExeName "ATLAS.exe"')
         target = target.replace('OutputBaseFilename=Jarvis-Setup-x64', 'OutputBaseFilename=ATLAS-Setup-x64')
-        target = target.replace(r'dist\Jarvis\', r'dist\ATLAS\')
+        target = target.replace("dist" + chr(92) + "Jarvis" + chr(92), "dist" + chr(92) + "ATLAS" + chr(92))
     return target
 
 
