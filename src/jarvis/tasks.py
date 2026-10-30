@@ -10,6 +10,7 @@ from math import isfinite
 from pathlib import Path
 import os
 import re
+import stat
 import time
 import unicodedata
 import uuid
@@ -120,6 +121,70 @@ def _local_inventory_directory(folder: str) -> Path:
                 return resolved
     raise FileNotFoundError(
         f"Le dossier {folder} n'a pas été trouvé dans le profil local."
+    )
+
+
+def _direct_pdf_open_request(prompt: str) -> Optional[tuple[str, tuple[str, ...]]]:
+    """Parse an explicit relative PDF path from one user instruction.
+
+    No absolute paths, drive letters, UNC paths, parent traversal,
+    wildcards or extra commands. No guessing filenames from prior lists.
+    """
+    if not isinstance(prompt, str):
+        return None
+    match = re.fullmatch(r"ouvre\\s+le\\s+pdf\\s+(.+)", prompt.strip(), re.IGNORECASE)
+    if match is None:
+        return None
+    raw_path = match.group(1)
+    if re.search(r'[\\x00-\\x1f<>:"|?*]', raw_path):
+        return None
+    parts = re.split(r"[\\\\/]", raw_path)
+    if len(parts) < 2 or any(
+        not part or part in {".", ".."} or part.endswith((" ", "."))
+        for part in parts
+    ):
+        return None
+    folders = {
+        "documents": "Documents",
+        "downloads": "Downloads",
+        "telechargements": "Downloads",
+        "desktop": "Desktop",
+        "bureau": "Desktop",
+    }
+    folder_key = _normalized_task_intent(parts[0])
+    folder = folders.get(folder_key)
+    if folder is None or not parts[-1].casefold().endswith(".pdf"):
+        return None
+    return folder, tuple(parts[1:])
+
+
+def _open_explicit_local_pdf(folder: str, relative_parts: tuple[str, ...]) -> str:
+    """Ask Windows to open one validated PDF; never alter it or execute shell."""
+    root = _local_inventory_directory(folder)
+    current = root
+    for part in relative_parts:
+        current = current / part
+        details = current.lstat()  # No link-following before validation.
+        if (stat.S_ISLNK(details.st_mode)
+                or getattr(details, "st_file_attributes", 0)
+                & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)):
+            raise PermissionError("Ouverture refusée : lien ou jonction Windows.")
+    resolved = current.resolve(strict=True)
+    if not resolved.is_relative_to(root) or not resolved.is_file():
+        raise PermissionError("Ouverture refusée : fichier hors du dossier autorisé.")
+    if resolved.suffix.casefold() != ".pdf":
+        raise ValueError("Le fichier demandé n'est pas un PDF.")
+    with resolved.open("rb") as handle:
+        if handle.read(5) != b"%PDF-":
+            raise ValueError("Le fichier n'a pas d'en-tête PDF valide.")
+    launcher = getattr(os, "startfile", None)
+    if launcher is None:
+        raise RuntimeError("L'ouverture directe est disponible uniquement sous Windows.")
+    launcher(str(resolved))  # OS file association, never a shell command.
+    return (
+        "Demande d'ouverture transmise à Windows : "
+        + str(Path(folder).joinpath(*relative_parts))
+        + ". Vérifiez que votre lecteur PDF affiche le document."
     )
 
 
@@ -320,6 +385,11 @@ class TaskManager:
                         or "Recherche PDF indisponible."
                     )
                 result = outcome.reply_text
+            elif (requested_pdf := _direct_pdf_open_request(task.prompt)) is not None:
+                # Only an explicit, exact PDF filename may reach the OS.
+                # Never invoke a shell or allow a model to choose the path.
+                folder, relative_parts = requested_pdf
+                result = _open_explicit_local_pdf(folder, relative_parts)
             else:
                 from .daemon import query_lock
                 with query_lock():
