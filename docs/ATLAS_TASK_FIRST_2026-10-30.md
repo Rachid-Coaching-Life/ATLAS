@@ -89,3 +89,82 @@ statut et leurs erreurs. Diagnostiquer séparément les phases de latence
 (Whisper, routage/planification, modèle, outils, TTS) avant tout
 changement de modèle. Pour sourire et phonèmes, prévoir un travail
 graphique/visème dédié, préservant la photographie d'origine.
+
+
+## 30 octobre 2026 — Exécution rapide de tâches depuis l'hologramme
+
+**Validation utilisateur :** après la correction des attentes de test
+sur la suppression d'une auto-présentation répétée, les six scénarios
+de `tests/test_atlas_reply_style.py` ont réussi sur Windows
+(`6 passed in 2.27s`). Cette validation porte sur le filtrage
+de la présentation et le message de démarrage, pas sur l'exécution
+réelle des tâches.
+
+### Audit préalable
+
+L'hologramme proposait déjà **TÂCHES** mais le bouton ouvrait
+uniquement la fenêtre `TaskCentreWindow`. Le centre gère la
+soumission corrélée par `request_id`, l'accusé de réception
+`__TASK__`, l'état de chaque tâche, les résultats, les annulations
+et le brouillon en cours. Le moteur `TaskManager` accepte déjà
+les tâches à travers `ATLASSystemTray.submit_task`.
+Créer un autre gestionnaire d'actions aurait introduit des
+conflits de files, de suivi et de confirmations.
+
+### Modification minimale
+
+- `src/desktop_app/hologram_panel.py` : clic **gauche** sur
+  `TÂCHES` = centre existant, clic **droit** =
+  `Nouvelle tâche…`; émission de `task_input_requested`.
+  Les cartes affichent la dernière instruction et des **états de
+  tâche** explicitement nommés, alimentés par les événements du
+  centre. `Traitement terminé` ne prétend pas qu'une opération
+  sur le système a été vérifiée : le texte du résultat reste
+  consultable dans le centre.
+- `src/desktop_app/app.py` : saisie temporaire focalisable
+  (`QInputDialog`, la projection reste sans focus), appel
+  `TaskCentreWindow.submit_hologram_task`. Si ATLAS ne tourne pas,
+  si une soumission attend son accusé ou si la saisie est annulée,
+  aucune tâche n'est envoyée. Connexion des signaux de tâches
+  existantes au panneau, sans ajouter un deuxième backend.
+- `src/desktop_app/task_centre.py` : réemploi de la même
+  routine `_submit_prompt` depuis la fenêtre et l'hologramme,
+  même identifiant et même temporisation d'accusé de réception.
+  Le brouillon en cours reste inchangé lorsqu'une tâche est
+  soumise depuis l'hologramme. Les erreurs et résultats sont
+  redigés avant affichage ; les libellés de statut sont français.
+- `tests/test_task_centre.py` et
+  `tests/test_hologram_controls.py` : tests d'intégration
+  de la voie rapide, du refus, de l'absence de doublon,
+  du brouillon préservé, du suivi des transitions de statut,
+  du résultat consultable dans le centre et de l'annulation
+  de la boîte de saisie.
+
+### Portée et limites
+
+- Une tâche « terminée » signifie que le service de tâches a
+  produit un résultat ; ce n'est pas une preuve automatique
+  qu'une modification de fichier ou de système a eu lieu.
+- La confirmation de tâches potentiellement destructives reste
+  régie par les protections et autorisations des outils existants,
+  qui doivent être auditées tâche par tâche.
+- En cas de nombreuses tâches simultanées, l'hologramme affiche
+  la **dernière mise à jour** reçue. Le centre garde la liste et
+  les résultats complets.
+- Aucune modification du portrait, de sa taille, de sa géométrie,
+  de son image, ni de la branche `main`.
+- Les nouveaux tests ne sont **pas encore exécutés sur Windows**.
+
+### Validation ciblée
+
+```powershell
+git pull --ff-only origin develop-atlas
+$env:PYTHONPATH = "$PWD\src"
+.\.venv\Scripts\python.exe -m pytest -q tests/test_task_centre.py tests/test_hologram_controls.py
+```
+
+Ensuite, sous ATLAS normal : clic droit sur **TÂCHES**,
+`Nouvelle tâche…`, une instruction non destructive, vérifier
+qu'elle est transmise et que les états de tâche proviennent bien
+du service. Clic gauche sur **TÂCHES** pour consulter la réponse
+intégrale et son historique.
