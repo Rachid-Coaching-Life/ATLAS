@@ -345,6 +345,21 @@ class HologramPanel(QWidget):
         slab.lineTo(left, bottom - 9)
         slab.lineTo(left + 2, top + 10)
         slab.closeSubpath()
+        # Hybrid-only optical extrusion: two offset rails suggest a second
+        # floating glass skin without another gradient, blur or timer.
+        # All strokes stay beneath the live conversation labels.
+        if self._cached_effects and self._low_effects and w >= 390:
+            painter.save()
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.setPen(QPen(QColor(3, 14, 33, 105), 3.0))
+            painter.drawLine(QPointF(left + 12, bottom + 3),
+                             QPointF(right - 26, bottom + 3))
+            painter.setPen(QPen(QColor(accent.red(), accent.green(), accent.blue(), 118), 1.0))
+            painter.drawLine(QPointF(left + 11, bottom + 2),
+                             QPointF(right - 25, bottom + 2))
+            painter.drawLine(QPointF(right - 6, bottom + 1),
+                             QPointF(right + 2, top + 22))
+            painter.restore()
         sheen = QLinearGradient(QPointF(left, top), QPointF(right, bottom))
         sheen.setColorAt(0, QColor(12, 98, 164, 183))
         sheen.setColorAt(.48, QColor(4, 39, 81, 207))
