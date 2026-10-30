@@ -195,6 +195,142 @@ def _open_explicit_local_pdf(folder: str, relative_parts: tuple[str, ...]) -> st
     )
 
 
+_SPOKEN_OPEN_PREFIX = re.compile(
+    r"^ouvre\s+(?:(?:mon|ma|mes)\s+|(?:le|la)\s+(?:document|fichier)\s+)",
+    re.IGNORECASE,
+)
+
+
+def _has_spoken_pdf_open_intent(prompt: str) -> bool:
+    """Conservative natural file request, never a general app launcher."""
+    return isinstance(prompt, str) and bool(_SPOKEN_OPEN_PREFIX.match(prompt.strip()))
+
+
+def _direct_spoken_pdf_request(prompt: str) -> Optional[tuple[str, Optional[str]]]:
+    """A spoken filename hint, with an optional named user folder.
+
+    Compound actions, paths and explicit scripts are never accepted.
+    """
+    if not _has_spoken_pdf_open_intent(prompt):
+        return None
+    remainder = _SPOKEN_OPEN_PREFIX.sub("", prompt.strip(), count=1).strip()
+    if re.search(r'[\\/:*?"<>|\x00-\x1f]', remainder):
+        return None
+    if re.search(
+        r"\b(?:et|puis|ensuite|supprime|efface|deplace|execute|lance)\b",
+        _normalized_task_intent(remainder),
+    ):
+        return None
+    folder = None
+    hints = (
+        (r"\s+sur\s+le\s+bureau$", "Desktop"),
+        (r"\s+dans\s+mes\s+documents$", "Documents"),
+        (r"\s+dans\s+mes\s+telechargements$", "Downloads"),
+    )
+    for ending, target in hints:
+        # All folder labels are matched on accent-stripped text so ASR
+        # and ordinary French spelling use the same deterministic route.
+        normalized = _normalized_task_intent(remainder)
+        if re.search(ending, normalized):
+            prefix = re.sub(ending, "", normalized)
+            remainder, folder = prefix, target
+            break
+    remainder = remainder.rstrip(" .!?").strip()
+    if remainder.casefold().endswith(".pdf"):
+        remainder = remainder[:-4].rstrip()
+    if not (3 <= len(remainder) <= 100) or not _normalized_task_intent(remainder):
+        return None
+    return remainder, folder
+
+
+def _open_spoken_named_pdf(title: str, folder_hint: Optional[str] = None) -> str:
+    """Locate exactly one PDF by its spoken name, then reuse safe Windows open.
+
+    A partial search or multiple filename matches never opens anything.
+    """
+    from .tools.builtin.local_files import _bounded_pdf_search
+
+    folders = (folder_hint,) if folder_hint else ("Desktop", "Documents", "Downloads")
+    home = Path.home().resolve()
+    deadline = time.monotonic() + 3.0
+    needle = _normalized_task_intent(title)
+    candidates: list[tuple[str, tuple[str, ...]]] = []
+    incomplete = False
+    for folder in folders:
+        try:
+            root = _local_inventory_directory(folder)
+        except FileNotFoundError:
+            if folder_hint:
+                raise
+            continue
+        output = _bounded_pdf_search(root, home, deadline=deadline)
+        if "Recherche partielle :" in output:
+            incomplete = True
+        for line in output.splitlines():
+            if not line.startswith("  PDF: "):
+                continue
+            path = Path(line[len("  PDF: "):])
+            words = _normalized_task_intent(path.stem)
+            if (" " + needle + " ") in (" " + words + " "):
+                candidates.append((folder, tuple(path.parts)))
+    if incomplete:
+        raise RuntimeError(
+            "Recherche PDF incomplète. Précisez le dossier et le nom exact "
+            "du fichier avant toute ouverture."
+        )
+    if not candidates:
+        raise FileNotFoundError(
+            f"Aucun PDF correspondant à « {title} » dans les dossiers autorisés. "
+            "Précisez son nom ou son dossier."
+        )
+    if len(candidates) != 1:
+        descriptions = [
+            str(Path(folder).joinpath(*parts))
+            for folder, parts in candidates[:3]
+        ]
+        raise ValueError(
+            f"Plusieurs PDF correspondent à « {title} » : "
+            + " ; ".join(descriptions)
+            + ". Précisez le dossier et le nom du fichier."
+        )
+    folder, parts = candidates[0]
+    return _open_explicit_local_pdf(folder, parts)
+
+
+def _direct_voice_task_prompt(
+    query: str, wake_word: str = "ATLAS", wake_aliases=(),
+) -> Optional[str]:
+    """Strip a *leading* wake address and select existing deterministic tasks.
+
+    Only called after the listener's ordinary wake/engagement acceptance.
+    Other requests stay in the normal voice reply engine.
+    """
+    if not isinstance(query, str):
+        return None
+    clean = query.strip()
+    names = sorted(
+        {n.strip() for n in ("ATLAS", wake_word, *(wake_aliases or ()))
+         if isinstance(n, str) and n.strip()},
+        key=len, reverse=True,
+    )
+    if names:
+        escaped = "|".join(re.escape(name) for name in names)
+        clean = re.sub(
+            rf"^(?:{escaped})(?:\s*[,.:!?]\s*|\s+)",
+            "", clean, count=1, flags=re.IGNORECASE,
+        ).strip()
+    if (
+        _is_direct_system_status_task(clean)
+        or _direct_file_list_folder(clean) is not None
+        or _direct_pdf_list_folder(clean) is not None
+        or _direct_recursive_pdf_folder(clean) is not None
+        or _has_pdf_open_intent(clean)
+        or _has_spoken_pdf_open_intent(clean)
+    ):
+        return clean
+    return None
+
+
 class TaskStatus(str, Enum):
     QUEUED = "queued"
     RUNNING = "running"
@@ -403,6 +539,12 @@ class TaskManager:
                     )
                 folder, relative_parts = requested_pdf
                 result = _open_explicit_local_pdf(folder, relative_parts)
+            elif _has_spoken_pdf_open_intent(task.prompt):
+                requested_pdf = _direct_spoken_pdf_request(task.prompt)
+                if requested_pdf is None:
+                    raise ValueError("Demande d'ouverture ambiguë : précisez uniquement le nom du PDF.")
+                title, folder_hint = requested_pdf
+                result = _open_spoken_named_pdf(title, folder_hint)
             else:
                 from .daemon import query_lock
                 with query_lock():
