@@ -351,6 +351,8 @@ class ChatWindow(QMainWindow):
     conversation to before that message and regenerates a fresh reply.
     """
 
+    conversation_preview_changed = pyqtSignal(str, str)
+
     def __init__(
         self,
         submit_fn=None,
@@ -607,6 +609,7 @@ class ChatWindow(QMainWindow):
         # Reset the thinking indicator immediately so the user sees
         # feedback without waiting for the engine to finish.
         self._set_thinking(False)
+        self._emit_conversation_preview(reply_override="Réponse interrompue.")
 
     def _rewind_to_user(self, user_index: int, text: str) -> None:
         """Roll the conversation back to before ``user_index``-th user
@@ -641,6 +644,7 @@ class ChatWindow(QMainWindow):
                 return
         self._messages = messages[:keep_until]
         self._render_transcript(self._messages)
+        self._emit_conversation_preview()
 
         # Regenerate: re-submit the same message for a fresh reply. The
         # message is already displayed, so no new echo is added.
@@ -703,6 +707,7 @@ class ChatWindow(QMainWindow):
     def _on_busy(self) -> None:
         self._set_thinking(False)
         self._append_system("ATLAS is busy with another query already.")
+        self._emit_conversation_preview(reply_override="ATLAS est occupé pour le moment.")
 
     # --- Subprocess IPC entry point --------------------------------------
 
@@ -767,6 +772,30 @@ class ChatWindow(QMainWindow):
             self._transcript_layout.count() - 1, row
         )
         self._scroll_to_bottom()
+        if kind in ("user", "assistant"):
+            self._emit_conversation_preview()
+
+    def _emit_conversation_preview(self, *, reply_override: Optional[str] = None) -> None:
+        """Emit the latest real exchange, including a pending or rewound turn.
+
+        This mirrors the existing in-memory transcript. It never scrapes log
+        messages and never submits a second query to the AI engine.
+        """
+        latest_user = ""
+        latest_reply = ""
+        for message in reversed(self._messages):
+            kind = message.get("kind")
+            if kind == "user":
+                latest_user = message.get("text", "")
+                break
+            if kind == "assistant" and not latest_reply:
+                latest_reply = message.get("text", "")
+        if not latest_user and not latest_reply:
+            return
+        self.conversation_preview_changed.emit(
+            latest_user,
+            reply_override if reply_override is not None else latest_reply,
+        )
 
     def _render_transcript(self, messages: list) -> None:
         """Rebuild the transcript rows atomically from ``messages``.
