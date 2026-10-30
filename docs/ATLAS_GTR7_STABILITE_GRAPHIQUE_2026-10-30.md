@@ -525,3 +525,63 @@ de rendu et les tests après chaque changement. La charge DWM/GPU,
 la puissance réelle de l'USB-C et la cause des extinctions restent
 non mesurées ; ne pas lancer l'interface interactive complète avec
 l'alimentation actuelle.
+
+
+## Variante sculpturale à tester — îlots réellement séparés (30 octobre)
+
+Après la dernière validation utilisateur : **48 tests réussis**, profilage
+Qt du mode hybride en écoute **6,790 ms médiane** contre 10,463 ms
+normal et 6,113 ms allégé. La baisse CPU du rendu Qt n'explique
+pas les coupures électriques.
+
+L'essai suivant change **la composition**, pas le volume de traits :
+- `ATLAS_HOLOGRAM_SCULPTED=1`, seulement si les variables
+  `ATLAS_HOLOGRAM_LOW_EFFECTS=1` ET
+  `ATLAS_HOLOGRAM_CACHED_EFFECTS=1` sont aussi activées.
+- Cartes de dialogue aux bords asymétriques avec une courbe côté
+  robot ; la carte réponse comporte une **encoche concave réellement
+  transparente**, sans déplacement des vrais `QLabel` Qt.
+- L'unique bande de télémétrie est remplacée par **deux instruments
+  translucides physiquement distincts**, avec une lacune visible.
+  Le nombre de lignes de l'oscillogramme passe de 21 à 13 en mode
+  sculpture, les autres modes restent tels quels.
+- Les rails fins d'extrusion existants sont **retirés dans ce mode**
+  afin de ne pas masquer les nouvelles découpes.
+- Aucun timer supplémentaire, aucune bibliothèque externe, aucun
+  flou temps réel, aucun changement de portrait, de liaison
+  robot, de texte ni de commandes.
+- Les tailles compactes restent sur la silhouette précédente ;
+  le sculptural est dessiné uniquement pour des panneaux >=390×300.
+
+Fichiers : `src/desktop_app/hologram_panel.py`,
+`scripts/profile_atlas_hologram_offscreen.py`,
+`tests/test_hologram_panel.py`. Le benchmark compare désormais
+**normal, allégé, hybride et sculpté**. Les nouveaux tests contrôlent
+l'encoche réelle (alpha de pixel), le vide télémétrique, les commandes,
+la conservation des géométries et le fait que le mode normal reste
+identique par défaut.
+
+**Non encore vérifié sur le GTR7 :** succès des tests ajoutés,
+lisibilité finale et coût du rendu sculpté. Il faut mesurer et regarder
+la prévisualisation avant toute autre modification.
+
+Commandes PowerShell **distinctes**, exclusivement hors écran :
+
+```powershell
+cd C:\Users\cheha\ATLAS
+git pull --ff-only origin develop-atlas
+$env:PYTHONPATH = "$PWD\src"
+.\.venv\Scripts\python.exe -m pytest -q tests/test_hologram_controls.py tests/test_hologram_panel.py tests/test_atlas_portrait.py
+.\.venv\Scripts\python.exe scripts\profile_atlas_hologram_offscreen.py --samples 8 --warmup 2
+$env:ATLAS_HOLOGRAM_LOW_EFFECTS = "1"
+$env:ATLAS_HOLOGRAM_CACHED_EFFECTS = "1"
+$env:ATLAS_HOLOGRAM_SCULPTED = "1"
+.\.venv\Scripts\python.exe scripts\preview_atlas_hologram_offscreen.py
+start "$env:TEMP\ATLAS_hologram_sur_fond_clair.png"
+Remove-Item Env:ATLAS_HOLOGRAM_SCULPTED -ErrorAction SilentlyContinue
+Remove-Item Env:ATLAS_HOLOGRAM_CACHED_EFFECTS -ErrorAction SilentlyContinue
+Remove-Item Env:ATLAS_HOLOGRAM_LOW_EFFECTS -ErrorAction SilentlyContinue
+```
+
+**Ne pas lancer l'application complète** tant que l'alimentation USB-C
+n'est pas vérifiée stable et compatible.
