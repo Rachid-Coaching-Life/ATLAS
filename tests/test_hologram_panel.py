@@ -1080,7 +1080,7 @@ def test_native_window_probe_reports_cpu_ram_without_gpu_claim():
         cwd=root, env=environment, capture_output=True,
         text=True, timeout=20, check=False,
     )
-    assert result.returncode == 0, result.stdout + "\\n" + result.stderr
+    assert result.returncode == 0, result.stdout + "\n" + result.stderr
     assert "FIN_RETOUR_BOUCLE_QT" in result.stdout
     measurement = next(
         (line for line in result.stdout.splitlines() if "MESURES_MOYENNES" in line),
@@ -1091,7 +1091,7 @@ def test_native_window_probe_reports_cpu_ram_without_gpu_claim():
         "duree_s", "cpu_processus_pct_un_coeur", "cpu_systeme_pct",
         "ram_processus_fin_mib", "ram_systeme_fin_pct",
     ):
-        match = re.search(rf"\\b{key}=([0-9]+(?:\\.[0-9]+)?)", measurement)
+        match = re.search(rf"\b{key}=([0-9]+(?:\.[0-9]+)?)", measurement)
         assert match is not None, measurement
         assert float(match.group(1)) >= 0.0
     assert "gpu_et_temperatures_non_mesures=1" in measurement
