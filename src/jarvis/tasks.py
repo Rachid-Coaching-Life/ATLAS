@@ -299,6 +299,7 @@ def _open_spoken_named_pdf(title: str, folder_hint: Optional[str] = None) -> str
 
 def _direct_voice_task_prompt(
     query: str, wake_word: str = "ATLAS", wake_aliases=(),
+    *, pending_pdf_title: Optional[str] = None,
 ) -> Optional[str]:
     """Strip a *leading* wake address and select existing deterministic tasks.
 
@@ -319,6 +320,18 @@ def _direct_voice_task_prompt(
             rf"^(?:{escaped})(?:\s*[,.:!?]\s*|\s+)",
             "", clean, count=1, flags=re.IGNORECASE,
         ).strip()
+    if pending_pdf_title:
+        folder_followups = {
+            "sur le bureau": "sur le bureau",
+            "bureau": "sur le bureau",
+            "dans mes documents": "dans mes documents",
+            "mes documents": "dans mes documents",
+            "dans mes telechargements": "dans mes téléchargements",
+            "mes telechargements": "dans mes téléchargements",
+        }
+        qualifier = folder_followups.get(_normalized_task_intent(clean))
+        if qualifier:
+            return f"Ouvre mon {pending_pdf_title} {qualifier}"
     if (
         _is_direct_system_status_task(clean)
         or _direct_file_list_folder(clean) is not None
