@@ -561,6 +561,21 @@ class ChatWindow(QMainWindow):
 
     # --- Sending --------------------------------------------------------
 
+    def submit_prompt(self, text: str) -> bool:
+        """Send a hologram-written prompt through this same chat transcript.
+
+        The chat window may remain hidden. Seed earlier voice turns first,
+        otherwise opening the conversation later could replay duplicates.
+        No alternate task backend or conversation history is created.
+        """
+        if (not isinstance(text, str) or not text.strip()
+                or not self._daemon_available or self._query_in_flight):
+            return False
+        self._seed_hot_window_if_needed()
+        self.input_widget.setPlainText(text.strip())
+        self._send()
+        return True
+
     def _send(self) -> None:
         text = self.input_widget.toPlainText().strip()
         if not text:
@@ -997,6 +1012,22 @@ class ChatWindow(QMainWindow):
 
     # --- Lifecycle ------------------------------------------------------
 
+    def _seed_hot_window_if_needed(self) -> None:
+        """Seed voice turns once, even if a hologram query starts hidden."""
+        if self._hot_window_seeded:
+            return
+        self._hot_window_seeded = True
+        try:
+            for msg in get_hot_window_messages():
+                role = msg.get("role")
+                content = msg.get("content")
+                if role == "user" and content:
+                    self._append_user(content)
+                elif role == "assistant" and content:
+                    self._append_assistant(content)
+        except Exception as exc:
+            debug_log(f"hot window replay failed: {exc}", "chat")
+
     def showEvent(self, event: QShowEvent) -> None:
         # On first show we seed the transcript from the daemon's hot window,
         # so a user who has been talking by voice sees their recent turns
@@ -1004,18 +1035,7 @@ class ChatWindow(QMainWindow):
         # re-showing (from the tray or after a hide) must never duplicate
         # turns. Fails silently when the daemon accessor is unavailable
         # (e.g. subprocess mode) — the window just opens blank.
-        if not self._hot_window_seeded:
-            self._hot_window_seeded = True
-            try:
-                for msg in get_hot_window_messages():
-                    role = msg.get("role")
-                    content = msg.get("content")
-                    if role == "user" and content:
-                        self._append_user(content)
-                    elif role == "assistant" and content:
-                        self._append_assistant(content)
-            except Exception as exc:
-                debug_log(f"hot window replay failed: {exc}", "chat")
+        self._seed_hot_window_if_needed()
         super().showEvent(event)
 
     def closeEvent(self, event: QCloseEvent) -> None:
