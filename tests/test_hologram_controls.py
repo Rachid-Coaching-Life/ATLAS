@@ -140,7 +140,8 @@ def test_diagnostic_main_skips_setup_ollama_and_voice_before_start(qapp, monkeyp
 
     class FakeTray:
         def __init__(self, *, ollama_runtime_ownership):
-            assert not ollama_runtime_ownership.started_by_jarvis
+            assert ollama_runtime_ownership.process is None
+            assert ollama_runtime_ownership.launch_method == ""
             created.append(self)
         def show_launch_windows(self):
             events.append("portrait")
