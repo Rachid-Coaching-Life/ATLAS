@@ -7,7 +7,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 import threading
 from math import isfinite
+import re
 import time
+import unicodedata
 import uuid
 from typing import Callable, Optional
 
@@ -22,6 +24,28 @@ def run_reply_engine(*args, **kwargs):
     """Load the reply engine only when a task actually starts."""
     from .reply.engine import run_reply_engine as _run_reply_engine
     return _run_reply_engine(*args, **kwargs)
+
+
+_DIRECT_SYSTEM_STATUS_COMMANDS = frozenset({
+    "diagnostic systeme",
+    "etat du systeme",
+    "etat systeme",
+    "diagnostic de mon ordinateur",
+    "verifie l etat de mon ordinateur",
+    "verifie l etat de mon pc",
+})
+
+
+def _is_direct_system_status_task(prompt: str) -> bool:
+    """Only exact, harmless system-status requests bypass LLM planning."""
+    if not isinstance(prompt, str):
+        return False
+    unaccented = "".join(
+        letter for letter in unicodedata.normalize("NFKD", prompt)
+        if not unicodedata.combining(letter)
+    ).casefold()
+    normalized = re.sub(r"[^a-z0-9]+", " ", unaccented).strip()
+    return normalized in _DIRECT_SYSTEM_STATUS_COMMANDS
 
 
 class TaskStatus(str, Enum):
@@ -164,12 +188,27 @@ class TaskManager:
             self._persist(task)
             self._emit(task)
         try:
-            from .daemon import query_lock
-            with query_lock():
-                result = run_reply_engine(
-                    self.db, self.cfg, None, task.prompt, self.dialogue_memory,
-                    quiet=True, cancel_event=cancel_event,
+            if _is_direct_system_status_task(task.prompt):
+                # A read-only, deterministic action: no tool router,
+                # inference, network or extra daemon is required.
+                from .tools.registry import run_tool_with_retries
+                outcome = run_tool_with_retries(
+                    self.db, self.cfg, "systemStatus", {}, "",
+                    task.prompt, redact(task.prompt), max_retries=0,
                 )
+                if not outcome.success:
+                    raise RuntimeError(
+                        outcome.error_message or outcome.reply_text
+                        or "Diagnostic système indisponible."
+                    )
+                result = outcome.reply_text
+            else:
+                from .daemon import query_lock
+                with query_lock():
+                    result = run_reply_engine(
+                        self.db, self.cfg, None, task.prompt, self.dialogue_memory,
+                        quiet=True, cancel_event=cancel_event,
+                    )
             with self._lock:
                 if task.status is not TaskStatus.CANCELLED:
                     task.status = TaskStatus.COMPLETED
