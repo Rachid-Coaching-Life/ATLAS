@@ -218,3 +218,46 @@ def test_explicit_legacy_vector_mode_does_not_replace_production_portrait(qapp):
     finally:
         legacy.close()
         modern.close()
+
+
+@pytest.mark.unit
+def test_original_atlas_portrait_blinks_without_altering_the_base_image(qapp):
+    """Temporary eyelid overlays must leave the source portrait untouched."""
+    from PyQt6.QtGui import QImage, QPainter
+    from desktop_app.face_widget import FaceWidget
+
+    face = FaceWidget()
+    face.resize(240, 280)
+    image_cache_key = face._portrait.cacheKey()
+
+    def paint(blink):
+        face._blink_factor = blink
+        canvas = QImage(240, 280, QImage.Format.Format_ARGB32_Premultiplied)
+        canvas.fill(0)
+        painter = QPainter(canvas)
+        try:
+            face._paint_portrait(painter)
+        finally:
+            painter.end()
+        return canvas
+
+    try:
+        opened = paint(0.0)
+        closed = paint(1.0)
+        bounds = FaceWidget._portrait_bounds(
+            240, 280, face._portrait.width(), face._portrait.height()
+        )
+        for relative_x in (0.318, 0.618):
+            eye_x = round(bounds.left() + bounds.width() * relative_x)
+            eye_y = round(bounds.top() + bounds.height() * 0.372)
+            changes = sum(
+                opened.pixel(x, y) != closed.pixel(x, y)
+                for x in range(eye_x - 8, eye_x + 9)
+                for y in range(eye_y - 6, eye_y + 7)
+            )
+            assert changes > 10
+
+        assert paint(0.0) == opened
+        assert face._portrait.cacheKey() == image_cache_key
+    finally:
+        face.close()
