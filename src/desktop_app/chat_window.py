@@ -352,6 +352,7 @@ class ChatWindow(QMainWindow):
     """
 
     conversation_preview_changed = pyqtSignal(str, str)
+    query_activity_changed = pyqtSignal(bool)
 
     def __init__(
         self,
@@ -675,8 +676,11 @@ class ChatWindow(QMainWindow):
         self._daemon_status = status
         self._daemon_available = status == "running"
         if not self._daemon_available:
+            was_in_flight = self._query_in_flight
             self._query_in_flight = False
             self.stop_button.setVisible(False)
+            if was_in_flight:
+                self.query_activity_changed.emit(False)
         self.input_widget.setEnabled(self._daemon_available)
         self.input_widget.setPlaceholderText(
             _DAEMON_STATUS_PLACEHOLDERS.get(
@@ -935,6 +939,7 @@ class ChatWindow(QMainWindow):
         self._refresh_send_button()
         self._refresh_rewind_buttons()
         self._refresh_header_status()
+        self.query_activity_changed.emit(self._query_in_flight)
 
     def _refresh_rewind_buttons(self) -> None:
         """Disable rewind while a query is in flight or the daemon is down."""
