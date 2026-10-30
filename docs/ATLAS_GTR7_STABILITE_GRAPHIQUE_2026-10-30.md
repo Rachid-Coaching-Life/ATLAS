@@ -51,3 +51,60 @@ Le script indique le chemin du PNG dans le dossier temporaire Windows. Contrôle
 - [ ] Réaliser une vraie refonte du panneau selon la référence approuvée, en gardant les limites de charge.
 - [ ] Inspecter les performances CPU/GPU, la transparence et le comportement Windows avant de conclure à la stabilité.
 - [ ] Auditer séparément les références héritées de l'ancienne identité dans le code, scripts et documentation, sans remplacement aveugle.
+
+
+## Incident supplémentaire et diagnostic révisé (11 h 33, 30 octobre 2026)
+
+L'utilisateur a confirmé un nouvel arrêt brutal de l'ordinateur lors de l'affichage
+d'ATLAS. Le journal System contient trois événements Kernel-Power 41 datés
+07:39:54, 08:00:15 et 11:33:27 ; chacun porte `BugcheckCode=0` et
+`PowerButtonTimestamp=0`.
+
+**Interprétation :** un arrêt n'a pas été journalisé normalement. Cela ne
+prouve ni une surcharge GPU, ni une erreur du code ATLAS. Une perte
+d'alimentation, un pilote bloqué ou un arrêt trop rapide pour écrire les données
+restent possibles. La documentation Microsoft recommande, dans cette
+configuration, de rechercher aussi `volmgr` 46, des erreurs WHEA et les
+événements de pilote graphique.
+
+**Aucun nouvel essai de lancement complet ne doit être demandé** tant que
+les indices d'alimentation et de système n'ont pas été examinés.
+
+### Interrupteur de diagnostic (à ne pas activer pour le moment)
+
+Ajout dans `src/desktop_app/app.py` :
+
+- Sans variable, l'application reste exactement en mode holographique habituel.
+- `ATLAS_DIAGNOSTIC_NO_HOLOGRAM=1` remplace la projection combinée par
+  `FaceWindow(hologram=False)` et conserve le portrait identique.
+- Les connexions des boutons holographiques sont conditionnées à leur
+  existence pour éviter une erreur lorsque le panneau est absent.
+- **Ce n'est pas un mode sécurisé garanti** : la fenêtre du portrait reste
+  translucide et animée, Qt/Windows restent utilisés, et le démarrage vocal
+  automatique ne change pas. Ce mode servira à une comparaison ultérieure
+  **seulement après vérification des causes de coupure**.
+
+Test ajouté à `tests/test_hologram_controls.py` pour vérifier le défaut
+holographique et l'absence de panneau en mode diagnostic. **Non exécuté au
+moment de l'enregistrement.** La dernière série de tests communiquée par
+l'utilisateur était de 39 réussites, antérieure à cet ajout.
+
+### Lecture sans risque des journaux Windows
+
+Depuis PowerShell, sans lancer ATLAS :
+
+```powershell
+Get-WinEvent -FilterHashtable @{
+    LogName='System'
+    StartTime=[datetime]'2026-10-30 11:00'
+    EndTime=[datetime]'2026-10-30 11:40'
+} -ErrorAction SilentlyContinue |
+Where-Object {
+    $_.ProviderName -match 'WHEA-Logger|Display|volmgr|amdw|Kernel-Power' -or
+    $_.Id -in 1001,4101,46
+} |
+Select-Object TimeCreated,Id,ProviderName,Message | Format-List
+```
+
+Ne pas assimiler tous les événements portant l'identifiant 18 à des erreurs
+matérielles : vérifier le champ `ProviderName`.
