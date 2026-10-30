@@ -440,9 +440,9 @@ Modifications :
 - Un seul PDF correspondant peut être transmis à Windows par le
   lanceur sécurisé préexistant. Plusieurs résultats, un parcours
   incomplet ou une consigne composée empêchent l'ouverture.
-  Une ambiguïté autorise une courte clarification vocale
-  (« sur le Bureau », « dans mes Documents ») pendant 30 secondes,
-  après quoi la décision expire.
+  Une ambiguïté ou une recherche incomplète autorise une courte
+  clarification vocale (« sur le Bureau », « dans mes Documents »)
+  pendant 30 secondes, après quoi la décision expire.
 - Une demande vocale non reconnue comme tâche directe conserve le
   parcours conversationnel précédent, sans altérer Whisper.
 - Les nouveaux tests couvrent la reconnaissance d'intentions, la
