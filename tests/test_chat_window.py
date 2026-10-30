@@ -1079,6 +1079,35 @@ class TestAtlasHologramChatPreview:
             chat.close()
             panel.close()
 
+    def test_cancel_and_empty_reply_report_their_state(self, qapp):
+        from desktop_app.chat_window import ChatWindow
+        from desktop_app.hologram_panel import HologramPanel
+
+        cancelled = []
+        chat = ChatWindow(
+            submit_fn=lambda text: None,
+            cancel_fn=lambda: cancelled.append(True),
+            daemon_available=True,
+        )
+        panel = HologramPanel()
+        chat.conversation_preview_changed.connect(panel.set_conversation_preview)
+        try:
+            chat.input_widget.setPlainText("Question sans réponse")
+            chat._send()
+            chat._on_complete(None)
+            assert panel.reply.text() == "ATLAS n'a pas renvoyé de réponse."
+
+            chat.input_widget.setPlainText("Annule cette demande")
+            chat._send()
+            chat._stop()
+            assert cancelled == [True]
+            assert panel.reply.text() == "Réponse interrompue."
+            chat._on_complete("réponse tardive à ignorer")
+            assert panel.reply.text() == "Réponse interrompue."
+        finally:
+            chat.close()
+            panel.close()
+
     def test_rewind_removes_stale_holographic_answer(self, qapp):
         from desktop_app.chat_window import ChatWindow
         from desktop_app.hologram_panel import HologramPanel
