@@ -421,3 +421,39 @@ Remove-Item Env:ATLAS_HOLOGRAM_LOW_EFFECTS -ErrorAction SilentlyContinue
 Comparer d'abord les temps réels et la lisibilité du mode hybride
 avant de modifier le réglage par défaut. **Ne pas lancer l'application
 complète avec l'alimentation USB-C actuelle.**
+
+
+## Mesure réelle du calque hybride et correction des rails de cartes
+
+Mesures reçues sur GTR7 (`--samples 8 --warmup 2`) après commit
+`4899c7f` : **46 tests réussis en 4,69 s**.
+
+| Élément | Normal | Allégé | Hybride |
+|---|---:|---:|---:|
+| HUD idle (médiane) | 9,218 ms | 5,273 ms | 5,595 ms |
+| HUD listening (médiane) | 9,430 ms | 5,743 ms | 6,379 ms |
+| Pont listening (médiane) | 0,287 ms | 0,338 ms | 0,309 ms |
+
+Portrait inchangé : 0,215 ms au repos, 0,413 ms en parole.
+L'hybride gagne 32,4 % de temps CPU de peinture du panneau en écoute
+par rapport au mode normal, mais coûte 11,1 % de plus que l'allégé.
+Ces statistiques à 8 échantillons par état ne constituent pas une
+mesure de consommation du GPU ou de stabilité électrique ; le mode
+hybride reste **facultatif** et le réglage normal n'est pas modifié.
+
+Capture fournie `ATLAS_hologram_sur_fond_clair.png` en hybride :
+la lecture des cartes est correcte, mais le verre reste peu volumique
+et certaines lignes lumineuses traversent les titres de section.
+Un problème précis du code a été confirmé : `_glass_card`
+soustrayait toujours 15 px à `label.geometry().top()`, sans tenir
+compte de la hauteur et de l'espacement du titre `RÉPONSE` /
+`DERNIÈRE DEMANDE`. Correction minimale dans
+`src/desktop_app/hologram_panel.py` : chaque bordure supérieure est
+désormais positionnée sous la légende Qt réelle via
+`_glass_card_top`, sans déplacement du texte ni du portrait.
+Test de géométrie ajouté pour les tailles 505×330 et 210×205.
+
+**Ce nouveau test et la correction ne sont pas encore exécutés
+sur Windows au moment de ce commit.** Avant de poursuivre la
+complexité visuelle, vérifier lisibilité, non-régression et coût
+du rendu, uniquement hors écran avec l'alimentation USB-C actuelle.
