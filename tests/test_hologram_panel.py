@@ -552,7 +552,8 @@ def test_hologram_islands_leave_real_transparent_gap(qapp):
         image.fill(0)
         panel.render(image)
         message_alpha = image.pixelColor(240, 188).alpha()
-        gap_alpha = image.pixelColor(240, 240).alpha()
+        # Sample the actual negative space, not the crossing telemetry line.
+        gap_alpha = image.pixelColor(330, 251).alpha()
         title_alpha = image.pixelColor(240, 54).alpha()
         assert 155 <= message_alpha < 255
         assert gap_alpha < 80
