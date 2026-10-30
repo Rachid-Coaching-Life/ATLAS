@@ -82,6 +82,7 @@ class HologramPanel(QWidget):
     exchange_view_requested = pyqtSignal()
     stop_response_requested = pyqtSignal()
     text_input_requested = pyqtSignal()
+    task_view_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -175,6 +176,13 @@ class HologramPanel(QWidget):
             lambda _checked=False: self.exchange_view_requested.emit()
         )
         self.controls.addWidget(self.exchanges_button, 1)
+        self.task_button = self._control_button("TÂCHES", "atlas_hud_tasks")
+        self.task_button.setAccessibleName("Ouvrir le centre des tâches ATLAS")
+        self.task_button.setToolTip("Créer, suivre et annuler des tâches locales")
+        self.task_button.clicked.connect(
+            lambda _checked=False: self.task_view_requested.emit()
+        )
+        self.controls.addWidget(self.task_button, 1)
         self.write_button = self._control_button("ÉCRIRE", "atlas_hud_write")
         self.write_button.setAccessibleName("Écrire une demande à ATLAS")
         self.write_button.setToolTip("Saisir une question sans ouvrir la conversation")
@@ -267,6 +275,9 @@ class HologramPanel(QWidget):
         self.footer.setVisible(not compact)
         self.controls.setSpacing(3 if compact else 7)
         self.write_button.setText("✎" if compact else "ÉCRIRE")
+        self.task_button.setText("TÂCH." if compact else "TÂCHES")
+        self.exchanges_button.setText("ÉCH." if compact else "ÉCHANGES")
+        self.voice_button.setText("VOIX" if compact else getattr(self, "_voice_caption", "ACTIVER VOIX"))
         font = self.heading.font()
         font.setPointSize(8 if compact else 11)
         self.heading.setFont(font)
@@ -307,7 +318,9 @@ class HologramPanel(QWidget):
             caption, hint, enabled = (
                 "SUSPENDRE VOIX", "Suspendre l’écoute sans fermer le chat", True
             )
-        self.voice_button.setText(caption)
+        self._voice_caption = caption
+        compact = self.width() < 295 or self.height() < 265
+        self.voice_button.setText("VOIX" if compact else caption)
         self.voice_button.setToolTip(hint)
         self.voice_button.setEnabled(enabled)
 
