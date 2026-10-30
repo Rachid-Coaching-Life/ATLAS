@@ -83,6 +83,7 @@ class HologramPanel(QWidget):
     stop_response_requested = pyqtSignal()
     text_input_requested = pyqtSignal()
     task_view_requested = pyqtSignal()
+    task_input_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -181,6 +182,16 @@ class HologramPanel(QWidget):
         self.task_button.setToolTip("Créer, suivre et annuler des tâches locales")
         self.task_button.clicked.connect(
             lambda _checked=False: self.task_view_requested.emit()
+        )
+        new_task_action = QAction("Nouvelle tâche…", self.task_button)
+        new_task_action.setObjectName("atlas_hud_new_task")
+        new_task_action.triggered.connect(
+            lambda _checked=False: self.task_input_requested.emit()
+        )
+        self.task_button.addAction(new_task_action)
+        self.task_button.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
+        self.task_button.setToolTip(
+            "Clic gauche : centre des tâches · Clic droit : nouvelle tâche"
         )
         self.controls.addWidget(self.task_button, 1)
         self.write_button = self._control_button("ÉCRIRE", "atlas_hud_write")
@@ -398,6 +409,37 @@ class HologramPanel(QWidget):
         # Repaint once on state change even when animation is suspended.
         self.update()
 
+    def set_task_submission_state(self, prompt: str, state: str) -> None:
+        """Display a submission attempt, not an unconfirmed task success."""
+        if not isinstance(prompt, str) or not isinstance(state, str):
+            return
+        self.heard_caption.setText("INSTRUCTION DE TÂCHE")
+        self.reply_caption.setText("ÉTAT DE LA TÂCHE")
+        self.heard.setText(prompt[:230])
+        self.reply.setText(state[:250])
+        self._await_reply_line = False
+
+    def set_task_update(self, task: dict) -> None:
+        """Reflect the last validated real task event from TaskCentreWindow."""
+        if not isinstance(task, dict):
+            return
+        status = task.get("status")
+        descriptions = {
+            "queued": "En attente d'exécution",
+            "running": "Exécution en cours",
+            "completed": "Traitement terminé",
+            "failed": "Échec de la tâche",
+            "cancelled": "Tâche annulée",
+        }
+        if status not in descriptions or not isinstance(task.get("prompt"), str):
+            return
+        result = task.get("result") if status == "completed" else task.get("error")
+        if not isinstance(result, str):
+            result = ""
+        # Do not equate a finished LLM run with a verified file/system change.
+        detail = f" — {result}" if result else ""
+        self.set_task_submission_state(task["prompt"], descriptions[status] + detail)
+
     def set_conversation_preview(self, request: str, response: str) -> None:
         """Reflect real text-chat turns in the same hologram as voice activity.
 
@@ -407,6 +449,8 @@ class HologramPanel(QWidget):
         """
         if not isinstance(request, str) or not isinstance(response, str):
             return
+        self.heard_caption.setText("DERNIÈRE DEMANDE")
+        self.reply_caption.setText("RÉPONSE")
         if request:
             self.heard.setText(request[:230])
         if response:
@@ -422,6 +466,8 @@ class HologramPanel(QWidget):
         for part in line.splitlines():
             stripped = part.strip()
             if stripped.startswith(("📝 Heard:", "⌨️ Typed:")):
+                self.heard_caption.setText("DERNIÈRE DEMANDE")
+                self.reply_caption.setText("RÉPONSE")
                 heard = stripped.split(":", 1)[1].strip().strip('"')
                 if heard:
                     self.heard.setText(heard[:230])
