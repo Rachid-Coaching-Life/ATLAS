@@ -79,3 +79,28 @@ reste dans son état antérieur.
 
 Ne pas considérer ce comportement comme démontré sans observation
 en situation réelle.
+
+
+## Retour des tests Windows : correction du scénario IPC
+
+Après l'intégration de la commande « ARRÊTER », l'utilisateur a exécuté
+`tests/test_hologram_controls.py` et `tests/test_chat_window.py` :
+**78 tests réussis, 1 échec (6,28 s)**. L'échec était localisé
+dans `test_ipc_created_chat_forwards_reply_to_hologram` avec
+`AttributeError: 'types.SimpleNamespace' object has no attribute 'hologram'`.
+
+**Audit :** le vrai constructeur de `FaceWindow` dans
+`src/desktop_app/face_widget.py` crée bien
+`self.hologram = HologramPanel(self)` lorsque
+`_hologram_enabled=True`. Le test avait conservé une simulation
+incomplète de ce contrat après l'ajout du signal d'activité du chat.
+
+**Correction minimale, uniquement dans `tests/test_chat_window.py` :**
+la simulation comporte désormais `hologram.set_chat_response_pending`.
+Le scénario envoie un événement IPC `start` puis `complete` et vérifie
+les transitions `[True, False]`, tout en vérifiant le texte de la
+réponse et le callback de contrôle existant.
+
+Aucun changement applicatif, aucune modification du moteur de
+conversation, du portrait ou des commandes vocales. L'exécution Windows
+de ce test après correction reste à confirmer.
