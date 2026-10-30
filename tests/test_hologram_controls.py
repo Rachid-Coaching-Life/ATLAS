@@ -107,3 +107,15 @@ def test_portrait_only_diagnostic_is_opt_in_and_preserves_atlas_art(qapp, monkey
         assert window.windowTitle() == "🤖 ATLAS"
     finally:
         window.close()
+
+
+def test_diagnostic_voice_autostart_is_opt_in(monkeypatch):
+    """Default still starts voice; only exact diagnostic value 1 disables it."""
+    from desktop_app.app import _diagnostic_autostart_enabled
+
+    monkeypatch.delenv("ATLAS_DIAGNOSTIC_NO_AUTOSTART", raising=False)
+    assert _diagnostic_autostart_enabled()
+    monkeypatch.setenv("ATLAS_DIAGNOSTIC_NO_AUTOSTART", "0")
+    assert _diagnostic_autostart_enabled()
+    monkeypatch.setenv("ATLAS_DIAGNOSTIC_NO_AUTOSTART", "1")
+    assert not _diagnostic_autostart_enabled()
