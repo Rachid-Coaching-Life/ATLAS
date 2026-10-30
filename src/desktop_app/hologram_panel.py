@@ -80,6 +80,7 @@ class HologramPanel(QWidget):
 
     voice_command_requested = pyqtSignal()
     exchange_view_requested = pyqtSignal()
+    stop_response_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -159,6 +160,14 @@ class HologramPanel(QWidget):
             lambda _checked=False: self.exchange_view_requested.emit()
         )
         self.controls.addWidget(self.exchanges_button, 1)
+        self.stop_response_button = self._control_button("ARRÊTER", "atlas_hud_stop_response")
+        self.stop_response_button.setAccessibleName("Arrêter la réponse écrite d’ATLAS")
+        self.stop_response_button.setToolTip("Interrompre la réponse écrite en cours")
+        self.stop_response_button.clicked.connect(
+            lambda _checked=False: self.stop_response_requested.emit()
+        )
+        self.controls.addWidget(self.stop_response_button, 1)
+        self.stop_response_button.hide()
         self._outer.addLayout(self.controls)
 
         self.footer = QLabel("◉  AUDIO LOCAL  ·  ASSISTANT PERSONNEL")
@@ -278,6 +287,14 @@ class HologramPanel(QWidget):
         self.voice_button.setText(caption)
         self.voice_button.setToolTip(hint)
         self.voice_button.setEnabled(enabled)
+
+    def set_chat_response_pending(self, pending: bool) -> None:
+        """Show text-chat Stop only while a cancellable query is active.
+
+        Hidden at rest to preserve the existing two-control layout.
+        """
+        self.stop_response_button.setVisible(bool(pending))
+        self.stop_response_button.setEnabled(bool(pending))
 
     def showEvent(self, event):
         super().showEvent(event)
