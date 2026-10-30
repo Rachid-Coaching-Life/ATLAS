@@ -423,6 +423,15 @@ class TaskManager:
         with self._lock:
             return sorted(self._tasks.values(), key=lambda task: task.created_at, reverse=True)
 
+    def wait_for_task(self, task_id: str, timeout: float = 12.0) -> Optional[Task]:
+        """Wait only for this task; the HUD keeps independent progress events."""
+        with self._lock:
+            future = self._futures.get(task_id)
+        if future is None:
+            return None
+        future.result(timeout=timeout)
+        return self.get(task_id)
+
     def cancel(self, task_id: str) -> bool:
         with self._lock:
             task = self._tasks.get(task_id)
