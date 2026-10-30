@@ -12,7 +12,7 @@ import time
 
 from PyQt6.QtCore import QPointF, QRectF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import (
-    QBrush, QColor, QFont, QLinearGradient, QRadialGradient, QPainter, QPainterPath, QPen, QRegion,
+    QBrush, QColor, QFont, QImage, QLinearGradient, QRadialGradient, QPainter, QPainterPath, QPen, QRegion,
 )
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
@@ -93,6 +93,11 @@ class HologramPanel(QWidget):
         # Opt-in low effects for offscreen profiling and future diagnostics.
         # Default visual geometry, text, controls and portrait are unchanged.
         self._low_effects = os.environ.get("ATLAS_HOLOGRAM_LOW_EFFECTS") == "1"
+        # Opt-in CPU raster cache: preserve optical highlights without
+        # redrawing gradients and micro-circuits on every live frame.
+        self._cached_effects = os.environ.get("ATLAS_HOLOGRAM_CACHED_EFFECTS") == "1"
+        self._spectral_cache = None
+        self._spectral_cache_key = None
         self._phase_origin = time.monotonic()
         self._revealed_at = None
         self._await_reply_line = False
@@ -721,31 +726,12 @@ class HologramPanel(QWidget):
                          QPointF(origin.x()-9, origin.y()))
         painter.restore()
 
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        w, h = float(self.width()), float(self.height())
-        if w < 2 or h < 2:
-            painter.end()
-            return
-        path = self.projection_shape()
-        now = time.monotonic()
-        phase = now - self._phase_origin
-        activity = self._state in _ACTIVE
-        glow = .7 + .28 * math.sin(phase * (4.7 if activity else 1.6))
-        # The glass is actually translucent and physically cut away, not a
-        # dark QPainter rounded rectangle. Transparent pixels remain alpha 0.
-        painter.save()
-        painter.setClipPath(path)
-        tint = QLinearGradient(QPointF(0, 0), QPointF(w, h))
-        # Translucent carrier, not a single opaque tablet.  Opaque text
-        # islands and light rails sit above the glass on separate planes.
-        tint.setColorAt(0, QColor(3, 32, 61, 14))
-        tint.setColorAt(.48, QColor(2, 16, 39, 8))
-        tint.setColorAt(1, QColor(2, 29, 53, 16))
-        painter.fillPath(path, QBrush(tint))
+    def _paint_static_spectral_details(self, painter: QPainter, w: float, h: float) -> None:
+        """Static high-detail illumination. Never depends on animation time.
 
-        if not self._low_effects:
+        Both the original paint and the cached composition use these exact
+        operations so no separately authored bitmap can alter the robot.
+        """
             # Spectral lighting gives the acrylic depth without applying a
             # full-screen blur, OpenGL surface, or a new animation timer.
             for cx, cy, radius, color in (
@@ -785,6 +771,69 @@ class HologramPanel(QWidget):
                 painter.drawLine(QPointF(.09 * w, row), QPointF(.96 * w, row))
             for col in range(22, int(w), 37):
                 painter.drawLine(QPointF(col, .07 * h), QPointF(col, .92 * h))
+
+    def _cached_spectral_layer(self) -> QImage:
+        """Create one bounded CPU image per Qt size/DPR; no GPU surface.
+
+        This costs work only on first paint or geometry/DPI change and keeps
+        the original optical highlights. Image is limited to HUD dimensions.
+        """
+        width, height = self.width(), self.height()
+        dpr = max(1.0, float(self.devicePixelRatioF()))
+        key = (width, height, dpr)
+        if self._spectral_cache is not None and self._spectral_cache_key == key:
+            return self._spectral_cache
+        image = QImage(
+            max(1, round(width * dpr)),
+            max(1, round(height * dpr)),
+            QImage.Format.Format_ARGB32_Premultiplied,
+        )
+        if image.isNull():
+            raise RuntimeError("Allocation du calque holographique impossible")
+        image.setDevicePixelRatio(dpr)
+        image.fill(0)
+        layer_painter = QPainter(image)
+        try:
+            layer_painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            layer_painter.setClipPath(self.projection_shape())
+            self._paint_static_spectral_details(layer_painter, float(width), float(height))
+        finally:
+            layer_painter.end()
+        self._spectral_cache = image
+        self._spectral_cache_key = key
+        return image
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        w, h = float(self.width()), float(self.height())
+        if w < 2 or h < 2:
+            painter.end()
+            return
+        path = self.projection_shape()
+        now = time.monotonic()
+        phase = now - self._phase_origin
+        activity = self._state in _ACTIVE
+        glow = .7 + .28 * math.sin(phase * (4.7 if activity else 1.6))
+        # The glass is actually translucent and physically cut away, not a
+        # dark QPainter rounded rectangle. Transparent pixels remain alpha 0.
+        painter.save()
+        painter.setClipPath(path)
+        tint = QLinearGradient(QPointF(0, 0), QPointF(w, h))
+        # Translucent carrier, not a single opaque tablet.  Opaque text
+        # islands and light rails sit above the glass on separate planes.
+        tint.setColorAt(0, QColor(3, 32, 61, 14))
+        tint.setColorAt(.48, QColor(2, 16, 39, 8))
+        tint.setColorAt(1, QColor(2, 29, 53, 16))
+        painter.fillPath(path, QBrush(tint))
+
+        # Use the same raster-painted glass layer in all modes.
+        # Cached mode restores static optical depth to the low-effects
+        # projection while retaining its reduced active redraw cadence.
+        if self._cached_effects:
+            painter.drawImage(QPointF(0, 0), self._cached_spectral_layer())
+        elif not self._low_effects:
+            self._paint_static_spectral_details(painter, w, h)
 
         if not self._low_effects:
             self._paint_neural_details(painter, w, h, phase, activity)
