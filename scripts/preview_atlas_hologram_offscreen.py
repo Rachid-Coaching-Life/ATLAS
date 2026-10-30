@@ -79,6 +79,13 @@ def load_offscreen_font(app: QApplication) -> str:
                 f"La police {family!r} ne prend pas en charge {character!r}. "
                 "Prévisualisation refusée pour éviter des carrés illisibles."
             )
+    # With a missing Qt font engine, unrelated letters all appeared as
+    # same-size square boxes even though the widget tests still passed.
+    if metrics.horizontalAdvance("WWW") <= metrics.horizontalAdvance("iii") + 5:
+        raise RuntimeError(
+            "La police hors écran ne produit pas de glyphes proportionnels. "
+            "Prévisualisation refusée au lieu d'afficher des carrés."
+        )
     app.setFont(font)
     return family
 
