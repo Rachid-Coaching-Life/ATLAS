@@ -96,6 +96,12 @@ class HologramPanel(QWidget):
         # Opt-in CPU raster cache: preserve optical highlights without
         # redrawing gradients and micro-circuits on every live frame.
         self._cached_effects = os.environ.get("ATLAS_HOLOGRAM_CACHED_EFFECTS") == "1"
+        # Experimental composition, deliberately restricted to the measured
+        # low-cadence hybrid mode. Existing layout/text/buttons are untouched.
+        self._sculpted = (
+            os.environ.get("ATLAS_HOLOGRAM_SCULPTED") == "1"
+            and self._cached_effects and self._low_effects
+        )
         self._spectral_cache = None
         self._spectral_cache_key = None
         self._phase_origin = time.monotonic()
@@ -335,16 +341,39 @@ class HologramPanel(QWidget):
         right = min(w - 14, r.right() + 11 - (14 if reply and w >= 390 else 0))
         if right - left < 16:
             return
-        slab = QPainterPath(QPointF(left + 12, top))
-        slab.lineTo(right - 31, top)
-        slab.lineTo(right - 7, top + 9)
-        slab.lineTo(right, top + 22)
-        slab.lineTo(right - 7, bottom - 6)
-        slab.lineTo(right - 25, bottom)
-        slab.lineTo(left + 9, bottom)
-        slab.lineTo(left, bottom - 9)
-        slab.lineTo(left + 2, top + 10)
-        slab.closeSubpath()
+        if self._sculpted and w >= 390 and self.height() >= 300:
+            # Functional words retain their Qt geometry while the *body*
+            # becomes a genuinely asymmetric cut glass wing. The concave
+            # bottom notch on replies creates negative space between layers.
+            slab = QPainterPath(QPointF(left + 24, top))
+            slab.lineTo(right - 62, top)
+            slab.lineTo(right - 43, top + 7)
+            slab.lineTo(right - 20, top + 5)
+            slab.cubicTo(right + 8, top + 8, right + 8, bottom - 16,
+                         right - 10, bottom - 7)
+            if reply:
+                slab.lineTo(right - 63, bottom - 6)
+                slab.lineTo(right - 83, bottom - 15)
+                slab.lineTo(right - 106, bottom - 15)
+                slab.lineTo(right - 124, bottom)
+            else:
+                slab.lineTo(right - 37, bottom)
+            slab.lineTo(left + 38, bottom)
+            slab.lineTo(left + 17, bottom - 10)
+            slab.lineTo(left + 5, bottom - 10)
+            slab.lineTo(left + 5, top + 13)
+            slab.closeSubpath()
+        else:
+            slab = QPainterPath(QPointF(left + 12, top))
+            slab.lineTo(right - 31, top)
+            slab.lineTo(right - 7, top + 9)
+            slab.lineTo(right, top + 22)
+            slab.lineTo(right - 7, bottom - 6)
+            slab.lineTo(right - 25, bottom)
+            slab.lineTo(left + 9, bottom)
+            slab.lineTo(left, bottom - 9)
+            slab.lineTo(left + 2, top + 10)
+            slab.closeSubpath()
         # Hybrid-only optical extrusion: two offset rails suggest a second
         # floating glass skin without another gradient, blur or timer.
         # All strokes stay beneath the live conversation labels.
@@ -387,12 +416,26 @@ class HologramPanel(QWidget):
         edge.setAlpha(220)
         painter.setPen(QPen(edge, 1.5))
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawLine(QPointF(left + 11, top + .5), QPointF(right - 13, top + .5))
-        painter.drawLine(QPointF(left + 1, top + 8), QPointF(left + 1, bottom - 5))
+        if self._sculpted and w >= 390 and self.height() >= 300:
+            painter.drawLine(QPointF(left + 24, top + .5),
+                             QPointF(right - 62, top + .5))
+            painter.drawLine(QPointF(left + 5, top + 13),
+                             QPointF(left + 5, bottom - 10))
+        else:
+            painter.drawLine(QPointF(left + 11, top + .5),
+                             QPointF(right - 13, top + .5))
+            painter.drawLine(QPointF(left + 1, top + 8),
+                             QPointF(left + 1, bottom - 5))
         # Offset glass edges suggest layered luminous plexiglas.
         painter.setPen(QPen(QColor(accent.red(), accent.green(), accent.blue(), 62), .7))
-        painter.drawLine(QPointF(left + 9, bottom - 1), QPointF(right - 8, bottom - 1))
-        painter.drawLine(QPointF(right - 6, bottom - 2), QPointF(right - 1, top + 11))
+        if self._sculpted and w >= 390 and self.height() >= 300:
+            painter.drawLine(QPointF(left + 38, bottom - 1),
+                             QPointF(right - (124 if reply else 37), bottom - 1))
+        else:
+            painter.drawLine(QPointF(left + 9, bottom - 1),
+                             QPointF(right - 8, bottom - 1))
+            painter.drawLine(QPointF(right - 6, bottom - 2),
+                             QPointF(right - 1, top + 11))
 
     def _paint_neural_details(
         self, painter: QPainter, w: float, h: float, phase: float, activity: bool
