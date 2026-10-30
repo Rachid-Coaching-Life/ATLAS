@@ -26,6 +26,16 @@ def rewrite(path, source):
     target = PKGPATH.sub("src/" + NEW, target)
     if path.endswith(".spec"):
         target = BARE_SPEC.sub(lambda m: m[1] + NEW + m[1], target)
+        # Packaging output names belong to the new application, not its data.
+        target = target.replace("name='Jarvis'", "name='ATLAS'")
+        target = target.replace("name='Jarvis.app'", "name='ATLAS.app'")
+    if path.endswith(".iss"):
+        # Only the installer/build contract changes here. Do not touch the
+        # application GUID, persistent folders, or user configuration paths.
+        target = target.replace('#define MyAppName "Jarvis"', '#define MyAppName "ATLAS"')
+        target = target.replace('#define MyAppExeName "Jarvis.exe"', '#define MyAppExeName "ATLAS.exe"')
+        target = target.replace('OutputBaseFilename=Jarvis-Setup-x64', 'OutputBaseFilename=ATLAS-Setup-x64')
+        target = target.replace(r'dist\Jarvis\', r'dist\ATLAS\')
     return target
 
 
