@@ -487,3 +487,41 @@ dépasse le bénéfice perçu, revenir à la version hybride mesurée
 
 Avant tout lancement complet, la compatibilité et la stabilité
 de l'alimentation USB-C du GTR7 restent à confirmer.
+
+
+## Résultats reçus — 48 tests et profil CPU hors écran
+
+Sur la branche `develop-atlas` au commit `c531c4f`, l'utilisateur a
+obtenu **48 passed in 5.16s** sur les trois suites de tests Qt.
+
+Mesures (`--samples 8 --warmup 2`), médianes par rendu :
+
+| Composant | Normal | Allégé | Hybride |
+|---|---:|---:|---:|
+| HUD idle | 10,354 ms | 5,890 ms | 6,171 ms |
+| HUD listening | 10,463 ms | 6,113 ms | 6,790 ms |
+| Pont idle | 0,310 ms | 0,282 ms | 0,381 ms |
+| Pont listening | 0,278 ms | 0,302 ms | 0,351 ms |
+
+Portrait : **0,243 ms** idle et **0,455 ms** speaking, inchangé.
+
+Comparaison à conditions similaires **dans le même relevé** :
+- hybride en écoute : 35,1 % de temps de dessin en moins que normal ;
+- allégé en écoute : 41,6 % en moins que normal ;
+- hybride en écoute : 11,1 % de plus que l'allégé.
+
+La mesure précédente donnait 6,379 ms en hybride listening contre
+6,790 ms ici, mais les trois modes ont varié entre sessions ; **ne pas
+attribuer cette variation au petit ajout des trois traits** sans essai
+A/B contrôlé. Sur la prévisualisation claire, ces traits apportent une
+profondeur peu perceptible, donc aucune raison de multiplier ces
+ornements. L'architecture hybride reste expérimentale, activée
+seulement à la demande. Le mode normal n'est pas changé.
+
+**Décision :** arrêter les micro-retouches de traits, conserver le
+portrait, passer à un changement de composition réellement visible
+avec comparaison des rendus sur fonds clair/sombre. Contrôler la durée
+de rendu et les tests après chaque changement. La charge DWM/GPU,
+la puissance réelle de l'USB-C et la cause des extinctions restent
+non mesurées ; ne pas lancer l'interface interactive complète avec
+l'alimentation actuelle.
