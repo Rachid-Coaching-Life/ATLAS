@@ -111,12 +111,12 @@ class TestChatWindowStructure:
         win = ChatWindow()
         assert not win.stop_button.isVisible()
 
-    def test_window_title_mentions_jarvis(self, qapp):
+    def test_window_title_mentions_atlas(self, qapp):
         from desktop_app.chat_window import ChatWindow
 
         win = ChatWindow()
         title = win.windowTitle()
-        assert "Jarvis" in title
+        assert "ATLAS" in title
 
 
 @pytest.mark.unit
@@ -819,7 +819,8 @@ class TestChatWindowSmsLook:
         win.show()
         qapp.processEvents()
         texts = [label.text() for label in win.findChildren(QLabel)]
-        assert "Jarvis" in texts
+        assert "ATLAS" in texts
+        assert "A T L A S  /  CHAT" in texts
         assert "Online" in texts
 
     def test_header_shows_typing_while_query_in_flight(self, qapp, monkeypatch):
@@ -1043,7 +1044,7 @@ def test_chat_activity_lines_reach_log_without_protocol_duplicates():
     from jarvis.daemon import CHAT_IPC_PREFIX
 
     assert _should_emit_as_log('⌨️ Typed: "Where do I live?"\n')
-    assert _should_emit_as_log('🤖 Jarvis\n')
+    assert _should_emit_as_log('🤖 ATLAS\n')
     assert _should_emit_as_log('  London.\n')
     assert not _should_emit_as_log(CHAT_IPC_PREFIX + '{"type":"complete","data":"London."}\n')
 
