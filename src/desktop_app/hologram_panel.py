@@ -11,7 +11,7 @@ import time
 
 from PyQt6.QtCore import QPointF, QRectF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import (
-    QBrush, QColor, QFont, QLinearGradient, QPainter, QPainterPath, QPen, QRegion,
+    QBrush, QColor, QFont, QLinearGradient, QRadialGradient, QPainter, QPainterPath, QPen, QRegion,
 )
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
@@ -154,7 +154,7 @@ class HologramPanel(QWidget):
     @staticmethod
     def _label(layout, value):
         label = QLabel(value)
-        label.setStyleSheet("color: #62dcff; font-size: 10px; letter-spacing: .6px;")
+        label.setStyleSheet("color: #65dfff; font-size: 11px; letter-spacing: .4px;")
         layout.addWidget(label)
 
     @staticmethod
@@ -185,7 +185,7 @@ class HologramPanel(QWidget):
         label.setWordWrap(True)
         label.setTextFormat(Qt.TextFormat.PlainText)
         label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        label.setStyleSheet("color: #effcff; font-size: 12px;")
+        label.setStyleSheet("color: #effcff; font-size: 13px;")
         label.setMaximumHeight(65)
         return label
 
@@ -319,12 +319,30 @@ class HologramPanel(QWidget):
         slab.lineTo(left, top + 8)
         slab.closeSubpath()
         sheen = QLinearGradient(QPointF(left, top), QPointF(right, bottom))
-        sheen.setColorAt(0, QColor(19, 103, 163, 135))
-        sheen.setColorAt(.5, QColor(4, 43, 89, 161))
-        sheen.setColorAt(1, QColor(7, 59, 108, 93))
+        sheen.setColorAt(0, QColor(12, 98, 164, 183))
+        sheen.setColorAt(.48, QColor(4, 39, 81, 207))
+        sheen.setColorAt(1, QColor(2, 27, 63, 188))
         painter.fillPath(slab, QBrush(sheen))
+        # Two transparent glass skins give the impression of floating depth.
+        # These are static strokes, not a blurred drop-shadow or shader.
+        painter.setPen(QPen(QColor(12, 194, 255, 34), 5.0))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPath(slab)
+        painter.setPen(QPen(QColor(91, 226, 255, 105), 1.0))
+        painter.drawPath(slab)
+        reflection = QLinearGradient(QPointF(left, top), QPointF(left, top + 18))
+        reflection.setColorAt(0, QColor(170, 241, 255, 38))
+        reflection.setColorAt(1, QColor(170, 241, 255, 0))
+        painter.fillPath(
+            _facet(((left / w, top / self.height()),
+                    ((right - 12) / w, top / self.height()),
+                    ((right - 22) / w, (top + 15) / self.height()),
+                    ((left + 14) / w, (top + 15) / self.height())),
+                   w, self.height()),
+            QBrush(reflection),
+        )
         edge = QColor(accent)
-        edge.setAlpha(120)
+        edge.setAlpha(220)
         painter.setPen(QPen(edge, 1.5))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawLine(QPointF(left + 11, top + .5), QPointF(right - 13, top + .5))
@@ -485,6 +503,13 @@ class HologramPanel(QWidget):
             painter.drawLine(p1, p2)
             painter.setPen(QPen(QColor(255, 170, 68, 195), 1.4))
             painter.drawLine(p1, p2)
+        # Segmented luminous etchings on the chassis: strong optical signature
+        # with only a handful of lines (no continuously animated textures).
+        for segment in range(12):
+            x = (.25 + segment * .038) * w
+            tint = QColor(54, 215, 255, 145 if segment % 3 else 75)
+            painter.setPen(QPen(tint, 2.1))
+            painter.drawLine(QPointF(x, .958 * h), QPointF(x + .019 * w, .958 * h))
         # Two narrow separated light bars: clearly holographic, never a box.
         painter.setPen(QPen(QColor(42, 206, 255, 125), 1.1))
         painter.drawLine(QPointF(.15 * w, .29 * h), QPointF(.79 * w, .29 * h))
@@ -514,16 +539,27 @@ class HologramPanel(QWidget):
         tint.setColorAt(1, QColor(3, 23, 43, 185))
         painter.fillPath(path, QBrush(tint))
 
-        # Staggered prismatic layers give a projected multi-depth appearance.
+        # Spectral lighting gives the acrylic depth without applying a
+        # full-screen blur, OpenGL surface, or a new animation timer.
+        for cx, cy, radius, color in (
+            (.89, .09, .48, QColor(31, 139, 252, 63)),
+            (.13, .91, .43, QColor(20, 193, 252, 40)),
+            (.89, .90, .32, QColor(255, 151, 56, 33)),
+        ):
+            centre = QPointF(cx * w, cy * h)
+            light = QRadialGradient(centre, radius * w)
+            light.setColorAt(0, color)
+            light.setColorAt(1, QColor(0, 0, 0, 0))
+            painter.fillRect(QRectF(0, 0, w, h), QBrush(light))
+        # Narrow facet reflections, kept away from headings and text. Large
+        # opaque triangles previously made the panel look like flat polygons.
         faces = (
-            (((.105, .030), (.47, .030), (.60, .090), (.28, .28), (.065, .28)),
-             QColor(83, 212, 255, 41)),
-            (((.75, .016), (.955, .10), (.92, .31), (.79, .38), (.67, .22)),
-             QColor(145, 215, 248, 42)),
-            (((.064, .60), (.30, .69), (.25, .96), (.12, .93)),
-             QColor(30, 120, 170, 35)),
-            (((.81, .75), (.96, .86), (.83, .98), (.54, .975)),
-             QColor(255, 159, 71, 27)),
+            (((.70, .019), (.83, .019), (.95, .095), (.91, .20)),
+             QColor(132, 230, 255, 25)),
+            (((.046, .64), (.078, .70), (.09, .90), (.05, .85)),
+             QColor(46, 194, 249, 23)),
+            (((.80, .82), (.955, .85), (.84, .966), (.72, .954)),
+             QColor(255, 165, 72, 20)),
         )
         for coords, color in faces:
             painter.fillPath(_facet(coords, w, h), color)
