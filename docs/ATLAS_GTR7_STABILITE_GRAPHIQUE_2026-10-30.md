@@ -980,3 +980,47 @@ réponse de l'IA doit remplacer l'attente ; un rembobinage ne doit
 pas conserver une réponse obsolète. Ces comportements ne sont pas
 annoncés comme validés tant que l'intégration réelle n'a pas été
 observée.
+
+
+## 30 octobre 2026 — Correction des deux tests de marque du chat
+
+Après l'intégration du chat vers le panneau holographique (commit
+`1d20a7f`), l'utilisateur a exécuté les suites
+`test_chat_window.py`, `test_hologram_controls.py`,
+`test_hologram_panel.py`, `test_atlas_portrait.py`.
+
+**Résultat communiqué : `2 failed, 124 passed in 18.20s`.**
+Échecs précis :
+- `TestChatWindowStructure.test_window_title_mentions_jarvis` attendait
+  `Jarvis` dans le titre, mais le vrai titre est `ATLAS Chat`.
+- `TestChatWindowSmsLook.test_header_shows_contact_and_presence`
+  attendait un label `Jarvis` exact, mais le contact porte le nom `ATLAS`.
+  Un ancien libellé décoratif `J A R V I S / CHAT` subsistait.
+
+**Diagnostic :** anciennes attentes de tests incompatibles avec
+l'identité visuelle ATLAS ; les 124 autres tests ont réussi,
+notamment ceux de la nouvelle intégration de conversation.
+
+**Correction minimale :**
+- `src/desktop_app/chat_window.py` : capsule visible remplacée
+  par `A T L A S  /  CHAT`, titre et contact ATLAS conservés.
+- `tests/test_chat_window.py` : titre et contact attendus
+  `ATLAS`, vérification explicite de la capsule ATLAS ;
+  exemple de ligne de journal visuel renommé `🤖 ATLAS`.
+- Aucune migration de noms internes `jarvis` utilisés comme chemins
+  d'import, classes de compatibilité ou noms de thèmes :
+  ils constituent une question de refactorisation distincte, susceptible
+  de casser des intégrations, et ne doivent pas être rebaptisés
+  sans audit dédié.
+
+**Validation :** inspection des sources mises à jour confirmant la
+cohérence titre / contact / capsule / attentes des tests. Exécution
+Windows des nouveaux tests **non encore effectuée** ; aucun succès
+supplémentaire n'est revendiqué.
+
+Commande ciblée :
+
+```powershell
+git pull --ff-only origin develop-atlas
+.\.venv\Scripts\python.exe -m pytest -q tests/test_chat_window.py::TestChatWindowStructure::test_window_title_mentions_atlas tests/test_chat_window.py::TestChatWindowSmsLook::test_header_shows_contact_and_presence
+```
