@@ -576,3 +576,59 @@ def test_neural_emitter_lens_is_inside_panel_bounds(qapp):
         assert center_x + radius < panel.width() - 3
     finally:
         panel.close()
+
+
+def test_separated_hologram_islands_keep_open_negative_space(qapp):
+    """Header, conversation and controls have distinct optical opacity.
+
+    The visible result must no longer be one opaque background tablet.
+    """
+    from PyQt6.QtGui import QImage
+    from desktop_app.hologram_panel import HologramPanel
+
+    panel = HologramPanel()
+    try:
+        panel.resize(505, 330)
+        panel.show()
+        qapp.processEvents()
+        image = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        image.fill(0)
+        panel.render(image)
+        # Between telemetry and the bottom control foot: truly open glass.
+        negative_space = image.pixelColor(330, 251).alpha()
+        message = panel.heard.geometry().center()
+        button = panel.voice_button.geometry().center()
+        message_alpha = image.pixelColor(message.x(), message.y()).alpha()
+        button_alpha = image.pixelColor(button.x(), button.y()).alpha()
+        assert negative_space < 85
+        assert message_alpha > negative_space + 45
+        assert button_alpha > negative_space + 45
+        assert image.pixelColor(0, 0).alpha() == 0
+        assert image.pixelColor(504, 0).alpha() == 0
+        assert not panel._timer.isActive()
+    finally:
+        panel.close()
+
+
+def test_hologram_islands_keep_real_controls_and_compact_fallback(qapp):
+    """No extra widgets or new timer; Qt controls remain interactive."""
+    from desktop_app.hologram_panel import HologramPanel
+
+    for width, height in ((210, 205), (505, 330)):
+        panel = HologramPanel()
+        calls = []
+        try:
+            panel.resize(width, height)
+            panel.show()
+            qapp.processEvents()
+            panel.voice_command_requested.connect(lambda: calls.append("voice"))
+            panel.exchange_view_requested.connect(lambda: calls.append("exchanges"))
+            assert panel.input_region().contains(panel.voice_button.geometry().center())
+            assert panel.input_region().contains(panel.exchanges_button.geometry().center())
+            panel.voice_button.click()
+            panel.exchanges_button.click()
+            assert calls == ["voice", "exchanges"]
+            assert panel._timer.interval() == 250
+            assert not panel._timer.isActive()
+        finally:
+            panel.close()
