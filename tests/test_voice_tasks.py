@@ -184,3 +184,37 @@ def test_non_task_voice_query_keeps_existing_reply_engine(
         assert manager.list_tasks() == []
     finally:
         manager.shutdown()
+
+
+def test_voice_destructive_compound_file_request_fails_closed(
+    test_profile, monkeypatch,
+):
+    from jarvis import tasks
+    from jarvis.listening.listener import VoiceListener
+    from jarvis.reply import engine
+
+    (test_profile / "Desktop").mkdir()
+    launches = []
+    monkeypatch.setattr(tasks.os, "startfile", launches.append, raising=False)
+    monkeypatch.setattr(
+        engine, "run_reply_engine",
+        lambda *_args, **_kwargs: pytest.fail(
+            "Une commande fichier suspecte ne doit pas être confiée au chatbot"
+        ),
+    )
+    events = []
+    manager = tasks.TaskManager(
+        db=object(), cfg=SimpleNamespace(), dialogue_memory=None,
+        event_callback=events.append,
+    )
+    try:
+        voice, speech, _ = _voice_fixture(manager, monkeypatch)
+        VoiceListener._dispatch_query(
+            voice, "ATLAS, ouvre mon certificat médical et supprime-le",
+            language="fr", generation=1,
+        )
+        assert launches == []
+        assert events[-1]["status"] == "failed"
+        assert "Demande d'ouverture ambiguë" in speech[0]
+    finally:
+        manager.shutdown()
