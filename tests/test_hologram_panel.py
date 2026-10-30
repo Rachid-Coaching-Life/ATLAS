@@ -532,3 +532,46 @@ def test_new_hologram_instruments_skip_narrow_compact_geometry(qapp):
         assert panel.exchanges_button.isVisible()
     finally:
         panel.close()
+
+
+def test_hologram_islands_leave_real_transparent_gap(qapp):
+    """The new composition must not look like one tinted rectangular tablet.
+
+    The gap between response and controls must transmit more of the desktop
+    than the message glass while the title stays on a readable header island.
+    """
+    from PyQt6.QtGui import QImage
+    from desktop_app.hologram_panel import HologramPanel
+
+    panel = HologramPanel()
+    try:
+        panel.resize(505, 330)
+        panel.show()
+        qapp.processEvents()
+        image = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        image.fill(0)
+        panel.render(image)
+        message_alpha = image.pixelColor(240, 188).alpha()
+        gap_alpha = image.pixelColor(240, 240).alpha()
+        title_alpha = image.pixelColor(240, 54).alpha()
+        assert 155 <= message_alpha < 255
+        assert gap_alpha < 80
+        assert title_alpha >= 90
+        assert image.pixelColor(0, 0).alpha() == 0
+        assert not panel._timer.isActive()
+    finally:
+        panel.close()
+
+
+def test_neural_emitter_lens_is_inside_panel_bounds(qapp):
+    """The optical lens must be fully visible, not amputated at the right edge."""
+    from desktop_app.hologram_panel import HologramPanel
+
+    panel = HologramPanel()
+    try:
+        panel.resize(505, 330)
+        center_x, radius = panel.emitter_lens_geometry()
+        assert center_x - radius > 0
+        assert center_x + radius < panel.width() - 3
+    finally:
+        panel.close()
