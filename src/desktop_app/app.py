@@ -1810,8 +1810,10 @@ class ATLASSystemTray:
             ollama_runtime_ownership or OllamaRuntimeOwnership()
         )
 
-        # Kill any orphaned ATLAS processes from previous sessions
-        self.cleanup_orphaned_processes()
+        # Visual-only diagnostics must not terminate pre-existing processes.
+        # The regular app keeps its existing orphan cleanup unchanged.
+        if _diagnostic_autostart_enabled():
+            self.cleanup_orphaned_processes()
 
         # Create log viewer window (hidden by default)
         self.log_viewer = LogViewerWindow()
@@ -1896,8 +1898,10 @@ class ATLASSystemTray:
         # Register cleanup on app exit
         self.app.aboutToQuit.connect(self.cleanup_on_exit)
 
-        # Check for updates on startup (delayed by 5 seconds to not block app startup)
-        QTimer.singleShot(5000, self.check_for_updates)
+        # Leave the diagnostic display free of scheduled update checks.
+        # The normal app still checks 5 seconds after startup.
+        if _diagnostic_autostart_enabled():
+            QTimer.singleShot(5000, self.check_for_updates)
 
         debug_log("desktop app initialized", "desktop")
 
