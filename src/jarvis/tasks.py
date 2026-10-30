@@ -84,6 +84,21 @@ def _direct_pdf_list_folder(prompt: str) -> Optional[str]:
     return _DIRECT_PDF_LIST_COMMANDS.get(_normalized_task_intent(prompt))
 
 
+_DIRECT_RECURSIVE_PDF_COMMANDS = {
+    "recherche les pdf dans mes documents et sous dossiers": "Documents",
+    "cherche les pdf dans mes documents et sous dossiers": "Documents",
+    "recherche les pdf dans mes telechargements et sous dossiers": "Downloads",
+    "cherche les pdf dans mes telechargements et sous dossiers": "Downloads",
+    "recherche les pdf dans mon bureau et sous dossiers": "Desktop",
+    "cherche les pdf dans mon bureau et sous dossiers": "Desktop",
+}
+
+
+def _direct_recursive_pdf_folder(prompt: str) -> Optional[str]:
+    """Only opt-in PDF searches across subfolders, with hard traversal bounds."""
+    return _DIRECT_RECURSIVE_PDF_COMMANDS.get(_normalized_task_intent(prompt))
+
+
 def _local_inventory_directory(folder: str) -> Path:
     """Use an existing home folder or known local OneDrive relocation only.
 
@@ -288,6 +303,23 @@ class TaskManager:
                     "(premier niveau uniquement, 50 entrées affichées au maximum).\n"
                     + (outcome.reply_text or "Aucun détail disponible.")
                 )
+            elif (folder := _direct_recursive_pdf_folder(task.prompt)) is not None:
+                # The existing localFiles tool now supports bounded read-only
+                # PDF traversal. This path never opens or changes documents.
+                from .tools.registry import run_tool_with_retries
+                directory = _local_inventory_directory(folder)
+                outcome = run_tool_with_retries(
+                    self.db, self.cfg, "localFiles",
+                    {"operation": "search", "path": str(directory),
+                     "file_type": "pdf"},
+                    "", task.prompt, redact(task.prompt), max_retries=0,
+                )
+                if not outcome.success:
+                    raise RuntimeError(
+                        outcome.error_message or outcome.reply_text
+                        or "Recherche PDF indisponible."
+                    )
+                result = outcome.reply_text
             else:
                 from .daemon import query_lock
                 with query_lock():
