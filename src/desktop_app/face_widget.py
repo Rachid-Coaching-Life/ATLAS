@@ -580,7 +580,9 @@ class FaceWindow(QWidget):
         else:
             portrait_h = max(240, min(330, height - 38))
             portrait_w = max(190, round(portrait_h * ratio))
-            panel_w = max(265, min(375, width // 3))
+            # Give the projected glass room on desktop displays while the
+            # portrait retains its dimensions and right-screen anchor.
+            panel_w = max(265, min(505, width - portrait_w - 47 - 40))
             self.face.setFixedSize(portrait_w, portrait_h)
             self.hologram.setFixedSize(panel_w, portrait_h)
             self.bridge.set_vertical(False)
