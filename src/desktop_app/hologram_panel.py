@@ -81,6 +81,7 @@ class HologramPanel(QWidget):
     voice_command_requested = pyqtSignal()
     exchange_view_requested = pyqtSignal()
     stop_response_requested = pyqtSignal()
+    text_input_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -174,6 +175,13 @@ class HologramPanel(QWidget):
             lambda _checked=False: self.exchange_view_requested.emit()
         )
         self.controls.addWidget(self.exchanges_button, 1)
+        self.write_button = self._control_button("ÉCRIRE", "atlas_hud_write")
+        self.write_button.setAccessibleName("Écrire une demande à ATLAS")
+        self.write_button.setToolTip("Saisir une question sans ouvrir la conversation")
+        self.write_button.clicked.connect(
+            lambda _checked=False: self.text_input_requested.emit()
+        )
+        self.controls.addWidget(self.write_button, 1)
         self.stop_response_button = self._control_button("ARRÊTER", "atlas_hud_stop_response")
         self.stop_response_button.setAccessibleName("Arrêter la réponse écrite d’ATLAS")
         self.stop_response_button.setToolTip("Interrompre la réponse écrite en cours")
@@ -258,6 +266,7 @@ class HologramPanel(QWidget):
         self._outer.setSpacing(2 if compact else 7)
         self.footer.setVisible(not compact)
         self.controls.setSpacing(3 if compact else 7)
+        self.write_button.setText("✎" if compact else "ÉCRIRE")
         font = self.heading.font()
         font.setPointSize(8 if compact else 11)
         self.heading.setFont(font)
@@ -309,6 +318,8 @@ class HologramPanel(QWidget):
         """
         self.stop_response_button.setVisible(bool(pending))
         self.stop_response_button.setEnabled(bool(pending))
+        # Keep at most three commands, even in the compact layout.
+        self.write_button.setVisible(not pending)
 
     def showEvent(self, event):
         super().showEvent(event)
