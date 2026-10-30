@@ -16,6 +16,20 @@ from pathlib import Path
 # This preview deliberately creates no native desktop window.
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-gpu")
+# The Windows offscreen QPA font engine cannot automatically discover Windows
+# fonts. Give Qt an existing directory of TrueType fonts before QApplication.
+# Reuse a font already bundled for the project's desktop icons; never download
+# a new font and never change the normal desktop application's font setup.
+_preview_font_dir = (
+    Path(__file__).resolve().parent.parent
+    / "src" / "desktop_app" / "desktop_assets" / "fonts"
+)
+if (_preview_font_dir / "DejaVuSans.ttf").is_file():
+    os.environ["QT_QPA_FONTDIR"] = str(_preview_font_dir)
+elif os.name == "nt":
+    _system_font_dir = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
+    if _system_font_dir.is_dir():
+        os.environ["QT_QPA_FONTDIR"] = str(_system_font_dir)
 
 from PyQt6.QtGui import QFont, QFontDatabase, QFontMetrics, QImage
 from PyQt6.QtWidgets import QApplication
