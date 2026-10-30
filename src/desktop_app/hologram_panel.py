@@ -12,7 +12,7 @@ import time
 
 from PyQt6.QtCore import QPointF, QRectF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import (
-    QBrush, QColor, QFont, QImage, QLinearGradient, QRadialGradient, QPainter, QPainterPath, QPen, QRegion,
+    QAction, QBrush, QColor, QFont, QGuiApplication, QImage, QLinearGradient, QRadialGradient, QPainter, QPainterPath, QPen, QRegion,
 )
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
@@ -142,6 +142,20 @@ class HologramPanel(QWidget):
         self.reply = self._message("Prêt à vous accompagner.")
         self.reply.setObjectName("atlas_hud_reply")
         self._outer.addWidget(self.reply, 1)
+
+        # Direct contextual interactions; no extra permanent HUD button.
+        # Each action reads the CURRENT rendered text when clicked, never
+        # copying messages to the OS clipboard without a user gesture.
+        for message in (self.heard, self.reply):
+            copy_action = QAction("Copier le texte affiché", message)
+            copy_action.setObjectName("atlas_hud_copy_visible_text")
+            copy_action.triggered.connect(
+                lambda _checked=False, source=message:
+                QGuiApplication.clipboard().setText(source.text())
+            )
+            message.addAction(copy_action)
+            message.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
+            message.setToolTip("Clic droit pour copier le texte affiché")
 
         self._outer.addStretch(1)
         self.controls = QHBoxLayout()
