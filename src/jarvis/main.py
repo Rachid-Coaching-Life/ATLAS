@@ -1,5 +1,5 @@
 """
-Jarvis Voice Assistant - Main Entry Point
+ATLAS — Point d'entrée principal
 
 A modular voice assistant with conversation memory, tool integration,
 and natural language processing capabilities.
