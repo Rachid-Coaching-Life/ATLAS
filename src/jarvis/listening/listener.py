@@ -1180,7 +1180,10 @@ class VoiceListener(threading.Thread):
                                 reply = "La liste des fichiers est disponible dans le centre des tâches."
                         elif finished.status is TaskStatus.FAILED:
                             reply = finished.error or "L'exécution de la tâche a échoué."
-                            if reply.startswith("Plusieurs PDF correspondent"):
+                            if reply.startswith((
+                                "Plusieurs PDF correspondent",
+                                "Recherche PDF incomplète",
+                            )):
                                 request = _direct_spoken_pdf_request(direct_prompt)
                                 if request is not None:
                                     self._pending_pdf_clarification = (
