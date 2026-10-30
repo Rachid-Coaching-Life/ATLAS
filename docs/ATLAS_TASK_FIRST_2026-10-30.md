@@ -414,3 +414,51 @@ git pull --ff-only origin develop-atlas
 Puis demande explicite d'ouverture d'un PDF non sensible
 avec un chemin relatif précis, et confirmation
 que le document s'ouvre sans être modifié.
+
+## 30 octobre 2026 — Exécution vocale des tâches et ouverture par nom
+
+Retour utilisateur : l'ouverture d'un PDF du Bureau a fonctionné depuis
+le centre des tâches. La saisie du chemin exact n'est cependant pas
+l'usage attendu : ATLAS doit retrouver un document et agir par la voix.
+
+Audit : les commandes du centre suivent TaskManager tandis que les
+commandes vocales passaient toutes par run_reply_engine. Deux présentations
+vocales de démarrage pouvaient aussi se succéder.
+
+Modifications :
+- Le listener vocal transmet désormais les intentions directes reconnues
+  à la même file TaskManager, attend uniquement l'opération concernée
+  et annonce oralement un résultat bref. Les événements habituels
+  continuent d'alimenter l'hologramme et le centre des tâches.
+- Le daemon transmet le TaskManager existant au listener, et retire
+  l'annonce redondante. La présentation courte n'est prononcée
+  qu'une fois après l'activation du microphone.
+- Une commande comme « ATLAS, ouvre mon certificat médical » recherche
+  des PDF dont le nom correspond à cette expression, sans imposer de
+  chemin précis ni de suffixe. La recherche est bornée à 3 secondes
+  au total dans les dossiers autorisés Bureau, Documents, Téléchargements.
+- Un seul PDF correspondant peut être transmis à Windows par le
+  lanceur sécurisé préexistant. Plusieurs résultats, un parcours
+  incomplet ou une consigne composée empêchent l'ouverture.
+  Une ambiguïté autorise une courte clarification vocale
+  (« sur le Bureau », « dans mes Documents ») pendant 30 secondes,
+  après quoi la décision expire.
+- Une demande vocale non reconnue comme tâche directe conserve le
+  parcours conversationnel précédent, sans altérer Whisper.
+- Les nouveaux tests couvrent la reconnaissance d'intentions, la
+  transcription simulée, la file, les événements, la réponse TTS,
+  la clarification et le refus de tâches ambiguës ou dangereuses.
+
+Fichiers : src/jarvis/listening/listener.py, src/jarvis/daemon.py,
+src/jarvis/tasks.py, src/jarvis/tools/builtin/local_files.py,
+tests/test_file_inventory.py, tests/test_voice_tasks.py,
+tests/test_atlas_reply_style.py.
+
+Validation à exécuter sur le GTR7 :
+    git pull --ff-only origin develop-atlas
+    .\.venv\Scripts\python.exe -m pytest -q tests/test_file_inventory.py tests/test_voice_tasks.py tests/test_atlas_reply_style.py tests/test_voice_listener.py
+
+La validation vocale sur microphone et la présence réelle de plusieurs
+PDF n'ont pas encore été démontrées en fonctionnement natif.
+La transmission de l'ouverture à Windows ne prouve pas à elle seule
+que le lecteur PDF a affiché le document.
