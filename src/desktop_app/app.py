@@ -2351,9 +2351,17 @@ class ATLASSystemTray:
         self._connect_chat_to_hologram(self.chat_window)
         return self.chat_window
 
+    def _request_hologram_text(self) -> tuple[str, bool]:
+        """Provide a focused temporary text entry; FaceWindow cannot focus."""
+        from PyQt6.QtWidgets import QInputDialog
+        return QInputDialog.getMultiLineText(
+            None, "ATLAS — Écrire", "Votre demande :",
+            "", Qt.WindowType.Dialog | Qt.WindowType.WindowStaysOnTopHint,
+        )
+
     def _handle_hologram_text_request(self) -> None:
         """Collect focused text, then submit through the EXISTING hidden chat."""
-        from PyQt6.QtWidgets import QInputDialog, QMessageBox
+        from PyQt6.QtWidgets import QMessageBox
 
         if not self.is_listening:
             QMessageBox.information(
@@ -2366,10 +2374,7 @@ class ATLASSystemTray:
 
         # FaceWindow is WindowDoesNotAcceptFocus; the short-lived, separate
         # Qt dialog is intentionally focusable. It does not replace the HUD.
-        text, accepted = QInputDialog.getMultiLineText(
-            None, "ATLAS — Écrire", "Votre demande :",
-            "", Qt.WindowType.Dialog | Qt.WindowType.WindowStaysOnTopHint,
-        )
+        text, accepted = self._request_hologram_text()
         if not accepted or not text.strip() or not self.is_listening:
             return
 
