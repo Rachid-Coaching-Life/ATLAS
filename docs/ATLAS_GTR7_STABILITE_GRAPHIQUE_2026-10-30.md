@@ -180,3 +180,39 @@ le moteur Qt, la fenêtre translucide et certaines animations restent actifs.
 Test de non-régression ajouté dans
 `tests/test_hologram_controls.py`. Les tests n'ont pas encore été
 exécutés après l'ajout ; aucun gain de stabilité matérielle n'est revendiqué.
+
+
+## Résultats du CSV HWiNFO et relevé des processus (30 octobre 2026)
+
+Source locale examinée : `GTR7-test-COPIE.CSV`, 6 328 lignes de mesures,
+274 colonnes, échantillonnées entre 08:01:42.892 et 11:32:42.766.
+L'événement Kernel-Power 41 à 11:33:27 est enregistré par Windows
+après l'arrêt anormal, potentiellement au redémarrage : **ne pas déduire
+de ces deux horaires une coupure exactement 45 secondes après la mesure**.
+
+**Deux compteurs HWiNFO différents portent quasiment le même nom :**
+`Utilisation totale du processeur [%]` et la seconde colonne de même
+intitulé (`.1` après import pandas). Dernier point : 99,3 % contre
+59,4 % respectivement. Ne pas rapporter uniquement 99,3 % comme une
+mesure indiscutable de l'occupation CPU. La température du CPU à ce
+point est de 46,8 °C et la consommation mesurée du CPU de 16,712 W.
+Température GPU : 45,5 °C. La température capteur `SPD Hub` est
+69,8 °C, sans prouver la température des puces DDR5. Aucun drapeau
+PROCHOT/HTC dans le journal, mais les capteurs pourraient manquer
+l'instant d'un arrêt électrique.
+
+Après redémarrage, un échantillon PowerShell de 5 secondes donne :
+Zoom 5,8 % CPU, DWM 0,7 %, Camera Hub 0,5 %, System 0,5 %,
+HWiNFO64 0,5 %, autres inférieurs à 0,5 %. **Ce relevé ne permet
+pas d'attribuer la charge CPU avant la coupure à Zoom ni à ATLAS**.
+
+**Suite conseillée sans stress matériel :** ouvrir le Moniteur de
+fiabilité (`perfmon /rel`, commande Microsoft documentée) et
+examiner les incidents et leurs détails techniques du 30 octobre.
+Conserver le mode diagnostic sans démarrage vocal/IA pour des
+essais ultérieurs si l'alimentation est confirmée compatible et stable.
+
+Référence sur les écarts entre compteurs CPU :
+https://www.hwinfo.com/forum/threads/cpu-usage-question.4162/
+Référence Moniteur de fiabilité :
+https://learn.microsoft.com/fr-be/windows-server/administration/windows-commands/perfmon
