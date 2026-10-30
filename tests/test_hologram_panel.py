@@ -730,6 +730,7 @@ def test_offscreen_profiler_generates_json_without_native_desktop(tmp_path):
         "hologram_alleger_idle", "hologram_alleger_listening",
         "hologram_hybride_idle", "hologram_hybride_listening",
         "hologram_sculpte_idle", "hologram_sculpte_listening",
+        "hologram_optique_idle", "hologram_optique_listening",
         "bridge_normal_idle", "bridge_alleger_listening",
         "bridge_hybride_listening",
         "portrait_idle", "portrait_speaking",
@@ -880,6 +881,7 @@ def test_sculpted_hologram_creates_real_card_cutouts_and_data_gap(qapp, monkeypa
     monkeypatch.setenv("ATLAS_HOLOGRAM_LOW_EFFECTS", "1")
     monkeypatch.setenv("ATLAS_HOLOGRAM_CACHED_EFFECTS", "1")
     monkeypatch.setenv("ATLAS_HOLOGRAM_SCULPTED", "1")
+    monkeypatch.delenv("ATLAS_HOLOGRAM_OPTICAL", raising=False)
     panel = HologramPanel()
     try:
         panel.resize(505, 330)
@@ -946,5 +948,87 @@ def test_sculpted_hologram_requires_explicit_hybrid_opt_in(qapp, monkeypatch):
     try:
         assert not panel._sculpted
         assert panel._timer.interval() == 250
+    finally:
+        panel.close()
+
+
+def test_optical_card_cache_restores_glass_surface_without_moving_text(qapp, monkeypatch):
+    """Two reusable QImage materials, live labels and real controls."""
+    from PyQt6.QtGui import QColor, QImage, QPainter
+    from desktop_app.hologram_panel import HologramPanel
+
+    monkeypatch.setenv("ATLAS_HOLOGRAM_LOW_EFFECTS", "1")
+    monkeypatch.setenv("ATLAS_HOLOGRAM_CACHED_EFFECTS", "1")
+    monkeypatch.setenv("ATLAS_HOLOGRAM_SCULPTED", "1")
+    monkeypatch.setenv("ATLAS_HOLOGRAM_OPTICAL", "1")
+    panel = HologramPanel()
+    try:
+        panel.resize(505, 330)
+        panel.show()
+        qapp.processEvents()
+        assert panel._optical
+        assert panel._timer.interval() == 500
+        initial_heard = panel.heard.geometry()
+        initial_reply = panel.reply.geometry()
+
+        # Compare one real glass card with its previous concave shape.
+        old = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        old.fill(0)
+        p = QPainter(old)
+        try:
+            panel._glass_card(p, panel.reply, QColor(255, 159, 71),
+                              float(panel.width()))
+        finally:
+            p.end()
+        new = panel._optical_card_image(panel.reply, QColor(255, 159, 71))
+        reply = panel.reply.geometry()
+        right = min(panel.width() - 14, reply.right() + 11 - 14)
+        x, y = int(right - 94), int(reply.bottom() + 7 - 7)
+        assert new.pixelColor(x, y).alpha() > old.pixelColor(x, y).alpha() + 50
+
+        heard = panel._optical_card_image(panel.heard, QColor(59, 209, 255))
+        same = panel._optical_card_image(panel.heard, QColor(59, 209, 255))
+        assert same is heard
+        assert len(panel._optical_card_cache) == 2
+
+        scene = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        scene.fill(0)
+        panel.render(scene)
+        assert scene.pixelColor(0, 0).alpha() == 0
+        assert scene.pixelColor(252, 165).alpha() > 0
+        assert panel.heard.geometry() == initial_heard
+        assert panel.reply.geometry() == initial_reply
+
+        calls = []
+        panel.voice_command_requested.connect(lambda: calls.append("voice"))
+        panel.exchange_view_requested.connect(lambda: calls.append("exchanges"))
+        panel.voice_button.click()
+        panel.exchanges_button.click()
+        assert calls == ["voice", "exchanges"]
+
+        # Size changes must not leave a stale large QImage in the cache.
+        panel.resize(420, 310)
+        qapp.processEvents()
+        rebuilt = panel._optical_card_image(panel.heard, QColor(59, 209, 255))
+        assert rebuilt is not heard
+        assert rebuilt.width() == round(panel.width() * panel.devicePixelRatioF())
+        assert len(panel._optical_card_cache) <= 2
+    finally:
+        panel.close()
+
+
+def test_optical_glass_requires_sculpted_hybrid_mode(qapp, monkeypatch):
+    """A stray flag never changes the standard Windows interface."""
+    from desktop_app.hologram_panel import HologramPanel
+
+    monkeypatch.setenv("ATLAS_HOLOGRAM_OPTICAL", "1")
+    monkeypatch.delenv("ATLAS_HOLOGRAM_SCULPTED", raising=False)
+    monkeypatch.delenv("ATLAS_HOLOGRAM_LOW_EFFECTS", raising=False)
+    monkeypatch.delenv("ATLAS_HOLOGRAM_CACHED_EFFECTS", raising=False)
+    panel = HologramPanel()
+    try:
+        assert not panel._optical
+        assert panel._timer.interval() == 250
+        assert not panel._optical_card_cache
     finally:
         panel.close()
