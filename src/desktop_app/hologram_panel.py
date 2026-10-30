@@ -687,10 +687,32 @@ class ProjectionBridge(QWidget):
                 path.lineTo(w * .67, cy + dy)
                 path.lineTo(w * .44, cy + dy - (7 if dy == 0 else -4))
                 path.lineTo(0, cy + dy - (7 if dy == 0 else -4))
+                # Double-stroke circuit: static optical halo and narrow core.
+                halo = QColor(_CYAN)
+                halo.setAlpha(int(43 * power))
+                painter.setPen(QPen(halo, 4.0))
+                painter.drawPath(path)
                 painter.setPen(QPen(base, 1.8 if dy == 0 else 1.05))
                 painter.drawPath(path)
+            for direction in (-1, 1):
+                side = QPainterPath(QPointF(w, cy + direction * 22))
+                side.cubicTo(
+                    QPointF(w * .72, cy + direction * 14),
+                    QPointF(w * .28, cy + direction * 16),
+                    QPointF(0, cy + direction * 6),
+                )
+                painter.setPen(QPen(QColor(255, 165, 69, 45), 3.2))
+                painter.drawPath(side)
+                painter.setPen(QPen(QColor(255, 169, 81, 135), 1.0))
+                painter.drawPath(side)
             painter.setPen(QPen(ember, 1))
             painter.drawLine(QPointF(w * .47, cy - 15), QPointF(w * .47, cy + 16))
+            # Luminous source sits next to the unchanged robot silhouette.
+            origin = QPointF(w - 4, cy)
+            painter.setPen(QPen(QColor(60, 216, 255, 113), 1.3))
+            painter.drawEllipse(origin, 9, 9)
+            painter.setPen(QPen(QColor(255, 171, 78, 160), 1.0))
+            painter.drawEllipse(origin, 5, 5)
             travel = (t * (.8 if active else .28)) % 1
             dot = QPointF(w * (1 - travel), cy)
 
