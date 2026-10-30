@@ -140,9 +140,29 @@ def main() -> int:
         if not contrast.save(str(contrast_path), "PNG"):
             raise RuntimeError("Impossible d'enregistrer la vue sur fond simulé")
 
+        # A third diagnostic image shows the same alpha pixels on a bright
+        # desktop-like gradient. No extra effects are added to ATLAS itself.
+        # Using the actual Qt render avoids substituting a design mock-up.
+        daylight = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        daylight.fill(QColor(225, 233, 238))
+        daylight_painter = QPainter(daylight)
+        daylight_gradient = QLinearGradient(
+            QPointF(0, 0), QPointF(float(panel.width()), float(panel.height()))
+        )
+        daylight_gradient.setColorAt(0, QColor(157, 195, 223))
+        daylight_gradient.setColorAt(.48, QColor(219, 236, 241))
+        daylight_gradient.setColorAt(1, QColor(244, 220, 119))
+        daylight_painter.fillRect(daylight.rect(), QBrush(daylight_gradient))
+        daylight_painter.drawImage(0, 0, image)
+        daylight_painter.end()
+        daylight_path = Path(tempfile.gettempdir()) / "ATLAS_hologram_sur_fond_clair.png"
+        if not daylight.save(str(daylight_path), "PNG"):
+            raise RuntimeError("Impossible d'enregistrer la vue sur fond clair")
+
         print(f"Police Qt hors écran : {loaded_family}")
         print(f"Prévisualisation ATLAS enregistrée : {destination}")
         print(f"Vue de contraste (fond simulé) : {contrast_path}")
+        print(f"Vue de lisibilité (fond clair simulé) : {daylight_path}")
         return 0
     finally:
         panel.close()
