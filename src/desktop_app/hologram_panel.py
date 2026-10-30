@@ -94,20 +94,20 @@ class HologramPanel(QWidget):
         self._await_reply_line = False
 
         self._outer = QVBoxLayout(self)
-        self._outer.setContentsMargins(35, 25, 30, 24)
+        self._outer.setContentsMargins(65, 21, 43, 23)
         self._outer.setSpacing(7)
 
         self.heading = QLabel("ATLAS  /  INTERFACE NEURALE")
         self.heading.setObjectName("atlas_hud_heading")
         self.heading.setWordWrap(True)
-        self.heading.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        self.heading.setStyleSheet("color: #91e6ff; letter-spacing: 1px;")
+        self.heading.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        self.heading.setStyleSheet("color: #d9f7ff; letter-spacing: 1.1px;")
         self._outer.addWidget(self.heading)
 
         self.status = QLabel(_STATE_TEXT[self._state])
         self.status.setObjectName("atlas_hud_status")
-        self.status.setFont(QFont("Segoe UI", 12, QFont.Weight.DemiBold))
-        self.status.setStyleSheet("color: #ffc082;")
+        self.status.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        self.status.setStyleSheet("color: #ffbd69; letter-spacing: .6px;")
         self._outer.addWidget(self.status)
 
         self._label(self._outer, "DERNIÈRE DEMANDE")
@@ -141,7 +141,7 @@ class HologramPanel(QWidget):
 
         self.footer = QLabel("◉  AUDIO LOCAL  ·  ASSISTANT PERSONNEL")
         self.footer.setObjectName("atlas_hud_footer")
-        self.footer.setStyleSheet("color: #a0c5d5; font-size: 9px;")
+        self.footer.setStyleSheet("color: #8bd5f5; font-size: 9px;")
         self._outer.addWidget(self.footer)
         self.set_voice_control(running=False)
 
@@ -154,7 +154,7 @@ class HologramPanel(QWidget):
     @staticmethod
     def _label(layout, value):
         label = QLabel(value)
-        label.setStyleSheet("color: #80c6df; font-size: 9px; letter-spacing: 1px;")
+        label.setStyleSheet("color: #62dcff; font-size: 10px; letter-spacing: .6px;")
         layout.addWidget(label)
 
     @staticmethod
@@ -164,16 +164,17 @@ class HologramPanel(QWidget):
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         button.setMinimumWidth(0)
-        button.setFixedHeight(22)
+        button.setFixedHeight(25)
         button.setStyleSheet(
-            "QPushButton { color: #a7eaff; font: bold 9px 'Segoe UI';"
-            " background: rgba(4, 46, 72, 105); border: 0;"
-            " border-bottom: 1px solid #4bbee1; padding: 2px 3px; }"
+            "QPushButton { color: #d6f9ff; font: bold 9px 'Segoe UI';"
+            " background: rgba(0, 59, 90, 147);"
+            " border: 1px solid rgba(55, 204, 255, 165);"
+            " border-bottom: 2px solid #21c9ff; padding: 2px 4px; }"
             "QPushButton:hover { color: #ffffff;"
-            " background: rgba(24, 100, 132, 150); }"
-            "QPushButton:pressed { color: #ffbb75; }"
+            " background: rgba(18, 104, 141, 190); }"
+            "QPushButton:pressed { color: #ffbb75; border-bottom-color: #ff9c36; }"
             "QPushButton:disabled { color: #7d9ead;"
-            " border-bottom: 1px solid #637a88;"
+            " border: 1px solid rgba(70, 121, 145, 105);"
             " background: rgba(4, 30, 45, 75); }"
         )
         return button
@@ -184,7 +185,7 @@ class HologramPanel(QWidget):
         label.setWordWrap(True)
         label.setTextFormat(Qt.TextFormat.PlainText)
         label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        label.setStyleSheet("color: #e7f8ff; font-size: 12px;")
+        label.setStyleSheet("color: #effcff; font-size: 12px;")
         label.setMaximumHeight(65)
         return label
 
@@ -194,20 +195,24 @@ class HologramPanel(QWidget):
         # Keep all real text visible on 210px screens without expanding the
         # allocated window or changing the portrait's size/position.
         self._outer.setContentsMargins(
-            29 if compact else 35, 18 if compact else 25,
-            24 if compact else 30, 16 if compact else 24,
+            29 if compact else (41 if self.width() < 390 else 65),
+            18 if compact else 21,
+            24 if compact else 43,
+            16 if compact else 23,
         )
         self._outer.setSpacing(2 if compact else 7)
         self.footer.setVisible(not compact)
         self.controls.setSpacing(3 if compact else 7)
         font = self.heading.font()
-        font.setPointSize(8 if compact else 10)
+        font.setPointSize(8 if compact else 11)
         self.heading.setFont(font)
         font = self.status.font()
-        font.setPointSize(10 if compact else 12)
+        font.setPointSize(10 if compact else 14)
         self.status.setFont(font)
         for text in (self.heard, self.reply):
             text.setMaximumHeight(39 if compact else 65)
+            # Reserve a proper instrument column for live mic/neural glyphs.
+            text.setContentsMargins(0 if compact or self.width() < 390 else 43, 0, 0, 0)
 
     def set_voice_control(
         self, *, running: bool, paused: bool | None = False,
@@ -314,13 +319,13 @@ class HologramPanel(QWidget):
         slab.lineTo(left, top + 8)
         slab.closeSubpath()
         sheen = QLinearGradient(QPointF(left, top), QPointF(right, bottom))
-        sheen.setColorAt(0, QColor(43, 131, 169, 70))
-        sheen.setColorAt(.6, QColor(11, 45, 75, 75))
-        sheen.setColorAt(1, QColor(5, 25, 43, 24))
+        sheen.setColorAt(0, QColor(19, 103, 163, 135))
+        sheen.setColorAt(.5, QColor(4, 43, 89, 161))
+        sheen.setColorAt(1, QColor(7, 59, 108, 93))
         painter.fillPath(slab, QBrush(sheen))
         edge = QColor(accent)
         edge.setAlpha(120)
-        painter.setPen(QPen(edge, 1.0))
+        painter.setPen(QPen(edge, 1.5))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawLine(QPointF(left + 11, top + .5), QPointF(right - 13, top + .5))
         painter.drawLine(QPointF(left + 1, top + 8), QPointF(left + 1, bottom - 5))
@@ -398,6 +403,95 @@ class HologramPanel(QWidget):
         painter.drawEllipse(core, 2.7, 2.7)
         painter.restore()
 
+    def _paint_instruments(self, painter: QPainter, w: float, h: float) -> None:
+        """Static miniature holographic instruments, kept off the text areas.
+
+        Lines and circles only: no shader, bitmap filter, or new animation timer.
+        """
+        if w < 390 or h < 280:
+            return
+        painter.save()
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        # Upper-left orbital scanner. The live heading starts to its right.
+        centre = QPointF(42, 37)
+        painter.setPen(QPen(QColor(34, 210, 255, 110), 1))
+        painter.drawEllipse(centre, 16, 16)
+        painter.setPen(QPen(QColor(61, 220, 255, 165), .85))
+        painter.drawEllipse(centre, 10.5, 16)
+        painter.drawLine(QPointF(26, 37), QPointF(58, 37))
+        painter.setPen(QPen(QColor(255, 161, 66, 180), 1.4))
+        painter.drawArc(QRectF(21, 16, 42, 42), 40 * 16, 75 * 16)
+        # Left diagnostics spine, with unmistakably geometric instrument nodes.
+        for index, y in enumerate((.365, .445, .525, .605)):
+            x = 37.0
+            yy = y * h
+            painter.setPen(QPen(QColor(45, 204, 255, 95), 1))
+            painter.drawEllipse(QPointF(x, yy), 8, 8)
+            painter.setPen(QPen(QColor(255, 168, 70, 125), 1))
+            painter.drawLine(QPointF(x - 3, yy), QPointF(x + 3, yy))
+            painter.drawLine(QPointF(x, yy - 3), QPointF(x, yy + 3))
+            if index < 3:
+                painter.setPen(QPen(QColor(55, 179, 238, 78), .8))
+                painter.drawLine(QPointF(x, yy + 8), QPointF(x, (.445 + index * .08) * h - 8))
+        painter.restore()
+
+    def _paint_message_symbol(
+        self, painter: QPainter, label: QLabel, accent: QColor,
+        *, microphone: bool
+    ) -> None:
+        """Compact, real-time QPainter icon in the floated message glass."""
+        r = label.geometry()
+        if r.width() < 240 or r.height() < 26 or label.contentsMargins().left() == 0:
+            return
+        c = QPointF(r.left() + 21, r.center().y())
+        painter.save()
+        painter.setBrush(QColor(2, 35, 61, 195))
+        painter.setPen(QPen(QColor(accent.red(), accent.green(), accent.blue(), 145), 1.5))
+        painter.drawEllipse(c, 15.5, 15.5)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(QPen(QColor(209, 245, 255, 220), 1.8))
+        if microphone:
+            painter.drawRoundedRect(QRectF(c.x() - 3, c.y() - 8, 6, 12), 3, 3)
+            painter.drawArc(QRectF(c.x() - 7, c.y() - 6, 14, 15), 188 * 16, 164 * 16)
+            painter.drawLine(QPointF(c.x(), c.y() + 8), QPointF(c.x(), c.y() + 11))
+            painter.drawLine(QPointF(c.x() - 4, c.y() + 11), QPointF(c.x() + 4, c.y() + 11))
+        else:
+            # Twin hemispheres with a central neural bridge.
+            painter.drawArc(QRectF(c.x() - 10, c.y() - 8, 11, 17), 70 * 16, 230 * 16)
+            painter.drawArc(QRectF(c.x(), c.y() - 8, 11, 17), 240 * 16, 230 * 16)
+            painter.drawLine(QPointF(c.x(), c.y() - 9), QPointF(c.x(), c.y() + 9))
+            painter.drawLine(QPointF(c.x() - 5, c.y() - 1), QPointF(c.x() + 5, c.y() + 3))
+        painter.restore()
+
+    def _paint_illuminated_chassis(self, painter: QPainter, w: float, h: float) -> None:
+        """Multiple light-weight luminous edges give the pane optical depth."""
+        shape = self.projection_shape()
+        painter.save()
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        for width, alpha in ((7.0, 21), (3.0, 54), (1.0, 155)):
+            painter.setPen(QPen(QColor(27, 194, 255, alpha), width))
+            painter.drawPath(shape)
+        # Amber light modules echo the approved blue/orange ATLAS image.
+        fragments = (
+            ((.62, .018), (.80, .018)),
+            ((.81, .018), (.946, .106)),
+            ((.10, .905), (.18, .958)),
+            ((.66, .974), (.80, .974)),
+            ((.81, .974), (.956, .856)),
+        )
+        for a, b in fragments:
+            p1, p2 = QPointF(a[0] * w, a[1] * h), QPointF(b[0] * w, b[1] * h)
+            painter.setPen(QPen(QColor(255, 151, 45, 39), 5.0))
+            painter.drawLine(p1, p2)
+            painter.setPen(QPen(QColor(255, 170, 68, 195), 1.4))
+            painter.drawLine(p1, p2)
+        # Two narrow separated light bars: clearly holographic, never a box.
+        painter.setPen(QPen(QColor(42, 206, 255, 125), 1.1))
+        painter.drawLine(QPointF(.15 * w, .29 * h), QPointF(.79 * w, .29 * h))
+        painter.setPen(QPen(QColor(252, 161, 75, 120), 1.0))
+        painter.drawLine(QPointF(.17 * w, .666 * h), QPointF(.77 * w, .666 * h))
+        painter.restore()
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -443,8 +537,11 @@ class HologramPanel(QWidget):
             painter.drawLine(QPointF(col, .07 * h), QPointF(col, .92 * h))
 
         self._paint_neural_details(painter, w, h, phase, activity)
+        self._paint_instruments(painter, w, h)
         self._glass_card(painter, self.heard, _CYAN, w)
         self._glass_card(painter, self.reply, _AMBER, w)
+        self._paint_message_symbol(painter, self.heard, _CYAN, microphone=True)
+        self._paint_message_symbol(painter, self.reply, _AMBER, microphone=False)
 
         # Internal orbit / emitter circuitry near the robot-facing edge.
         painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -475,6 +572,7 @@ class HologramPanel(QWidget):
         painter.setPen(QPen(edge, 1.25))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawPath(path)
+        self._paint_illuminated_chassis(painter, w, h)
         painter.setPen(QPen(QColor(255, 165, 77, 180), 1.3))
         painter.drawLine(QPointF(.13 * w, .083 * h), QPointF(.50 * w, .083 * h))
         painter.drawLine(QPointF(.16 * w, .937 * h), QPointF(.59 * w, .937 * h))
