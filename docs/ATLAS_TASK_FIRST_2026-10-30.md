@@ -245,3 +245,51 @@ relevé comme un test matériel.
 
 Validation précédente : 10 tests du diagnostic système réussis sur Windows en 1,76 s.
 La tâche directe « Liste mes documents » et ses variantes pour les téléchargements et le bureau réutilisent l'outil localFiles existant, sans IA ni mutation des fichiers. Les dossiers sont limités au profil de l'utilisateur. Les commandes composées restent dans le parcours normal. Les tests unitaires ajoutés dans tests/test_file_inventory.py restent à exécuter sur Windows ; aucun fonctionnement réel n'est encore revendiqué.
+
+
+## 30 octobre 2026 — Inventaire direct de PDF (premier niveau)
+
+Les 13 tests de `tests/test_file_inventory.py` ont été exécutés
+sur Windows par l'utilisateur et ont réussi (`13 passed in 1.75s`).
+
+L'audit de `localFiles` confirme sa capacité de filtrage par
+`glob` avec protection du profil utilisateur. Sa recherche
+récursive matérialise cependant tous les chemins correspondants
+avant d'afficher 50 entrées : elle ne fournit pas de borne stricte
+sur le temps de parcours. Pour une première fonction déterministe,
+le filtrage par PDF reste **non récursif**.
+
+Nouvelles instructions directes reconnues :
+`Liste les PDF de mes documents`,
+`Liste les PDF de mes téléchargements`,
+`Liste les PDF de mon bureau` (et variantes exactes avec
+`fichiers PDF`). Elles réutilisent `localFiles` avec
+`operation=list`, `glob=*.pdf`, `recursive=False`.
+Seuls les **noms** des PDF du premier niveau sont affichés ;
+le contenu des documents n'est pas lu.
+
+Modifications :
+- `src/jarvis/tasks.py` : reconnaissance stricte des
+  demandes de PDF et filtrage dans les dossiers déjà autorisés,
+  sans nouveau service ou modèle. Les commandes composées,
+  destructives ou portant sur d'autres disques ne prennent
+  pas ce chemin direct.
+- `tests/test_file_inventory.py` : essais sur fichiers
+  de test isolés, exclusion des fichiers non PDF, absence
+  de lecture du contenu, absence de descente dans les
+  sous-dossiers, résultat vide et filtrage strict des intentions.
+- Pas de nouvelle dépendance ou d'édition du portrait.
+  La branche `main` reste intacte.
+
+**Validation :** ces nouveaux tests n'ont pas encore été
+exécutés sous Windows. Tester après récupération :
+
+```powershell
+git pull --ff-only origin develop-atlas
+.\.venv\Scripts\python.exe -m pytest -q tests/test_file_inventory.py
+```
+
+L'exécution réelle sur les dossiers Windows sera ensuite
+vérifiée depuis le centre des tâches. Une recherche récursive
+contrôlée devra être conçue séparément avec une limite de
+dossiers et de durée avant d'être activée.
