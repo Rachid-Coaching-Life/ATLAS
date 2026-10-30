@@ -18,7 +18,7 @@ _SEARCH_MAX_DEPTH = 5
 _SEARCH_MAX_SECONDS = 3.0
 
 
-def _bounded_pdf_search(root: Path, home_root: Path) -> str:
+def _bounded_pdf_search(root: Path, home_root: Path, *, deadline: Optional[float] = None) -> str:
     """Bounded read-only listing of PDF names, without following reparse points.
 
     Deadline is cooperative: it is checked between filesystem calls. An OS
@@ -35,7 +35,7 @@ def _bounded_pdf_search(root: Path, home_root: Path) -> str:
     entries = 0
     skipped = 0
     partial_reason = ""
-    deadline = time.monotonic() + _SEARCH_MAX_SECONDS
+    deadline = min(deadline, time.monotonic() + _SEARCH_MAX_SECONDS) if deadline is not None else time.monotonic() + _SEARCH_MAX_SECONDS
 
     while queued and not partial_reason:
         if time.monotonic() >= deadline:
