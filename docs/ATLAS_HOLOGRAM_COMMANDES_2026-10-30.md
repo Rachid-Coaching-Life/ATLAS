@@ -104,3 +104,48 @@ réponse et le callback de contrôle existant.
 Aucun changement applicatif, aucune modification du moteur de
 conversation, du portrait ou des commandes vocales. L'exécution Windows
 de ce test après correction reste à confirmer.
+
+
+## 30 octobre 2026 — Copier une conversation depuis le panneau
+
+**Validation précédente :** le scénario IPC corrigé
+`test_ipc_created_chat_forwards_reply_to_hologram` a été exécuté
+sur Windows par l'utilisateur : `1 passed in 2.44s`.
+Cela confirme le raccordement du test ciblé, sans constituer une
+validation manuelle de tous les contrôles de la projection.
+
+**Fonction livrée :** clic droit sur les cartes
+`DERNIÈRE DEMANDE` et `RÉPONSE`, puis
+`Copier le texte affiché`. Le texte en cours est envoyé dans
+le presse-papiers local de Windows exclusivement après cette action.
+
+Audit : le panneau possédait déjà des étiquettes Qt
+`QLabel.PlainText` et tronque l'aperçu à 230/250 caractères.
+Ajouter un troisième bouton permanent de copie aurait réduit
+la place disponible, notamment en vue compacte. Une action contextuelle
+sur les étiquettes existantes est moins intrusive.
+
+Fichiers :
+- `src/desktop_app/hologram_panel.py` : deux
+  `QAction` contextuelles, reliées au presse-papiers Qt par une
+  action utilisateur explicite. La copie concerne exactement le
+  **texte affiché**, pas forcément une longue réponse intégrale.
+- `tests/test_hologram_controls.py` : contrôle que le texte
+  reste littéral, que le presse-papiers ne change pas avant action,
+  que les mises à jour du contenu sont reprises et que les réponses
+  tronquées copient seulement la partie visible.
+
+Invariants : aucune nouvelle fenêtre, service, minuterie ou
+dépendance ; aucune modification d'ATLAS portrait, de son image,
+de sa taille, de sa position ou de la branche `main`.
+
+**Reste non vérifié :** les nouveaux tests de copie n'ont pas encore
+été exécutés dans l'environnement Qt Windows et le menu contextuel
+n'a pas encore été observé dans la fenêtre native.
+
+Pour récupérer et vérifier cette petite fonction :
+
+```powershell
+git pull --ff-only origin develop-atlas
+.\.venv\Scripts\python.exe -m pytest -q tests/test_hologram_controls.py::test_hologram_copy_action_uses_current_visible_plain_text
+```
