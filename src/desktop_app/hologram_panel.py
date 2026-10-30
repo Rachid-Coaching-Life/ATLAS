@@ -489,39 +489,96 @@ class HologramPanel(QWidget):
         painter.restore()
 
     def _paint_illuminated_chassis(self, painter: QPainter, w: float, h: float) -> None:
-        """Multiple light-weight luminous edges give the pane optical depth."""
-        shape = self.projection_shape()
+        """Separated, stationary light rails instead of one outer rectangle.
+
+        The negative spaces between rails are intentional: each instrument
+        must read as a projected island, not a mechanical screen enclosure.
+        """
         painter.save()
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        for width, alpha in ((7.0, 21), (3.0, 54), (1.0, 155)):
-            painter.setPen(QPen(QColor(27, 194, 255, alpha), width))
-            painter.drawPath(shape)
-        # Amber light modules echo the approved blue/orange ATLAS image.
-        fragments = (
-            ((.62, .018), (.80, .018)),
-            ((.81, .018), (.946, .106)),
-            ((.10, .905), (.18, .958)),
-            ((.66, .974), (.80, .974)),
-            ((.81, .974), (.956, .856)),
+        rails = (
+            (((.055, .255), (.055, .105), (.105, .031), (.265, .031)), _CYAN),
+            (((.57, .020), (.81, .020), (.947, .100), (.947, .237)), _AMBER),
+            (((.047, .327), (.047, .553), (.019, .627), (.051, .671)), _CYAN),
+            (((.051, .745), (.051, .875), (.175, .967), (.327, .967)), _CYAN),
+            (((.645, .969), (.824, .969), (.955, .861)), _AMBER),
+            (((.94, .715), (.947, .766), (.947, .824)), _CYAN),
         )
-        for a, b in fragments:
-            p1, p2 = QPointF(a[0] * w, a[1] * h), QPointF(b[0] * w, b[1] * h)
-            painter.setPen(QPen(QColor(255, 151, 45, 39), 5.0))
-            painter.drawLine(p1, p2)
-            painter.setPen(QPen(QColor(255, 170, 68, 195), 1.4))
-            painter.drawLine(p1, p2)
-        # Segmented luminous etchings on the chassis: strong optical signature
-        # with only a handful of lines (no continuously animated textures).
-        for segment in range(12):
-            x = (.25 + segment * .038) * w
-            tint = QColor(54, 215, 255, 145 if segment % 3 else 75)
-            painter.setPen(QPen(tint, 2.1))
-            painter.drawLine(QPointF(x, .958 * h), QPointF(x + .019 * w, .958 * h))
-        # Two narrow separated light bars: clearly holographic, never a box.
-        painter.setPen(QPen(QColor(42, 206, 255, 125), 1.1))
-        painter.drawLine(QPointF(.15 * w, .29 * h), QPointF(.79 * w, .29 * h))
-        painter.setPen(QPen(QColor(252, 161, 75, 120), 1.0))
-        painter.drawLine(QPointF(.17 * w, .666 * h), QPointF(.77 * w, .666 * h))
+        for index, (coords, color) in enumerate(rails):
+            path = QPainterPath(QPointF(coords[0][0] * w, coords[0][1] * h))
+            for px, py in coords[1:]:
+                path.lineTo(px * w, py * h)
+            for thickness, alpha in ((6.0, 21), (2.2, 70), (1.1, 187)):
+                line = QColor(color)
+                line.setAlpha(alpha if index % 2 == 0 else int(alpha * .86))
+                painter.setPen(QPen(line, thickness))
+                painter.drawPath(path)
+        # Measured ticks beneath the individual floating controls.
+        for segment in range(14):
+            x = (.23 + segment * .035) * w
+            painter.setPen(QPen(QColor(54, 215, 255, 112 if segment % 3 else 64), 1.5))
+            painter.drawLine(QPointF(x, .963 * h), QPointF(x + .016 * w, .963 * h))
+        painter.restore()
+
+    def _paint_controls_island(self, painter: QPainter, w: float, h: float) -> None:
+        """A distinct instrument foot below the conversation (no new widgets)."""
+        if w < 295 or h < 265:
+            return
+        buttons = self.voice_button.geometry().united(self.exchanges_button.geometry())
+        footer = self.footer.geometry()
+        if buttons.isEmpty():
+            return
+        left = max(19.0, float(buttons.left() - 11))
+        right = min(w - 22.0, float(buttons.right() + 12))
+        top = float(buttons.top() - 8)
+        bottom = min(h - 8.0, float(footer.bottom() + 5))
+        if bottom <= top + 20 or right <= left + 60:
+            return
+        foot = QPainterPath(QPointF(left + 17, top))
+        foot.lineTo(right - 25, top)
+        foot.lineTo(right, top + 11)
+        foot.lineTo(right - 12, bottom - 2)
+        foot.lineTo(left + 13, bottom)
+        foot.lineTo(left, bottom - 12)
+        foot.closeSubpath()
+        painter.save()
+        fill = QLinearGradient(QPointF(left, top), QPointF(right, bottom))
+        fill.setColorAt(0, QColor(1, 40, 73, 169))
+        fill.setColorAt(.5, QColor(2, 21, 52, 155))
+        fill.setColorAt(1, QColor(4, 39, 63, 126))
+        painter.fillPath(foot, QBrush(fill))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(QPen(QColor(49, 209, 255, 155), 1.0))
+        painter.drawLine(QPointF(left + 17, top), QPointF(right - 25, top))
+        painter.setPen(QPen(QColor(255, 165, 65, 150), 1.2))
+        painter.drawLine(QPointF(right, top + 11), QPointF(right - 12, bottom - 2))
+        painter.restore()
+
+    def _paint_telemetry_island(self, painter: QPainter, w: float, h: float) -> None:
+        """Independent translucent data crystal, bounded by label geometry."""
+        if w < 390 or h < 300:
+            return
+        reply_bottom = self.reply.geometry().bottom()
+        control_top = self.voice_button.geometry().top()
+        if control_top - reply_bottom < 21:
+            return
+        centre = (reply_bottom + control_top) / 2.0
+        left, right = .175 * w, .87 * w
+        top, bottom = centre - 11, centre + 11
+        crystal = QPainterPath(QPointF(left + 11, top))
+        crystal.lineTo(right - 24, top)
+        crystal.lineTo(right, centre)
+        crystal.lineTo(right - 22, bottom)
+        crystal.lineTo(left, bottom)
+        crystal.lineTo(left - 9, centre)
+        crystal.closeSubpath()
+        painter.save()
+        painter.fillPath(crystal, QColor(3, 37, 68, 120))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(QPen(QColor(40, 200, 255, 105), 1.0))
+        painter.drawLine(QPointF(left + 11, top), QPointF(right - 24, top))
+        painter.setPen(QPen(QColor(255, 164, 71, 125), 1.0))
+        painter.drawLine(QPointF(right, centre), QPointF(right - 22, bottom))
         painter.restore()
 
     def _paint_header_island(self, painter: QPainter, w: float, h: float) -> None:
@@ -679,17 +736,17 @@ class HologramPanel(QWidget):
         tint = QLinearGradient(QPointF(0, 0), QPointF(w, h))
         # Translucent carrier, not a single opaque tablet.  Opaque text
         # islands and light rails sit above the glass on separate planes.
-        tint.setColorAt(0, QColor(3, 32, 61, 39))
-        tint.setColorAt(.48, QColor(2, 16, 39, 24))
-        tint.setColorAt(1, QColor(2, 29, 53, 43))
+        tint.setColorAt(0, QColor(3, 32, 61, 14))
+        tint.setColorAt(.48, QColor(2, 16, 39, 8))
+        tint.setColorAt(1, QColor(2, 29, 53, 16))
         painter.fillPath(path, QBrush(tint))
 
         # Spectral lighting gives the acrylic depth without applying a
         # full-screen blur, OpenGL surface, or a new animation timer.
         for cx, cy, radius, color in (
-            (.89, .09, .48, QColor(31, 139, 252, 63)),
-            (.13, .91, .43, QColor(20, 193, 252, 40)),
-            (.89, .90, .32, QColor(255, 151, 56, 33)),
+            (.89, .09, .36, QColor(31, 139, 252, 19)),
+            (.13, .91, .30, QColor(20, 193, 252, 15)),
+            (.89, .90, .24, QColor(255, 151, 56, 12)),
         ):
             centre = QPointF(cx * w, cy * h)
             light = QRadialGradient(centre, radius * w)
@@ -704,22 +761,21 @@ class HologramPanel(QWidget):
             y1 = min(h, centre.y() + reach)
             if x1 > x0 and y1 > y0:
                 painter.fillRect(QRectF(x0, y0, x1 - x0, y1 - y0), QBrush(light))
-        # Narrow facet reflections, kept away from headings and text. Large
-        # opaque triangles previously made the panel look like flat polygons.
+        # Sparse reflection slivers: clear negative space between projections.
         faces = (
             (((.70, .019), (.83, .019), (.95, .095), (.91, .20)),
-             QColor(132, 230, 255, 25)),
+             QColor(132, 230, 255, 14)),
             (((.046, .64), (.078, .70), (.09, .90), (.05, .85)),
-             QColor(46, 194, 249, 23)),
+             QColor(46, 194, 249, 12)),
             (((.80, .82), (.955, .85), (.84, .966), (.72, .954)),
-             QColor(255, 165, 72, 20)),
+             QColor(255, 165, 72, 13)),
         )
         for coords, color in faces:
             painter.fillPath(_facet(coords, w, h), color)
 
         # Thin tech weave and microcircuits are deliberately subtle to keep
         # the actual conversation readable.
-        painter.setPen(QPen(QColor(67, 187, 224, 13), .6))
+        painter.setPen(QPen(QColor(67, 187, 224, 6), .6))
         for row in range(16, int(h), 28):
             painter.drawLine(QPointF(.09 * w, row), QPointF(.96 * w, row))
         for col in range(22, int(w), 37):
@@ -727,6 +783,8 @@ class HologramPanel(QWidget):
 
         self._paint_neural_details(painter, w, h, phase, activity)
         self._paint_header_island(painter, w, h)
+        self._paint_controls_island(painter, w, h)
+        self._paint_telemetry_island(painter, w, h)
         self._paint_instruments(painter, w, h)
         self._paint_orbital_core(painter, w, h)
         self._paint_telemetry(painter, w, h, phase, activity)
@@ -763,7 +821,8 @@ class HologramPanel(QWidget):
         edge.setAlpha(int((130 if activity else 95) * glow))
         painter.setPen(QPen(edge, 1.25))
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawPath(path)
+        # No continuous perimeter: negative space physically separates
+        # the header, live conversation, telemetry and command foot.
         self._paint_illuminated_chassis(painter, w, h)
         painter.setPen(QPen(QColor(255, 165, 77, 180), 1.3))
         painter.drawLine(QPointF(.13 * w, .083 * h), QPointF(.50 * w, .083 * h))
