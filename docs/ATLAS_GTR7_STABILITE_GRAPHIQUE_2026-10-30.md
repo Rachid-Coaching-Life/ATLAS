@@ -348,3 +348,26 @@ Un test d'export du nouveau PNG et de sa géométrie a été ajouté dans
 `tests/test_hologram_panel.py`. **À exécuter sur le GTR7**.
 La version normale est toujours le réglage par défaut et les coupures
 d'alimentation USB-PD restent non résolues.
+
+
+## Correction du lancement des tests en mode « allégé »
+
+Lors du contrôle du script sur fond clair, `tests/test_hologram_panel.py`
+a terminé par `26 passed, 2 failed`. Les deux assertions qui ont
+échoué exigeaient `panel._timer.interval() == 250` mais obtenaient
+`500`. La variable PowerShell `ATLAS_HOLOGRAM_LOW_EFFECTS=1`
+était encore définie lors de l'exécution de pytest, avant son
+`Remove-Item Env:...` ultérieur. Cette variable active volontairement
+un intervalle de 500 ms : ce n'est donc **pas une preuve de régression
+du rendu**.
+
+Les tests `test_orbital_glass_emitter_respects_cutouts_and_idles_without_repaint`
+et `test_hologram_islands_keep_real_controls_and_compact_fallback`
+suppriment maintenant cette variable via `monkeypatch.delenv(...)`
+avant la création des composants, pour tester explicitement le mode
+normal. `monkeypatch` restaure automatiquement l'environnement après
+chaque test.
+
+Les 2 tests corrigés **n'ont pas encore été réexécutés sur Windows**
+au moment de ce commit. La vue sur fond clair a bien été générée
+par le script ; sa lisibilité reste à évaluer à partir de la capture.
