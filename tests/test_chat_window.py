@@ -1145,21 +1145,29 @@ class TestAtlasHologramChatPreview:
         from jarvis.daemon import CHAT_IPC_PREFIX
 
         updates = []
+        pending_states = []
         tray = object.__new__(ATLASSystemTray)
         tray.chat_window = None
         tray._chat_submit_fn = None
         tray._chat_cancel_fn = None
         tray._chat_control_fn = lambda action, details: None
         tray.is_listening = True
+        # Mirror FaceWindow's actual contract: an enabled hologram always
+        # owns a panel, including its pending-response status slot.
         tray.face_window = SimpleNamespace(
             _hologram_enabled=True,
+            hologram=SimpleNamespace(set_chat_response_pending=pending_states.append),
             ingest_chat_preview=lambda request, response: updates.append((request, response)),
         )
         try:
             tray._on_chat_ipc_line(
+                f'{CHAT_IPC_PREFIX}{{"type":"start","data":"Question structurée"}}'
+            )
+            tray._on_chat_ipc_line(
                 f'{CHAT_IPC_PREFIX}{{"type":"complete","data":"Réponse structurée"}}'
             )
             assert updates == [("", "Réponse structurée")]
+            assert pending_states == [True, False]
             assert tray.chat_window._control_fn is tray._chat_control_fn
         finally:
             if tray.chat_window is not None:
