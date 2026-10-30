@@ -39,3 +39,25 @@ def test_repeated_introduction_guard_is_narrow(query, reply, expected):
     from jarvis.reply.engine import _remove_unrequested_atlas_introduction
 
     assert _remove_unrequested_atlas_introduction(reply, query) == expected
+
+
+def test_startup_presentation_is_queued_once_when_daemon_calls_helper():
+    from jarvis.daemon import _announce_atlas_startup, _ATLAS_STARTUP_GREETING
+
+    class FakeTTS:
+        enabled = True
+
+        def __init__(self):
+            self.queued = []
+
+        def speak(self, text):
+            self.queued.append(text)
+
+    tts = FakeTTS()
+    assert _announce_atlas_startup(tts) is True
+    assert tts.queued == [_ATLAS_STARTUP_GREETING]
+    assert _ATLAS_STARTUP_GREETING.startswith("Bonjour, je suis ATLAS.")
+    tts.enabled = False
+    assert _announce_atlas_startup(tts) is False
+    assert len(tts.queued) == 1
+    assert _announce_atlas_startup(None) is False
