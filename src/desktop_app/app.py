@@ -1773,6 +1773,16 @@ class DaemonThread(KeepAliveWorker):
                 print(error_msg, file=old_stderr)
 
 
+def _diagnostic_hologram_enabled() -> bool:
+    """Opt-in diagnostic: portrait-only window, independent of vocal startup.
+
+    This does not guarantee stability: Qt translucency, portrait animation,
+    the Windows compositor and voice daemon remain active. Never alter the
+    normal mode unless the user explicitly sets this environment variable.
+    """
+    return os.environ.get("ATLAS_DIAGNOSTIC_NO_HOLOGRAM") != "1"
+
+
 class ATLASSystemTray:
     """System tray application for ATLAS voice assistant."""
 
@@ -1818,14 +1828,15 @@ class ATLASSystemTray:
         # Create face window (hidden by default)
         # Note: Creating the face window also initializes the SpeakingState singleton
         # in the main thread, which is important for cross-thread signal delivery
-        self.face_window = FaceWindow(hologram=True)
+        self.face_window = FaceWindow(hologram=_diagnostic_hologram_enabled())
         # Keep conversation preview on the GUI thread, using the same
         # line stream already displayed by the optional log viewer.
         self.log_signals.new_log.connect(self.face_window.ingest_log)
-        self.face_window.hologram.voice_command_requested.connect(
-            self._handle_hologram_voice_request
-        )
-        self.face_window.hologram.exchange_view_requested.connect(self.show_chat)
+        if self.face_window._hologram_enabled:
+            self.face_window.hologram.voice_command_requested.connect(
+                self._handle_hologram_voice_request
+            )
+            self.face_window.hologram.exchange_view_requested.connect(self.show_chat)
 
         # Create dictation history window (hidden by default)
         from desktop_app.dictation_history import DictationHistoryWindow
