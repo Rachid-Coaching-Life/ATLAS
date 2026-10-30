@@ -777,7 +777,7 @@ class HologramPanel(QWidget):
             )
             for coords, color in faces:
                 painter.fillPath(_facet(coords, w, h), color)
-    
+
             # Thin tech weave and microcircuits are deliberately subtle to keep
             # the actual conversation readable.
             painter.setPen(QPen(QColor(67, 187, 224, 6), .6))
@@ -785,7 +785,7 @@ class HologramPanel(QWidget):
                 painter.drawLine(QPointF(.09 * w, row), QPointF(.96 * w, row))
             for col in range(22, int(w), 37):
                 painter.drawLine(QPointF(col, .07 * h), QPointF(col, .92 * h))
-    
+
         if not self._low_effects:
             self._paint_neural_details(painter, w, h, phase, activity)
         self._paint_header_island(painter, w, h)
@@ -809,7 +809,7 @@ class HologramPanel(QWidget):
             painter.setPen(QPen(QColor(255, 160, 75, 125), 1))
             painter.drawArc(QRectF(cx - 19, cy - 19, 38, 38),
                             int((-phase * 22) % 360) * 16, 90 * 16)
-    
+
             # Several deterministic particles travel along an internal circuit.
             for index in range(9):
                 p = (phase * (.07 if activity else .025) + index * .137) % 1
