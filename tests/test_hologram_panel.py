@@ -449,6 +449,7 @@ def test_spectral_layers_render_at_small_and_large_sizes(qapp):
 
     This is a widget/render regression test, not proof of GTR7 GPU stability.
     """
+    from PyQt6.QtCore import Qt
     from PyQt6.QtGui import QImage
     from desktop_app.hologram_panel import HologramPanel
 
@@ -467,7 +468,7 @@ def test_spectral_layers_render_at_small_and_large_sizes(qapp):
                 assert image.pixelColor(0, 0).alpha() == 0
                 assert image.pixelColor(width - 1, 0).alpha() == 0
                 assert image.pixelColor(width // 2, height // 2).alpha() > 0
-            assert panel.heard.textFormat().name == "PlainText"
-            assert panel.reply.textFormat().name == "PlainText"
+            assert panel.heard.textFormat() == Qt.TextFormat.PlainText
+            assert panel.reply.textFormat() == Qt.TextFormat.PlainText
         finally:
             panel.close()
