@@ -442,3 +442,32 @@ def test_offscreen_preview_loads_real_unicode_font_and_exports_png():
     assert image.height() == 330
     assert image.pixelColor(0, 0).alpha() == 0
     assert image.pixelColor(252, 165).alpha() > 0
+
+
+def test_spectral_layers_render_at_small_and_large_sizes(qapp):
+    """Real Qt rendering of static spectral glass at both layout extremes.
+
+    This is a widget/render regression test, not proof of GTR7 GPU stability.
+    """
+    from PyQt6.QtGui import QImage
+    from desktop_app.hologram_panel import HologramPanel
+
+    for width, height in ((210, 205), (505, 330)):
+        panel = HologramPanel()
+        try:
+            panel.resize(width, height)
+            panel.set_activity("idle")
+            for state in ("idle", "listening", "speaking"):
+                panel.set_activity(state)
+                image = QImage(
+                    panel.size(), QImage.Format.Format_ARGB32_Premultiplied
+                )
+                image.fill(0)
+                panel.render(image)
+                assert image.pixelColor(0, 0).alpha() == 0
+                assert image.pixelColor(width - 1, 0).alpha() == 0
+                assert image.pixelColor(width // 2, height // 2).alpha() > 0
+            assert panel.heard.textFormat().name == "PlainText"
+            assert panel.reply.textFormat().name == "PlainText"
+        finally:
+            panel.close()
