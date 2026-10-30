@@ -1846,6 +1846,9 @@ class ATLASSystemTray:
             self.face_window.hologram.stop_response_requested.connect(
                 self._handle_hologram_stop_request
             )
+            self.face_window.hologram.text_input_requested.connect(
+                self._handle_hologram_text_request
+            )
 
         # Create dictation history window (hidden by default)
         from desktop_app.dictation_history import DictationHistoryWindow
@@ -2336,17 +2339,54 @@ class ATLASSystemTray:
         if chat is not None and chat._query_in_flight:
             chat._stop()
 
+    def _create_chat_window(self):
+        """Create the one shared chat, with the same callbacks from every entry."""
+        from desktop_app.chat_window import ChatWindow
+        self.chat_window = ChatWindow(
+            submit_fn=self._chat_submit_fn,
+            daemon_available=self.is_listening,
+            cancel_fn=getattr(self, "_chat_cancel_fn", None),
+            control_fn=getattr(self, "_chat_control_fn", None),
+        )
+        self._connect_chat_to_hologram(self.chat_window)
+        return self.chat_window
+
+    def _handle_hologram_text_request(self) -> None:
+        """Collect focused text, then submit through the EXISTING hidden chat."""
+        from PyQt6.QtWidgets import QInputDialog, QMessageBox
+
+        if not self.is_listening:
+            QMessageBox.information(
+                None, "ATLAS", "Démarrez ATLAS avant d'envoyer une demande écrite."
+            )
+            return
+        chat = getattr(self, "chat_window", None)
+        if chat is not None and chat._query_in_flight:
+            return
+
+        # FaceWindow is WindowDoesNotAcceptFocus; the short-lived, separate
+        # Qt dialog is intentionally focusable. It does not replace the HUD.
+        text, accepted = QInputDialog.getMultiLineText(
+            None, "ATLAS — Écrire", "Votre demande :",
+            "", Qt.WindowType.Dialog | Qt.WindowType.WindowStaysOnTopHint,
+        )
+        if not accepted or not text.strip() or not self.is_listening:
+            return
+
+        if self.chat_window is None:
+            chat = self._create_chat_window()
+        else:
+            chat = self.chat_window
+            chat._submit_fn = self._chat_submit_fn
+            chat._cancel_fn = getattr(self, "_chat_cancel_fn", None)
+            chat._control_fn = getattr(self, "_chat_control_fn", None)
+            chat.set_daemon_status("running")
+        chat.submit_prompt(text)
+
     def show_chat(self) -> None:
         """Show the text chat window (created lazily on first open)."""
         if self.chat_window is None:
-            from desktop_app.chat_window import ChatWindow
-            self.chat_window = ChatWindow(
-                submit_fn=self._chat_submit_fn,
-                daemon_available=self.is_listening,
-                cancel_fn=getattr(self, "_chat_cancel_fn", None),
-                control_fn=getattr(self, "_chat_control_fn", None),
-            )
-            self._connect_chat_to_hologram(self.chat_window)
+            self._create_chat_window()
         else:
             self.chat_window._submit_fn = self._chat_submit_fn
             self.chat_window._cancel_fn = getattr(self, "_chat_cancel_fn", None)
@@ -2891,14 +2931,7 @@ class ATLASSystemTray:
         the line to ``ChatWindow.process_ipc_line`` for parsing + signal emit.
         """
         if self.chat_window is None:
-            from desktop_app.chat_window import ChatWindow
-            self.chat_window = ChatWindow(
-                submit_fn=self._chat_submit_fn,
-                daemon_available=self.is_listening,
-                cancel_fn=getattr(self, "_chat_cancel_fn", None),
-                control_fn=getattr(self, "_chat_control_fn", None),
-            )
-            self._connect_chat_to_hologram(self.chat_window)
+            self._create_chat_window()
         self.chat_window.process_ipc_line(line)
 
     def stop_daemon(
