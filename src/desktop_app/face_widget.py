@@ -599,6 +599,11 @@ class FaceWindow(QWidget):
         if self._hologram_enabled:
             self.hologram.ingest_log(line)
 
+    def ingest_chat_preview(self, request: str, response: str) -> None:
+        """Project text conversation events without touching the portrait."""
+        if self._hologram_enabled:
+            self.hologram.set_conversation_preview(request, response)
+
     def _position_on_right(self):
         """Position the window on the right side of the screen, vertically centered."""
         screen = QApplication.primaryScreen()
