@@ -1,5 +1,5 @@
 """
-Jarvis Voice Assistant
+ATLAS — Assistant vocal local
 
 A modular voice assistant with conversation memory, tool integration,
 and natural language processing capabilities.
@@ -22,7 +22,7 @@ import sys as _sys
 
 if _sys.version_info < (3, 11):
     raise SystemExit(
-        "⚠️ Python 3.11 or later is required to run Jarvis. "
+        "⚠️ Python 3.11 or later is required to run ATLAS. "
         "Install a supported Python and recreate your source environment."
     )
 
@@ -78,9 +78,9 @@ def get_version() -> tuple[str, str]:
 def main() -> None:
     """Lazy entrypoint to avoid importing heavy modules at package import time.
 
-    Importing `jarvis.daemon` here prevents it from being added to sys.modules
+    Importing the daemon here prevents it from being added to sys.modules
     during package import, which avoids runpy warnings when executing
-    `python -m jarvis.daemon`.
+    the daemon as a Python module.
     """
     from .daemon import main as _main
     _main()
