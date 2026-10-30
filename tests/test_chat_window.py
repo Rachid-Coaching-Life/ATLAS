@@ -1172,3 +1172,43 @@ class TestAtlasHologramChatPreview:
         finally:
             if tray.chat_window is not None:
                 tray.chat_window.close()
+
+
+@pytest.mark.unit
+def test_hologram_prompt_uses_single_chat_and_does_not_replay_history(qapp, monkeypatch):
+    """Submitting while hidden must not duplicate voice history on first show."""
+    from desktop_app.chat_window import ChatWindow
+
+    seeded = []
+    def voice_history():
+        seeded.append(True)
+        return [
+            {"role": "user", "content": "Question vocale précédente"},
+            {"role": "assistant", "content": "Réponse vocale précédente"},
+        ]
+
+    monkeypatch.setattr("desktop_app.chat_window.get_hot_window_messages", voice_history)
+    sent = []
+    chat = ChatWindow(submit_fn=sent.append, daemon_available=True)
+    try:
+        assert chat.submit_prompt("  Nouvelle question  ") is True
+        assert sent == ["Nouvelle question"]
+        assert not chat.isVisible()
+        assert chat.transcript_text().splitlines() == [
+            "Question vocale précédente",
+            "Réponse vocale précédente",
+            "Nouvelle question",
+        ]
+        assert chat.submit_prompt("Deuxième question") is False
+        chat._on_complete("Réponse nouvelle")
+        chat.show()
+        qapp.processEvents()
+        assert seeded == [True]
+        assert chat.transcript_text().splitlines() == [
+            "Question vocale précédente",
+            "Réponse vocale précédente",
+            "Nouvelle question",
+            "Réponse nouvelle",
+        ]
+    finally:
+        chat.close()
