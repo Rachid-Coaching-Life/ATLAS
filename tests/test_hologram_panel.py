@@ -800,3 +800,29 @@ def test_hologram_cached_effects_are_opt_in(qapp, monkeypatch):
         assert panel._spectral_cache is None
     finally:
         panel.close()
+
+
+def test_card_upper_edges_stay_below_section_titles_at_both_sizes(qapp, monkeypatch):
+    """Visible cyan/orange top rails must not strike their section captions."""
+    from desktop_app.hologram_panel import HologramPanel
+
+    # The geometry fix applies to all rendering modes, including the cached one.
+    monkeypatch.setenv("ATLAS_HOLOGRAM_LOW_EFFECTS", "1")
+    monkeypatch.setenv("ATLAS_HOLOGRAM_CACHED_EFFECTS", "1")
+    for width, height in ((505, 330), (210, 205)):
+        panel = HologramPanel()
+        try:
+            panel.resize(width, height)
+            panel.show()
+            qapp.processEvents()
+            for caption, message in (
+                (panel.heard_caption, panel.heard),
+                (panel.reply_caption, panel.reply),
+            ):
+                rail_top = panel._glass_card_top(message)
+                assert rail_top > caption.geometry().bottom()
+                assert rail_top < message.geometry().top()
+            assert panel.voice_button.isVisible()
+            assert panel.exchanges_button.isVisible()
+        finally:
+            panel.close()
