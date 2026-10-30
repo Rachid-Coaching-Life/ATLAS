@@ -895,3 +895,24 @@ d'alimentation seront évalués, l'option de relevé se combine
 au script : `scripts/probe_atlas_native_window.py --seconds 5
 --metrics`. Ne pas lancer ce test supplémentaire pour le seul
 besoin de statistiques tant que les coupures restent inexpliquées.
+
+
+## Validation Windows du diagnostic CPU/RAM — 30 octobre 2026
+
+L'utilisateur a récupéré `b293757` sur sa machine Windows par
+`git pull --ff-only origin develop-atlas` (fast-forward depuis
+`9c18311`), puis exécuté :
+
+```powershell
+$env:PYTHONPATH = "$PWD\src"
+.\.venv\Scripts\python.exe -m pytest -q tests/test_hologram_controls.py tests/test_hologram_panel.py tests/test_atlas_portrait.py
+```
+
+**Résultat communiqué : `56 passed in 9.69s`**.
+Cela valide l'exécution des tests automatisés dont celui
+de l'option opt-in `--metrics` en environnement Qt hors écran.
+L'utilisation réelle sur le bureau Windows de `--metrics`
+n'a pas été testée et les compteurs CPU/RAM ne mesurent ni le
+GPU, ni la consommation électrique, ni les températures.
+Aucune nouvelle fenêtre native complète n'a été lancée pour
+cette validation.
