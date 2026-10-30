@@ -1136,7 +1136,10 @@ class TestSampleRateFallback:
                                 if get_calls[0] == 2:
                                     from jarvis.listening.listener import _CapturedAudio
                                     return _CapturedAudio(np.zeros((4410, input_channels), dtype=np.float32), listener._audio_generation)
-                                assert decoded.wait(timeout=2), 'Captured speech did not reach Whisper'
+                                # Always stop the listener, even when the mocked
+                                # transcription never arrives. Assertions raised in
+                                # this worker can otherwise leave run() waiting forever.
+                                decoded.wait(timeout=2)
                                 listener._should_stop = True
                                 raise q.Empty()
 
@@ -1149,6 +1152,7 @@ class TestSampleRateFallback:
                                 mock_time.sleep = time.sleep
                                 listener.run()
 
+                            assert decoded.is_set(), 'Captured speech did not reach Whisper'
                             capture_kwargs = mock_sd.InputStream.call_args_list[-1][1]
                             assert capture_kwargs["samplerate"] == 44100
                             assert capture_kwargs['channels'] == input_channels
