@@ -37,8 +37,12 @@ def main():
         parser.error("Run from the repository root")
     if git("branch", "--show-current") != "develop-atlas":
         parser.error("Only develop-atlas is allowed")
-    if git("diff", "--name-only") or git("diff", "--cached", "--name-only"):
-        parser.error("Commit or stash changes to tracked files before migration")
+    dirty = set(git("diff", "--name-only").splitlines()) | set(git("diff", "--cached", "--name-only").splitlines())
+    affected_dirty = sorted(path for path in dirty if
+        (path.startswith(ROOTS) or path in SPECIAL) and
+        (path.endswith(SUFFIXES) or path in SPECIAL))
+    if affected_dirty:
+        parser.error("Tracked migration inputs have local edits: " + ", ".join(affected_dirty))
     if not Path("src", OLD).is_dir() or Path("src", NEW).exists():
         parser.error("Source package missing or destination already present")
 
