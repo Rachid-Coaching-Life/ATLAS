@@ -218,3 +218,52 @@ def test_voice_destructive_compound_file_request_fails_closed(
         assert "Demande d'ouverture ambiguë" in speech[0]
     finally:
         manager.shutdown()
+
+
+def test_incomplete_voice_search_requires_folder_before_opening(
+    test_profile, monkeypatch,
+):
+    from jarvis import tasks
+    from jarvis.listening.listener import VoiceListener
+    from jarvis.tools.builtin import local_files
+    from jarvis.reply import engine
+
+    docs = test_profile / "Documents"
+    desktop = test_profile / "Desktop"
+    docs.mkdir()
+    desktop.mkdir()
+    pdf = desktop / "Certificat-Medical.pdf"
+    pdf.write_bytes(b"%PDF-1.7\n")
+    real_search = local_files._bounded_pdf_search
+
+    def partial_documents(root, home, *, deadline=None):
+        if root.name == "Documents":
+            return "Recherche partielle : dossiers inaccessibles."
+        return real_search(root, home, deadline=deadline)
+
+    monkeypatch.setattr(local_files, "_bounded_pdf_search", partial_documents)
+    launched = []
+    monkeypatch.setattr(tasks.os, "startfile", launched.append, raising=False)
+    monkeypatch.setattr(
+        engine, "run_reply_engine",
+        lambda *_args, **_kwargs: pytest.fail("Pas de détour par le LLM"),
+    )
+    manager = tasks.TaskManager(
+        db=object(), cfg=SimpleNamespace(), dialogue_memory=None,
+    )
+    try:
+        voice, speech, _ = _voice_fixture(manager, monkeypatch)
+        VoiceListener._dispatch_query(
+            voice, "ATLAS, ouvre mon certificat médical",
+            language="fr", generation=4,
+        )
+        assert launched == []
+        assert "Recherche PDF incomplète" in speech[0]
+        assert voice._pending_pdf_clarification[0] == "certificat médical"
+
+        VoiceListener._dispatch_query(
+            voice, "sur le Bureau", language="fr", generation=4,
+        )
+        assert launched == [str(pdf.resolve())]
+    finally:
+        manager.shutdown()
