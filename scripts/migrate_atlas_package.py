@@ -8,7 +8,7 @@ import subprocess
 OLD = "jar" + "vis"
 NEW = "atlas"
 ROOTS = ("src/", "tests/", "evals/", "scripts/", "installer/", ".github/")
-SUFFIXES = (".py", ".pyi", ".spec", ".ps1", ".bat", ".sh", ".yml", ".yaml", ".toml", ".ini", ".cfg")
+SUFFIXES = (".py", ".pyi", ".spec", ".ps1", ".bat", ".sh", ".yml", ".yaml", ".toml", ".ini", ".cfg", ".iss")
 SPECIAL = ("jarvis_desktop.spec", "setup.py", "setup.cfg", "pytest.ini")
 DOTTED = re.compile(r"(?<![A-Za-z0-9_./\\\\])" + OLD + r"(?=\.)")
 IMPORT = re.compile(r"(?m)\b(from|import)\s+" + OLD + r"(?=\s|$)")
