@@ -103,7 +103,7 @@ def test_submission_timeout_retains_the_draft_and_late_ack_cannot_clear_a_retry(
         QTest.qWait(20)
         assert view.prompt.toPlainText() == 'Original draft'
         assert view.submit_button.isEnabled()
-        assert 'No confirmation' in view.details.toPlainText()
+        assert 'Aucune confirmation' in view.details.toPlainText()
         view.prompt.setPlainText('Revised draft')
         view._submit()
         late = {'type': 'submission', 'request_id': sent[0],
