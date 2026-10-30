@@ -2518,7 +2518,7 @@ class VoiceListener(threading.Thread):
         try:
             print("  🔊 ATLAS : annonce de disponibilité...", flush=True)
             self.tts.speak(
-                "Je suis ATLAS, à votre service.",
+                "Bonjour, je suis ATLAS. Je suis prêt à exécuter vos tâches.",
                 terminal_callback=_ready,
             )
         except Exception as exc:
