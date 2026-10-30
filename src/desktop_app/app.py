@@ -1849,6 +1849,9 @@ class ATLASSystemTray:
             self.face_window.hologram.text_input_requested.connect(
                 self._handle_hologram_text_request
             )
+            self.face_window.hologram.task_view_requested.connect(
+                self.show_task_centre
+            )
 
         # Create dictation history window (hidden by default)
         from desktop_app.dictation_history import DictationHistoryWindow
