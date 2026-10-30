@@ -496,3 +496,41 @@ def test_windows_launch_error_marks_task_failed(isolated_profile, monkeypatch):
         assert "No PDF association configured" in task.error
     finally:
         manager.shutdown()
+
+
+@pytest.mark.parametrize(
+    "instruction",
+    [
+        "Ouvre le PDF C:/Windows/secret.pdf",
+        "Ouvre le PDF Documents/../Downloads/fichier.pdf",
+        "Ouvre le PDF Documents/rapport.txt",
+        "Ouvre le PDF Documents/rapport.pdf et supprime les autres",
+    ],
+)
+def test_unsafe_pdf_open_request_fails_closed_without_llm(
+    isolated_profile, monkeypatch, instruction,
+):
+    from jarvis import tasks
+
+    documents = isolated_profile / "Documents"
+    documents.mkdir()
+    launched = []
+    monkeypatch.setattr(tasks.os, "startfile", launched.append, raising=False)
+    monkeypatch.setattr(
+        tasks, "run_reply_engine",
+        lambda *_args, **_kwargs: pytest.fail(
+            "Un chemin PDF refusé ne doit jamais être transmis au moteur IA"
+        ),
+    )
+    manager = tasks.TaskManager(
+        db=object(), cfg=SimpleNamespace(), dialogue_memory=None,
+    )
+    try:
+        identity = manager.submit(instruction)
+        manager.wait_for_idle(timeout=5)
+        task = manager.get(identity)
+        assert task.status == tasks.TaskStatus.FAILED
+        assert "Ouverture refusée" in task.error
+        assert launched == []
+    finally:
+        manager.shutdown()
