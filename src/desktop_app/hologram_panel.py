@@ -810,9 +810,7 @@ class HologramPanel(QWidget):
             painter.drawArc(QRectF(cx - 19, cy - 19, 38, 38),
                             int((-phase * 22) % 360) * 16, 90 * 16)
     
-            if not self._low_effects:
-        
-        # Several deterministic particles travel along an internal circuit.
+            # Several deterministic particles travel along an internal circuit.
             for index in range(9):
                 p = (phase * (.07 if activity else .025) + index * .137) % 1
                 px = w * (.14 + .72 * p)
