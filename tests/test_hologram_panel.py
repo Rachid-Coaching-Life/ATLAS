@@ -265,3 +265,47 @@ def test_holographic_overlay_on_narrow_screen_remains_transparent(qapp):
         assert image.pixelColor(105, 100).alpha() > 0
     finally:
         panel.close()
+
+
+def test_wide_neural_projection_preserves_portrait_screen_anchor(qapp):
+    """A wider glass HUD must not move or resize ATLAS on large displays."""
+    from PyQt6.QtCore import QRect
+    from desktop_app.face_widget import FaceWindow
+
+    desktop = SimpleNamespace(availableGeometry=lambda: QRect(0, 0, 1920, 1080))
+    with patch("desktop_app.face_widget.QApplication.primaryScreen", return_value=desktop):
+        window = FaceWindow(hologram=True)
+        try:
+            window.show()
+            qapp.processEvents()
+            window.layout().activate()
+            assert window.hologram.width() == 505
+            assert window.face.height() == 330
+            assert window.width() <= 1920
+            # Right-side screen positioning remains tied to the face, not HUD width.
+            assert window.pos().x() + window.face.x() == (
+                desktop.availableGeometry().right() - window.face.width() - 20
+            )
+        finally:
+            window.close()
+
+
+def test_neural_light_rails_keep_real_glass_cutouts(qapp):
+    """The extra layers must not paint into the transparent desktop corners."""
+    from PyQt6.QtGui import QImage
+    from desktop_app.hologram_panel import HologramPanel
+
+    panel = HologramPanel()
+    try:
+        panel.resize(505, 330)
+        panel.set_activity("listening")
+        image = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        image.fill(0)
+        panel.render(image)
+        assert image.pixelColor(0, 0).alpha() == 0
+        assert image.pixelColor(504, 0).alpha() == 0
+        assert image.pixelColor(252, 165).alpha() > 0
+        assert image.pixelColor(262, 317).alpha() > 0  # optical emitter
+        assert panel.input_region().contains(panel.voice_button.geometry().center())
+    finally:
+        panel.close()
