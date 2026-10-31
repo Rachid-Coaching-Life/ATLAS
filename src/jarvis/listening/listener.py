@@ -1476,7 +1476,7 @@ class VoiceListener(threading.Thread):
         )
         if complete_sentence and idle_and_drained:
             timed_out = self.state_manager.check_collection_timeout(
-                silence_override_sec=1.25,
+                silence_override_sec=0.7,
             )
         else:
             timed_out = self.state_manager.check_collection_timeout()
