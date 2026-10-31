@@ -2077,51 +2077,82 @@ def test_voice_collection_fast_timeout_only_after_complete_quiet_sentence(
     listener._dispatch_query.assert_not_called()
 
 
-def test_voice_dispatch_async_keeps_listening_thread_free(capsys):
-    """A blocked reply must not block later transcript processing."""
+def test_voice_dispatch_async_queues_followup_without_blocking(capsys):
+    import threading
+    from types import SimpleNamespace
+    from jarvis.listening.listener import VoiceListener
+
+    first_entered = threading.Event()
+    release_first = threading.Event()
+    all_done = threading.Event()
+    calls = []
+
+    def dispatch(text, *, language, generation):
+        calls.append(text)
+        if text == "premiere":
+            first_entered.set()
+            assert release_first.wait(2.0)
+        if text == "seconde":
+            all_done.set()
+
+    instance = SimpleNamespace(
+        _dispatch_slot=threading.Lock(),
+        _dispatch_pending_lock=threading.Lock(),
+        _dispatch_pending=None,
+        _dispatch_query=dispatch,
+        _transcription_is_current=lambda generation: generation == 1,
+        _should_stop=False,
+    )
+    VoiceListener._dispatch_async(instance, "premiere", language="fr", generation=1)
+    try:
+        assert first_entered.wait(1.0)
+        started = time.monotonic()
+        VoiceListener._dispatch_async(instance, "seconde", language="fr", generation=1)
+        assert time.monotonic() - started < 0.5
+        assert calls == ["premiere"]
+        assert "voice_outcome=queued_followup" in capsys.readouterr().out
+    finally:
+        release_first.set()
+    assert all_done.wait(2.0)
+    deadline = time.monotonic() + 2.0
+    while instance._dispatch_slot.locked() and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert not instance._dispatch_slot.locked()
+    assert calls == ["premiere", "seconde"]
+
+
+def test_voice_dispatch_async_discards_stale_followup(capsys):
     import threading
     from types import SimpleNamespace
     from jarvis.listening.listener import VoiceListener
 
     entered = threading.Event()
-    release = threading.Event()
-    finished = threading.Event()
+    unblock = threading.Event()
     calls = []
 
-    def blocked_dispatch(text, *, language, generation):
+    def dispatch(text, *, language, generation):
         calls.append(text)
         entered.set()
-        try:
-            assert release.wait(2.0)
-        finally:
-            finished.set()
+        assert unblock.wait(2.0)
 
-    listener = SimpleNamespace(
+    instance = SimpleNamespace(
         _dispatch_slot=threading.Lock(),
-        _dispatch_query=blocked_dispatch,
+        _dispatch_pending_lock=threading.Lock(),
+        _dispatch_pending=None,
+        _dispatch_query=dispatch,
+        _transcription_is_current=lambda generation: generation == 1,
+        _should_stop=False,
     )
-    VoiceListener._dispatch_async(listener, "premiere", language="fr", generation=1)
-    try:
-        assert entered.wait(1.0)
-        started = time.monotonic()
-        VoiceListener._dispatch_async(listener, "seconde", language="fr", generation=1)
-        assert time.monotonic() - started < 0.5
-        assert calls == ["premiere"]
-        assert "voice_outcome=busy" in capsys.readouterr().out
-    finally:
-        release.set()
-        assert finished.wait(2.0)
-
-    # After release, a later request is accepted.
+    VoiceListener._dispatch_async(instance, "premiere", language="fr", generation=1)
+    assert entered.wait(1.0)
+    VoiceListener._dispatch_async(instance, "perimee", language="fr", generation=0)
+    unblock.set()
     deadline = time.monotonic() + 2.0
-    while listener._dispatch_slot.locked() and time.monotonic() < deadline:
+    while instance._dispatch_slot.locked() and time.monotonic() < deadline:
         time.sleep(0.01)
-    assert not listener._dispatch_slot.locked()
-    VoiceListener._dispatch_async(listener, "troisieme", language="fr", generation=1)
-    deadline = time.monotonic() + 2.0
-    while len(calls) < 2 and time.monotonic() < deadline:
-        time.sleep(0.01)
-    assert calls == ["premiere", "troisieme"]
+    assert not instance._dispatch_slot.locked()
+    assert calls == ["premiere"]
+    assert "voice_outcome=stale_queued_followup" in capsys.readouterr().out
 
 
 def test_voice_dispatch_async_releases_slot_after_exception(capsys):
@@ -2132,15 +2163,19 @@ def test_voice_dispatch_async_releases_slot_after_exception(capsys):
     def failing_dispatch(text, *, language, generation):
         raise RuntimeError("synthetic failure")
 
-    listener = SimpleNamespace(
+    instance = SimpleNamespace(
         _dispatch_slot=threading.Lock(),
+        _dispatch_pending_lock=threading.Lock(),
+        _dispatch_pending=None,
         _dispatch_query=failing_dispatch,
+        _transcription_is_current=lambda generation: True,
+        _should_stop=False,
     )
-    VoiceListener._dispatch_async(listener, "test", language="fr", generation=1)
+    VoiceListener._dispatch_async(instance, "test", language="fr", generation=1)
     deadline = time.monotonic() + 2.0
-    while listener._dispatch_slot.locked() and time.monotonic() < deadline:
+    while instance._dispatch_slot.locked() and time.monotonic() < deadline:
         time.sleep(0.01)
-    assert not listener._dispatch_slot.locked()
+    assert not instance._dispatch_slot.locked()
     assert "voice_outcome=dispatch_error" in capsys.readouterr().out
 
 
