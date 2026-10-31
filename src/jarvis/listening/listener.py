@@ -1478,7 +1478,8 @@ class VoiceListener(threading.Thread):
             timed_out = self.state_manager.check_collection_timeout(
                 silence_override_sec=0.7,
             )
-        elif idle_and_drained and len(pending.split()) >= 3:
+        elif (idle_and_drained and len(pending.split()) >= 3
+              and not pending.endswith("...")):
             # Unpunctuated Whisper output is common in voice commands.
             # A slightly longer pause protects multipart utterances.
             timed_out = self.state_manager.check_collection_timeout(
