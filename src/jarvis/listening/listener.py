@@ -611,6 +611,10 @@ class VoiceListener(threading.Thread):
 
     def on_playback_started(self, request, duration: float) -> None:
         """Track the exact utterance entering playback, independently of its source."""
+        queued_at = getattr(self, "_voice_reply_queued_at", None)
+        if queued_at is not None:
+            print(f"  ⏱️ Voix : préparation avant lecture {time.monotonic() - queued_at:.2f} s", flush=True)
+            self._voice_reply_queued_at = None
         with self._audio_state_lock:
             self._active_playback = request
             energy = self._recent_audio_energy
@@ -1106,6 +1110,9 @@ class VoiceListener(threading.Thread):
         """
         if not self._transcription_is_current(generation):
             return
+        last_voice = getattr(self.state_manager, "_last_voice_time", 0.0)
+        if last_voice > 0:
+            print(f"  ⏱️ Fin de commande → traitement : {max(0.0, time.time() - last_voice):.2f} s", flush=True)
         debug_log(f"dispatching query (language: {language}): '{query}'", "voice")
         from .speech_context import SpeechContext
         speech_context = SpeechContext.capture(
@@ -1245,6 +1252,7 @@ class VoiceListener(threading.Thread):
                 return
             if reply and self.tts is not None and self.tts.enabled:
                 debug_log(f'Queueing voice output ({len(reply)} chars)', 'voice')
+                self._voice_reply_queued_at = time.monotonic()
                 self.tts.speak(reply, completion_callback=None if failed else on_complete,
                                terminal_callback=release_query)
                 transferred = True
