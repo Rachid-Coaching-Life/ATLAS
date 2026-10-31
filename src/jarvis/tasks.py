@@ -373,7 +373,7 @@ def _direct_voice_task_prompt(
         }
         qualifier = folder_followups.get(_normalized_task_intent(clean))
         if qualifier:
-            return f"{'Lis-moi' if pending_pdf_title.startswith('LIRE:') else 'Ouvre mon'} {pending_pdf_title[5:] if pending_pdf_title.startswith('LIRE:') else pending_pdf_title} {qualifier}"
+            return f"Ouvre mon {pending_pdf_title} {qualifier}"
     if (
         _is_direct_system_status_task(clean)
         or _direct_file_list_folder(clean) is not None
