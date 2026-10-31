@@ -471,6 +471,7 @@ class VoiceListener(threading.Thread):
         self._audio_q: queue.Queue = queue.Queue(maxsize=64)
         self._transcription_jobs_q: queue.Queue = queue.Queue(maxsize=8)
         self._transcription_results_q: queue.Queue = queue.Queue(maxsize=8)
+        self._dispatch_slot = threading.Lock()  # Keep the listening loop responsive
         self._transcription_worker_thread: Optional[threading.Thread] = None
         self._audio_worker_thread: Optional[threading.Thread] = None
         self._audio_state_lock = threading.RLock()
@@ -660,7 +661,7 @@ class VoiceListener(threading.Thread):
             if self.state_manager.check_collection_timeout():
                 query = self.state_manager.clear_collection()
                 if query.text.strip():
-                    self._dispatch_query(query.text, language=query.language, generation=generation)
+                    self._dispatch_async(query.text, language=query.language, generation=generation)
 
             # Check hot window expiry
             self.state_manager.check_hot_window_expiry(self.cfg.voice_debug)
@@ -1100,6 +1101,27 @@ class VoiceListener(threading.Thread):
         else:
             debug_log(f"input ignored (no wake word{intent_info}): {text_lower}", "voice")
 
+    def _dispatch_async(self, query: str, *, language: Optional[str], generation: int) -> None:
+        """Execute a single voice request without blocking transcript consumption."""
+        if not self._dispatch_slot.acquire(blocking=False):
+            print("  ⚠️ voice_outcome=busy : une demande est déjà en cours", flush=True)
+            return
+
+        def run() -> None:
+            try:
+                self._dispatch_query(query, language=language, generation=generation)
+            except Exception as exc:
+                print(f"  ⚠️ voice_outcome=dispatch_error ({type(exc).__name__})", flush=True)
+                debug_log(f"voice dispatch failed: {type(exc).__name__}: {exc}", "voice")
+            finally:
+                self._dispatch_slot.release()
+
+        try:
+            threading.Thread(target=run, name="atlas-voice-dispatch", daemon=True).start()
+        except Exception:
+            self._dispatch_slot.release()
+            raise
+
     def _dispatch_query(self, query: str, *, language: Optional[str], generation: int) -> None:
         """
         Dispatch a complete query to the reply engine.
@@ -1509,7 +1531,7 @@ class VoiceListener(threading.Thread):
         if timed_out:
             query = self.state_manager.clear_collection()
             if query.text.strip():
-                self._dispatch_query(query.text, language=query.language, generation=generation)
+                self._dispatch_async(query.text, language=query.language, generation=generation)
             else:
                 # A name alone must never trigger an LLM reply or leave the
                 # activity indicator stuck in LISTENING after the wait ends.
