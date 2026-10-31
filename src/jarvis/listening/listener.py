@@ -1138,6 +1138,8 @@ class VoiceListener(threading.Thread):
         transferred = False
 
         def release_query(outcome=None):
+            if outcome is not None:
+                print(f"  🔊 voice_outcome=tts_{outcome}", flush=True)
             if owner is not None:
                 released = manager.release_state(owner)
                 debug_log(f'Voice thinking cleanup: released={released}', 'voice')
@@ -1250,6 +1252,8 @@ class VoiceListener(threading.Thread):
             if not self._transcription_is_current(generation):
                 debug_log('Discarded voice reply after generation invalidation', 'voice')
                 return
+            if reply and (self.tts is None or not self.tts.enabled):
+                print("  ⚠️ voice_outcome=tts_unavailable : réponse vocale impossible", flush=True)
             if reply and self.tts is not None and self.tts.enabled:
                 debug_log(f'Queueing voice output ({len(reply)} chars)', 'voice')
                 self._voice_reply_queued_at = time.monotonic()
