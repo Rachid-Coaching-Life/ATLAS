@@ -54,6 +54,38 @@ def rewrite(path, source):
     return target
 
 
+def apply_changes(changes):
+    # Stage every rewritten file in a temporary directory before touching inputs.
+    # A failure in preparation must not leave a half-migrated working tree.
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix="atlas-migration-") as temp_dir:
+        staged = []
+        for index, (old, new, content) in enumerate(changes):
+            temp = Path(temp_dir) / str(index)
+            temp.write_text(content, encoding="utf-8")
+            staged.append((old, new, temp))
+        # Keep original bytes for a best-effort rollback on write failure.
+        originals = {old: Path(old).read_bytes() for old, _, _ in staged}
+        installed = []
+        try:
+            for old, new, temp in staged:
+                dest = Path(new)
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_bytes(temp.read_bytes())
+                installed.append((old, new))
+            for old, new, _ in staged:
+                if old != new:
+                    Path(old).unlink()
+        except Exception:
+            for old, new in reversed(installed):
+                if old != new:
+                    Path(new).unlink(missing_ok=True)
+            for old, data in originals.items():
+                Path(old).parent.mkdir(parents=True, exist_ok=True)
+                Path(old).write_bytes(data)
+            raise
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true", help="rewrite files after safety checks")
@@ -124,35 +156,7 @@ def main():
     for old, new, _ in changes:
         if old != new and Path(new).exists():
             parser.error(f"Destination already exists: {new}")
-    # Stage every rewritten file in a temporary directory before touching inputs.
-    # A failure in preparation must not leave a half-migrated working tree.
-    import tempfile
-    with tempfile.TemporaryDirectory(prefix="atlas-migration-") as temp_dir:
-        staged = []
-        for index, (old, new, content) in enumerate(changes):
-            temp = Path(temp_dir) / str(index)
-            temp.write_text(content, encoding="utf-8")
-            staged.append((old, new, temp))
-        # Keep original bytes for a best-effort rollback on write failure.
-        originals = {old: Path(old).read_bytes() for old, _, _ in staged}
-        installed = []
-        try:
-            for old, new, temp in staged:
-                dest = Path(new)
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                dest.write_bytes(temp.read_bytes())
-                installed.append((old, new))
-            for old, new, _ in staged:
-                if old != new:
-                    Path(old).unlink()
-        except Exception:
-            for old, new in reversed(installed):
-                if old != new:
-                    Path(new).unlink(missing_ok=True)
-            for old, data in originals.items():
-                Path(old).parent.mkdir(parents=True, exist_ok=True)
-                Path(old).write_bytes(data)
-            raise
+    apply_changes(changes)
     print("Changes made locally. Review diff and run tests before committing.")
 
 
