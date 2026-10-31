@@ -28,6 +28,19 @@ from ..llm import (
 )
 
 
+def _timed_reply_stage(stage, callback, *args, **kwargs):
+    """Report elapsed wall time for each internal reply stage without changing its result."""
+    import time
+    started = time.perf_counter()
+    try:
+        return callback(*args, **kwargs)
+    finally:
+        print(
+            f"  ⏱️ reply_stage={stage} duration_s={time.perf_counter() - started:.2f}",
+            flush=True,
+        )
+
+
 def chat_with_messages(cfg, messages, *, timeout_sec=30.0, extra_options=None,
                        tools=None, thinking=False):
     """Local indirection: route the engine's chat call through the active
@@ -1166,7 +1179,7 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
         ]
         if not reply:
             try:
-                response = chat_with_messages(
+                response = _timed_reply_stage("smalltalk_chat", chat_with_messages,
                     cfg, messages, timeout_sec=18.0,
                     extra_options={"num_ctx": 2048, "max_tokens": 80},
                     tools=None, thinking=False,
@@ -1318,7 +1331,7 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
     else:
         if preparation_cancelled("routing cache lookup"):
             return None
-        routed_tools = select_tools(
+        routed_tools = _timed_reply_stage("tool_routing", select_tools,
             query=redacted,
             builtin_tools=BUILTIN_TOOLS,
             mcp_tools=mcp_tools,
@@ -1443,7 +1456,7 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
         )
     else:
         try:
-            action_plan = plan_query(
+            action_plan = _timed_reply_stage("planning", plan_query,
                 cfg=cfg,
                 query=redacted,
                 dialogue_context=_dialogue_ctx,
@@ -1745,7 +1758,7 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
 
     if digest_enabled and (raw_diary_entries or raw_graph_parts):
         try:
-            digest = digest_memory_for_query(
+            digest = _timed_reply_stage("memory_digest", digest_memory_for_query,
                 query=redacted,
                 diary_entries=raw_diary_entries,
                 transcript_context=transcript_context,
@@ -2495,7 +2508,7 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
         _dump_tools_schema = None if use_text_tools else tools_json_schema
         _chat_model = cfg.llm_chat_model
         try:
-            llm_resp = chat_with_messages(
+            llm_resp = _timed_reply_stage("response_llm", chat_with_messages,
                 cfg=cfg,
                 messages=messages,
                 timeout_sec=float(getattr(cfg, 'llm_chat_timeout_sec', 45.0)),
@@ -2528,7 +2541,7 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
             use_text_tools = True
             messages[0] = {"role": "system", "content": _build_initial_system_message()}
             _update_system_message_with_context(messages)
-            llm_resp = chat_with_messages(
+            llm_resp = _timed_reply_stage("response_llm", chat_with_messages,
                 cfg=cfg,
                 messages=messages,
                 timeout_sec=float(getattr(cfg, 'llm_chat_timeout_sec', 45.0)),
