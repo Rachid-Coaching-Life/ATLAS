@@ -2036,3 +2036,38 @@ def cached_whisper_files(monkeypatch, tmp_path):
     monkeypatch.setattr("huggingface_hub.constants.HF_HUB_CACHE", str(tmp_path))
     monkeypatch.setattr("jarvis.listening.model_download.prepare_faster_whisper_model",
                         lambda name: name)
+
+
+@pytest.mark.parametrize(
+    ("sentence", "speech_active", "queued", "expected_override"),
+    [
+        ("ATLAS quelle heure est-il ?", False, False, 0.7),
+        ("ATLAS explique ce document.", False, False, 0.7),
+        ("ATLAS explique ce document...", False, False, None),
+        ("ATLAS explique", False, False, None),
+        ("ATLAS quelle heure est-il ?", True, False, None),
+        ("ATLAS quelle heure est-il ?", False, True, None),
+    ],
+)
+def test_voice_collection_fast_timeout_only_after_complete_quiet_sentence(
+    sentence, speech_active, queued, expected_override,
+):
+    """Do not shorten silence while speech or transcription is still active."""
+    from jarvis.listening.listener import VoiceListener
+
+    state = MagicMock()
+    state.get_pending_query.return_value = sentence
+    state.check_collection_timeout.return_value = False
+    listener = MagicMock()
+    listener._capture_generation = 7
+    listener.state_manager = state
+    listener.is_speech_active = speech_active
+    listener._transcription_jobs_q.empty.return_value = not queued
+    listener._transcription_results_q.empty.return_value = True
+    VoiceListener._check_query_timeout(listener)
+    kwargs = state.check_collection_timeout.call_args.kwargs
+    if expected_override is None:
+        assert kwargs == {}
+    else:
+        assert kwargs == {"silence_override_sec": expected_override}
+    listener._dispatch_query.assert_not_called()
