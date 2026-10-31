@@ -154,15 +154,6 @@ def main():
                 Path(old).write_bytes(data)
             raise
     print("Changes made locally. Review diff and run tests before committing.")
-    return
-    for _, new, content in changes:
-        dest = Path(new)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(content, encoding="utf-8")
-    for old, new, _ in changes:
-        if new != old:
-            Path(old).unlink()
-    print("Changes made locally. Review diff and run tests before committing.")
 
 
 if __name__ == "__main__":
