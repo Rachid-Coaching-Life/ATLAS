@@ -114,7 +114,7 @@ def test_failed_apply_restores_original_files(tmp_path, monkeypatch):
     original_write = Path.write_bytes
 
     def fail_second_destination(self, data):
-        if self == new_b:
+        if self.resolve() == new_b:
             raise OSError("injected destination write failure")
         return original_write(self, data)
 
