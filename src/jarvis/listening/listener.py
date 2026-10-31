@@ -472,6 +472,8 @@ class VoiceListener(threading.Thread):
         self._transcription_jobs_q: queue.Queue = queue.Queue(maxsize=8)
         self._transcription_results_q: queue.Queue = queue.Queue(maxsize=8)
         self._dispatch_slot = threading.Lock()  # Keep the listening loop responsive
+        self._dispatch_pending_lock = threading.Lock()
+        self._dispatch_pending = None  # At most one queued voice follow-up
         self._transcription_worker_thread: Optional[threading.Thread] = None
         self._audio_worker_thread: Optional[threading.Thread] = None
         self._audio_state_lock = threading.RLock()
@@ -1166,24 +1168,43 @@ class VoiceListener(threading.Thread):
         return f"Nous sommes le {weekdays[now.weekday()]} {day} {months[now.month - 1]} {now.year}."
 
     def _dispatch_async(self, query: str, *, language: Optional[str], generation: int) -> None:
-        """Execute a single voice request without blocking transcript consumption."""
-        if not self._dispatch_slot.acquire(blocking=False):
-            print("  ⚠️ voice_outcome=busy : une demande est déjà en cours", flush=True)
-            return
+        """Keep recognition responsive and retain one follow-up while the LLM runs."""
+        with self._dispatch_pending_lock:
+            if not self._dispatch_slot.acquire(blocking=False):
+                # Latest completed request replaces an older waiting request.
+                # Do not grow an unbounded backlog if a model stalls.
+                self._dispatch_pending = (query, language, generation)
+                print("  🎙️ voice_outcome=queued_followup", flush=True)
+                return
 
         def run() -> None:
-            try:
-                self._dispatch_query(query, language=language, generation=generation)
-            except Exception as exc:
-                print(f"  ⚠️ voice_outcome=dispatch_error ({type(exc).__name__})", flush=True)
-                debug_log(f"voice dispatch failed: {type(exc).__name__}: {exc}", "voice")
-            finally:
-                self._dispatch_slot.release()
+            current = (query, language, generation)
+            while True:
+                text, lang, capture_generation = current
+                try:
+                    if self._transcription_is_current(capture_generation):
+                        self._dispatch_query(
+                            text, language=lang, generation=capture_generation,
+                        )
+                    else:
+                        print("  ⚠️ voice_outcome=stale_queued_followup", flush=True)
+                except Exception as exc:
+                    print(f"  ⚠️ voice_outcome=dispatch_error ({type(exc).__name__})", flush=True)
+                    debug_log(f"voice dispatch failed: {type(exc).__name__}: {exc}", "voice")
+                finally:
+                    with self._dispatch_pending_lock:
+                        next_request = self._dispatch_pending
+                        self._dispatch_pending = None
+                        if next_request is None or self._should_stop:
+                            self._dispatch_slot.release()
+                            return
+                        current = next_request
 
         try:
             threading.Thread(target=run, name="atlas-voice-dispatch", daemon=True).start()
         except Exception:
-            self._dispatch_slot.release()
+            with self._dispatch_pending_lock:
+                self._dispatch_slot.release()
             raise
 
     def _dispatch_query(self, query: str, *, language: Optional[str], generation: int) -> None:
