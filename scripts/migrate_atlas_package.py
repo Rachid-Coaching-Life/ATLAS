@@ -37,7 +37,7 @@ def rewrite(path, source):
         target = target.replace('OutputBaseFilename=Jarvis-Setup-x64', 'OutputBaseFilename=ATLAS-Setup-x64')
         target = target.replace("dist" + chr(92) + "Jarvis" + chr(92), "dist" + chr(92) + "ATLAS" + chr(92))
     # Windows build references must follow the renamed PyInstaller output.
-    if path in ("scripts/build_installer.bat", ".github/workflows/build-desktop.yml"):
+    if path in ("scripts/build_installer.bat", "scripts/test_bundled_app.bat", ".github/workflows/build-desktop.yml"):
         target = target.replace("jarvis_desktop.spec", "atlas_desktop.spec")
         target = target.replace("installer\\windows\\jarvis_setup.iss", "installer\\windows\\atlas_setup.iss")
         target = target.replace("Jarvis-Setup-x64.exe", "ATLAS-Setup-x64.exe")
@@ -48,6 +48,8 @@ def rewrite(path, source):
         target = target.replace("dist/Jarvis/", "dist/ATLAS/")
         target = target.replace("Jarvis Desktop (Windows)", "ATLAS Desktop (Windows)")
         target = target.replace("src\\jarvis\\_version.py", "src\\atlas\\_version.py")
+        if path == "scripts/test_bundled_app.bat":
+            target = target.replace("dist\\ATLAS.exe", "dist\\ATLAS\\ATLAS.exe")
     return target
 
 
