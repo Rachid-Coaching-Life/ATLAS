@@ -244,8 +244,8 @@ def _direct_spoken_pdf_request(prompt: str) -> Optional[tuple[str, Optional[str]
     return remainder, folder
 
 
-def _open_spoken_named_pdf(title: str, folder_hint: Optional[str] = None) -> str:
-    """Locate exactly one PDF by its spoken name, then reuse safe Windows open.
+def _find_spoken_named_pdf(title: str, folder_hint: Optional[str] = None) -> tuple[str, tuple[str, ...]]:
+    """Locate exactly one PDF by spoken name without opening it.
 
     A partial search or multiple filename matches never opens anything.
     """
@@ -295,7 +295,48 @@ def _open_spoken_named_pdf(title: str, folder_hint: Optional[str] = None) -> str
             + ". Précisez le dossier et le nom du fichier."
         )
     folder, parts = candidates[0]
+    return folder, parts
+
+
+def _open_spoken_named_pdf(title: str, folder_hint: Optional[str] = None) -> str:
+    folder, parts = _find_spoken_named_pdf(title, folder_hint)
     return _open_explicit_local_pdf(folder, parts)
+
+
+_READ_PDF_PREFIX = re.compile(r"^lis(?:-moi| moi)?\\s+", re.IGNORECASE)
+
+
+def _direct_spoken_pdf_read_request(prompt: str) -> Optional[tuple[str, Optional[str]]]:
+    """Reuse the existing strict filename parser; never accept compound actions."""
+    if not isinstance(prompt, str) or not _READ_PDF_PREFIX.match(prompt.strip()):
+        return None
+    opening = _READ_PDF_PREFIX.sub("Ouvre ", prompt.strip(), count=1)
+    return _direct_spoken_pdf_request(opening)
+
+
+def _has_spoken_pdf_read_intent(prompt: str) -> bool:
+    return isinstance(prompt, str) and bool(_READ_PDF_PREFIX.match(prompt.strip()))
+
+
+def _read_spoken_named_pdf(title: str, folder_hint: Optional[str] = None) -> str:
+    """Read only a bounded preview, without opening a viewer or changing the PDF."""
+    from .tools.builtin.pdf_extract import extract_pdf_text
+
+    folder, parts = _find_spoken_named_pdf(title, folder_hint)
+    root = _local_inventory_directory(folder)
+    relative = Path(*parts)
+    extracted = extract_pdf_text(relative, root, max_pages=3)
+    content = " ".join(text.strip() for _, text in extracted.pages if text.strip())
+    if not content:
+        raise ValueError("Ce PDF ne contient pas de texte extractible. Aucun OCR n'a été effectué.")
+    preview = content[:1200]
+    partial = extracted.truncated or len(content) > 1200
+    return (
+        f"Lecture du document {relative.name}, pages examinées : "
+        f"{len(extracted.pages)} sur {extracted.total_pages}. "
+        + preview
+        + (" Fin de l'extrait, lecture partielle." if partial else " Fin du document.")
+    )
 
 
 def _direct_voice_task_prompt(
@@ -332,7 +373,7 @@ def _direct_voice_task_prompt(
         }
         qualifier = folder_followups.get(_normalized_task_intent(clean))
         if qualifier:
-            return f"Ouvre mon {pending_pdf_title} {qualifier}"
+            return f"{'Lis-moi' if pending_pdf_title.startswith('LIRE:') else 'Ouvre mon'} {pending_pdf_title[5:] if pending_pdf_title.startswith('LIRE:') else pending_pdf_title} {qualifier}"
     if (
         _is_direct_system_status_task(clean)
         or _direct_file_list_folder(clean) is not None
@@ -340,6 +381,7 @@ def _direct_voice_task_prompt(
         or _direct_recursive_pdf_folder(clean) is not None
         or _has_pdf_open_intent(clean)
         or _has_spoken_pdf_open_intent(clean)
+        or _has_spoken_pdf_read_intent(clean)
     ):
         return clean
     return None
@@ -562,6 +604,12 @@ class TaskManager:
                     )
                 folder, relative_parts = requested_pdf
                 result = _open_explicit_local_pdf(folder, relative_parts)
+            elif _has_spoken_pdf_read_intent(task.prompt):
+                requested_pdf = _direct_spoken_pdf_read_request(task.prompt)
+                if requested_pdf is None:
+                    raise ValueError("Demande de lecture ambiguë : précisez uniquement le nom du PDF.")
+                title, folder_hint = requested_pdf
+                result = _read_spoken_named_pdf(title, folder_hint)
             elif _has_spoken_pdf_open_intent(task.prompt):
                 requested_pdf = _direct_spoken_pdf_request(task.prompt)
                 if requested_pdf is None:
