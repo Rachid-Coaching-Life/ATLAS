@@ -2226,3 +2226,23 @@ def test_local_date_followup_bypasses_llm(phrase):
 def test_local_date_does_not_take_other_questions(phrase):
     from jarvis.listening.listener import VoiceListener
     assert VoiceListener._local_date_reply(phrase, "atlas", ["atlasse"]) is None
+
+
+def test_reply_stage_timer_preserves_result_and_reports_duration(capsys):
+    from jarvis.reply.engine import _timed_reply_stage
+
+    assert _timed_reply_stage("test", lambda value: value * 2, 21) == 42
+    output = capsys.readouterr().out
+    assert "reply_stage=test" in output
+    assert "duration_s=" in output
+
+
+def test_reply_stage_timer_reports_failure_without_hiding_exception(capsys):
+    from jarvis.reply.engine import _timed_reply_stage
+
+    def fail():
+        raise ValueError("synthetic")
+
+    with pytest.raises(ValueError, match="synthetic"):
+        _timed_reply_stage("failed", fail)
+    assert "reply_stage=failed" in capsys.readouterr().out
