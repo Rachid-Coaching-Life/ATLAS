@@ -90,11 +90,11 @@ def test_bundled_windows_smoke_uses_onedir_binary():
     tool = _migration_module()
     source = (
         "python -m PyInstaller jarvis_desktop.spec\n"
-        "if exist \"dist\\\\Jarvis.exe\" (\n"
-        "    dist\\\\Jarvis.exe\n"
+        "if exist \"dist\\Jarvis.exe\" (\n"
+        "    dist\\Jarvis.exe\n"
         ")\n"
     )
     result = tool.rewrite("scripts/test_bundled_app.bat", source)
     assert "atlas_desktop.spec" in result
-    assert 'if exist "dist\\\\ATLAS\\\\ATLAS.exe"' in result
-    assert "    dist\\\\ATLAS\\\\ATLAS.exe" in result
+    assert 'if exist "dist\\ATLAS\\ATLAS.exe"' in result
+    assert "    dist\\ATLAS\\ATLAS.exe" in result
