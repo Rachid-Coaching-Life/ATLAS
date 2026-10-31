@@ -2966,7 +2966,7 @@ class ATLASSystemTray:
                 # Mirror only diagnostic outcomes/timings to the launch console.
                 # Do not expose raw transcripts or assistant replies.
                 if any(marker in line for marker in (
-                    "voice_route=", "voice_outcome=",
+                    "voice_route=", "voice_outcome=", "reply_stage=",
                     "Traitement de la demande (",
                     "Fin de commande → traitement",
                     "Transcription Whisper",
