@@ -848,6 +848,18 @@ class VoiceListener(threading.Thread):
         # Check hot window expiry
         self.state_manager.check_hot_window_expiry(self.cfg.voice_debug)
 
+        # Once a standalone wake has armed collection, the following user
+        # utterance is already directed to ATLAS. Do not require a second
+        # wake word or wait for an LLM intent decision. The echo and stop
+        # guards above remain authoritative for speech during playback.
+        if (self.state_manager.is_collecting()
+                and not received_during_tts
+                and not active_tts_overlapped):
+            self._transcript_buffer.mark_segment_processed(text_lower)
+            self.state_manager.add_to_collection(accepted_text, language=language)
+            debug_log("wake follow-up added directly to active collection", "voice")
+            return
+
         # Intent judge — the single decision-maker for all post-TTS input.
         # Gets full transcript context, last TTS text, and hot window state.
         # Handles: echo detection, wake word queries, hot window follow-ups.
