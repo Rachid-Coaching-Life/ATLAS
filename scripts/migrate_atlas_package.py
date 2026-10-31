@@ -35,6 +35,7 @@ def rewrite(path, source):
         target = target.replace('#define MyAppName "Jarvis"', '#define MyAppName "ATLAS"')
         target = target.replace('#define MyAppExeName "Jarvis.exe"', '#define MyAppExeName "ATLAS.exe"')
         target = target.replace('OutputBaseFilename=Jarvis-Setup-x64', 'OutputBaseFilename=ATLAS-Setup-x64')
+        target = target.replace("jarvis_setup.iss", "atlas_setup.iss")
         target = target.replace("dist" + chr(92) + "Jarvis" + chr(92), "dist" + chr(92) + "ATLAS" + chr(92))
     # Windows build references must follow the renamed PyInstaller output.
     if path in ("scripts/build_installer.bat", "scripts/test_bundled_app.bat", ".github/workflows/build-desktop.yml"):
