@@ -1111,7 +1111,7 @@ class VoiceListener(threading.Thread):
                         if isinstance(name, str) and name.strip()}, key=len, reverse=True)
         if names:
             prefix = "|".join(re.escape(name) for name in names)
-            cleaned = re.sub(rf"^(?:{prefix})(?:\\s*[,.:!?]\\s*|\\s+)", "",
+            cleaned = re.sub(rf"^(?:{prefix})(?:\s*[,.:!?]\s*|\s+)", "",
                              cleaned, count=1, flags=re.IGNORECASE).strip()
         intent = _normalized_task_intent(cleaned)
         if intent not in {"quelle heure est il", "il est quelle heure", "donne moi l heure",
