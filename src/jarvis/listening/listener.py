@@ -1137,6 +1137,7 @@ class VoiceListener(threading.Thread):
                 from concurrent.futures import TimeoutError as TaskTimeout
                 from ..tasks import (
                     _direct_voice_task_prompt, _direct_spoken_pdf_request,
+                    _direct_spoken_pdf_read_request,
                     TaskStatus,
                 )
                 pending = getattr(self, "_pending_pdf_clarification", None)
@@ -1171,6 +1172,8 @@ class VoiceListener(threading.Thread):
                             failed = True
                         elif finished.status is TaskStatus.COMPLETED:
                             reply = finished.result or "Tâche terminée sans résultat détaillé."
+                            if direct_prompt and _direct_spoken_pdf_read_request(direct_prompt) is not None:
+                                reply = task_service.consume_private_speech(task_id) or "Lecture PDF indisponible."
                             if reply.startswith("Demande d'ouverture transmise à Windows"):
                                 reply = (
                                     "J'ai transmis la demande d'ouverture à Windows. "
@@ -1200,7 +1203,8 @@ class VoiceListener(threading.Thread):
                             failed = True
                         else:
                             reply = "La tâche est en cours. Consultez son état dans le centre des tâches."
-                    print(f"\n🤖 ATLAS\n  {reply}\n", flush=True)
+                    if not (direct_prompt and _direct_spoken_pdf_read_request(direct_prompt) is not None):
+                        print(f"\n🤖 ATLAS\n  {reply}\n", flush=True)
                 else:
                     # Other requests retain the existing guarded conversation
                     # path, including audio context, memory and tool permissions.
