@@ -2142,3 +2142,28 @@ def test_voice_dispatch_async_releases_slot_after_exception(capsys):
         time.sleep(0.01)
     assert not listener._dispatch_slot.locked()
     assert "voice_outcome=dispatch_error" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("phrase", [
+    "ATLAS, quelle heure est-il ?",
+    "Atlas quelle heure est il",
+    "quelle heure est-il ?",
+    "Il est quelle heure ?",
+    "Atlas, donne-moi l'heure.",
+])
+def test_local_clock_voice_route_is_deterministic(phrase):
+    from jarvis.listening.listener import VoiceListener
+    reply = VoiceListener._local_time_reply(phrase, "atlas", ["atlasse"])
+    assert reply is not None
+    assert reply.startswith("Il est ")
+    assert "heure" in reply
+
+
+@pytest.mark.parametrize("phrase", [
+    "Atlas, explique-moi le fonctionnement des horloges",
+    "Quelle heure est-il à Montréal ?",
+    "ouvre mon PDF",
+])
+def test_local_clock_voice_route_does_not_hijack_other_requests(phrase):
+    from jarvis.listening.listener import VoiceListener
+    assert VoiceListener._local_time_reply(phrase, "atlas", ["atlasse"]) is None
