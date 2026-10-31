@@ -254,6 +254,7 @@ def _detect_via_nvidia_smi() -> Optional[int]:
             ["nvidia-smi", "--query-gpu=memory.total",
              "--format=csv,noheader,nounits"],
             capture_output=True, text=True, timeout=10,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform == "win32" else 0,
         )
         if result.returncode != 0:
             return None
