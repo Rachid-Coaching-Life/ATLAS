@@ -2167,3 +2167,27 @@ def test_local_clock_voice_route_is_deterministic(phrase):
 def test_local_clock_voice_route_does_not_hijack_other_requests(phrase):
     from jarvis.listening.listener import VoiceListener
     assert VoiceListener._local_time_reply(phrase, "atlas", ["atlasse"]) is None
+
+
+@pytest.mark.parametrize("phrase", [
+    "ATLAS, quelle date sommes-nous ?",
+    "Et quelle date sommes-nous ?",
+    "On est quel jour ?",
+    "Atlas, quelle est la date aujourd'hui ?",
+])
+def test_local_date_followup_bypasses_llm(phrase):
+    from jarvis.listening.listener import VoiceListener
+    reply = VoiceListener._local_date_reply(phrase, "atlas", ["atlasse"])
+    assert reply is not None
+    assert reply.startswith("Nous sommes le ")
+    assert reply.endswith(".")
+
+
+@pytest.mark.parametrize("phrase", [
+    "Quelle était la date hier ?",
+    "Quelle date sommes-nous au Canada ?",
+    "Raconte-moi l'histoire du calendrier",
+])
+def test_local_date_does_not_take_other_questions(phrase):
+    from jarvis.listening.listener import VoiceListener
+    assert VoiceListener._local_date_reply(phrase, "atlas", ["atlasse"]) is None
