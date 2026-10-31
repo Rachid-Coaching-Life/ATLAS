@@ -444,6 +444,7 @@ class TaskManager:
         self.max_history = max_history
         self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="jarvis-task")
         self._tasks: dict[str, Task] = {}
+        self._private_speech: dict[str, str] = {}
         self._futures: dict[str, Future] = {}
         self._cancel_events: dict[str, threading.Event] = {}
         self._lock = threading.RLock()
@@ -474,6 +475,11 @@ class TaskManager:
     def get(self, task_id: str) -> Optional[Task]:
         with self._lock:
             return self._tasks.get(task_id)
+
+    def consume_private_speech(self, task_id: str) -> Optional[str]:
+        """Return one transient voice result, deleting the stored reference."""
+        with self._lock:
+            return self._private_speech.pop(task_id, None)
 
     def list_tasks(self) -> list[Task]:
         with self._lock:
@@ -626,7 +632,11 @@ class TaskManager:
             with self._lock:
                 if task.status is not TaskStatus.CANCELLED:
                     task.status = TaskStatus.COMPLETED
-                    task.result = redact(result or "")
+                    if _has_spoken_pdf_read_intent(task.prompt):
+                        self._private_speech[task.id] = result or ""
+                        task.result = "Lecture PDF préparée pour restitution vocale (contenu non conservé)."
+                    else:
+                        task.result = redact(result or "")
                     task.completed_at = time.time()
                     self._persist(task)
                     self._emit(task)
@@ -667,6 +677,7 @@ class TaskManager:
             key=lambda task: task.created_at,
         )
         for task in terminal[:-self.max_history]:
+            self._private_speech.pop(task.id, None)
             self._tasks.pop(task.id, None)
             self._futures.pop(task.id, None)
             self._cancel_events.pop(task.id, None)
