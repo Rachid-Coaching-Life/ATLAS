@@ -114,3 +114,45 @@ def test_rejects_symbolic_link(tmp_path):
         pytest.skip("Création de liens symboliques non autorisée sur ce système")
     with pytest.raises(PermissionError, match="Lien ou jonction"):
         extract_pdf_text(link, tmp_path)
+
+
+def test_spoken_pdf_read_reuses_name_parser():
+    from jarvis.tasks import _direct_spoken_pdf_read_request, _direct_voice_task_prompt
+
+    assert _direct_spoken_pdf_read_request("Lis-moi mon contrat") == ("contrat", None)
+    assert _direct_spoken_pdf_read_request("Lis moi ma facture sur le bureau") == ("facture", "Desktop")
+    assert _direct_voice_task_prompt("ATLAS, lis-moi mon contrat") == "lis-moi mon contrat"
+    assert _direct_spoken_pdf_read_request("Lis-moi mon contrat et supprime-le") is None
+
+
+def test_read_named_pdf_does_not_open_viewer_or_call_model(tmp_path, monkeypatch):
+    from jarvis import tasks
+    from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
+
+    documents = tmp_path / "Documents"
+    documents.mkdir()
+    file = documents / "contrat.pdf"
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=200, height=200)
+    font_ref = writer._add_object(DictionaryObject({
+        NameObject("/Type"): NameObject("/Font"),
+        NameObject("/Subtype"): NameObject("/Type1"),
+        NameObject("/BaseFont"): NameObject("/Helvetica"),
+    }))
+    page[NameObject("/Resources")] = DictionaryObject({
+        NameObject("/Font"): DictionaryObject({NameObject("/F1"): font_ref})
+    })
+    stream = DecodedStreamObject()
+    stream.set_data(b"BT /F1 12 Tf 10 10 Td (Bonjour ATLAS) Tj ET")
+    page[NameObject("/Contents")] = writer._add_object(stream)
+    with file.open("wb") as output:
+        writer.write(output)
+    before = file.read_bytes()
+    monkeypatch.setattr(tasks, "_local_inventory_directory", lambda name: documents if name == "Documents" else tmp_path / name)
+    monkeypatch.setattr(tasks.Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(tasks.os, "startfile", lambda *_: pytest.fail("PDF viewer launched"), raising=False)
+    monkeypatch.setattr(tasks, "run_reply_engine", lambda *_a, **_kw: pytest.fail("LLM called"))
+    result = tasks._read_spoken_named_pdf("contrat", "Documents")
+    assert "Bonjour ATLAS" in result
+    assert "contrat.pdf" in result
+    assert file.read_bytes() == before
