@@ -1101,6 +1101,27 @@ class VoiceListener(threading.Thread):
         else:
             debug_log(f"input ignored (no wake word{intent_info}): {text_lower}", "voice")
 
+    @staticmethod
+    def _local_time_reply(query: str, wake_word: str, aliases=()) -> Optional[str]:
+        """Answer an unambiguous clock request locally without an LLM round trip."""
+        import re
+        from ..tasks import _normalized_task_intent
+        cleaned = query.strip()
+        names = sorted({name.strip() for name in ("atlas", wake_word, *(aliases or ()))
+                        if isinstance(name, str) and name.strip()}, key=len, reverse=True)
+        if names:
+            prefix = "|".join(re.escape(name) for name in names)
+            cleaned = re.sub(rf"^(?:{prefix})(?:\\s*[,.:!?]\\s*|\\s+)", "",
+                             cleaned, count=1, flags=re.IGNORECASE).strip()
+        intent = _normalized_task_intent(cleaned)
+        if intent not in {"quelle heure est il", "il est quelle heure", "donne moi l heure",
+                          "dis moi l heure", "quelle heure est il maintenant"}:
+            return None
+        now = datetime.now().astimezone()
+        if now.minute == 0:
+            return f"Il est {now.hour} heures pile."
+        return f"Il est {now.hour} heures {now.minute:02d}."
+
     def _dispatch_async(self, query: str, *, language: Optional[str], generation: int) -> None:
         """Execute a single voice request without blocking transcript consumption."""
         if not self._dispatch_slot.acquire(blocking=False):
@@ -1197,10 +1218,17 @@ class VoiceListener(threading.Thread):
                     pending_pdf_title=pending_title,
                 )
                 task_service = getattr(self, "_task_manager", None)
+                clock_reply = self._local_time_reply(
+                    query, getattr(self.cfg, "wake_word", "atlas"),
+                    getattr(self.cfg, "wake_aliases", ()) or (),
+                )
                 if direct_prompt is None:
                     # A new unrelated request invalidates an old PDF choice.
                     self._pending_pdf_clarification = None
-                if direct_prompt is not None and task_service is not None:
+                if clock_reply is not None:
+                    reply = clock_reply
+                    print(f"  ⏱️ voice_route=local_clock", flush=True)
+                elif direct_prompt is not None and task_service is not None:
                     if not self._transcription_is_current(generation):
                         return
                     self._pending_pdf_clarification = None
