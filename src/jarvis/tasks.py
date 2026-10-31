@@ -530,6 +530,8 @@ class TaskManager:
                     self._emit(task)
                     debug_log(f"task stop requested during shutdown: {task_id}", "tasks")
         self._executor.shutdown(wait=wait, cancel_futures=True)
+        with self._lock:
+            self._private_speech.clear()
 
     def _run(self, task_id: str) -> None:
         with self._lock:
