@@ -90,6 +90,30 @@ def main():
         if new_path != path or transformed != raw:
             changes.append((path, new_path, transformed))
 
+    # Detect outdated launch/build entrypoints in the transformed output.
+    # This is intentionally narrow: legacy user-data paths are not renamed.
+    blockers = []
+    patterns = (
+        re.compile(r"(?<![A-Za-z0-9_])jarvis_desktop[.]spec", re.I),
+        re.compile(r"(?<![A-Za-z0-9_])jarvis_setup[.]iss", re.I),
+        re.compile(r"(?<![A-Za-z0-9_])jarvis[.]exe", re.I),
+        re.compile(r"(?<![A-Za-z0-9_])jarvis[.]daemon", re.I),
+    )
+    for old, new, transformed in changes:
+        if old == "scripts/migrate_atlas_package.py":
+            continue  # This planner must describe the old input names.
+        if not (new.endswith((".bat", ".ps1", ".yml", ".yaml", ".iss", ".spec"))):
+            continue
+        for lineno, line in enumerate(transformed.splitlines(), 1):
+            if any(pattern.search(line) for pattern in patterns):
+                blockers.append(f"{new}:{lineno}: {line.strip()[:150]}")
+    print(f"Unresolved launch/build references: {len(blockers)}")
+    for entry in blockers[:80]:
+        print("  BLOCKER " + entry)
+    if len(blockers) > 80:
+        print(f"  ... plus {len(blockers) - 80} references")
+    if args.apply and blockers:
+        parser.error("Migration blocked: unresolved launch/build references")
     print(f"Planned changed files: {len(changes)}")
     for old, new, _ in changes:
         print(f"  {old}" + (f" -> {new}" if new != old else ""))
