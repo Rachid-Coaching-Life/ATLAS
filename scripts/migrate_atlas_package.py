@@ -36,6 +36,18 @@ def rewrite(path, source):
         target = target.replace('#define MyAppExeName "Jarvis.exe"', '#define MyAppExeName "ATLAS.exe"')
         target = target.replace('OutputBaseFilename=Jarvis-Setup-x64', 'OutputBaseFilename=ATLAS-Setup-x64')
         target = target.replace("dist" + chr(92) + "Jarvis" + chr(92), "dist" + chr(92) + "ATLAS" + chr(92))
+    # Windows build references must follow the renamed PyInstaller output.
+    if path in ("scripts/build_installer.bat", ".github/workflows/build-desktop.yml"):
+        target = target.replace("jarvis_desktop.spec", "atlas_desktop.spec")
+        target = target.replace("installer\\windows\\jarvis_setup.iss", "installer\\windows\\atlas_setup.iss")
+        target = target.replace("Jarvis-Setup-x64.exe", "ATLAS-Setup-x64.exe")
+        target = target.replace("Jarvis-Windows-x64.zip", "ATLAS-Windows-x64.zip")
+        target = target.replace("Jarvis-Windows", "ATLAS-Windows")
+        target = target.replace("Jarvis.exe", "ATLAS.exe")
+        target = target.replace("dist\\Jarvis\\", "dist\\ATLAS\\")
+        target = target.replace("dist/Jarvis/", "dist/ATLAS/")
+        target = target.replace("Jarvis Desktop (Windows)", "ATLAS Desktop (Windows)")
+        target = target.replace("src\\jarvis\\_version.py", "src\\atlas\\_version.py")
     return target
 
 
@@ -68,6 +80,10 @@ def main():
         except (UnicodeError, OSError) as e:
             parser.error(f"Cannot inspect {path}: {e}")
         new_path = path.replace("src/" + OLD + "/", "src/" + NEW + "/", 1) if path.startswith("src/" + OLD + "/") else path
+        if path == "jarvis_desktop.spec":
+            new_path = "atlas_desktop.spec"
+        elif path == "installer/windows/jarvis_setup.iss":
+            new_path = "installer/windows/atlas_setup.iss"
         transformed = rewrite(path, raw)
         if new_path != path or transformed != raw:
             changes.append((path, new_path, transformed))
