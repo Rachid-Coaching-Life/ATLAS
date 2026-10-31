@@ -883,6 +883,22 @@ class VoiceListener(threading.Thread):
             utterance_start_time, utterance_end_time
         )
 
+        # A clean follow-up inside the active hot window is already addressed
+        # to ATLAS. Avoid a synchronous LLM judge on the listening thread.
+        # The echo guards above still run first; keep a final text echo check.
+        if (could_be_hot_window and not received_during_tts
+                and not active_tts_overlapped
+                and not self.echo_detector.is_hot_window_echo(
+                    text_lower,
+                    (self.echo_detector._last_tts_text or "") if same_tts_context else "",
+                )):
+            self.state_manager.cancel_hot_window_activation()
+            self._transcript_buffer.mark_segment_processed(text_lower)
+            self._clear_audio_buffers()
+            self.state_manager.start_collection(accepted_text, language=language)
+            print("  🎙️ voice_route=hot_followup", flush=True)
+            return
+
         # Use the upgraded intent judge if available (with full transcript context)
         # Allow during TTS for longer utterances (>3 words) that might be user responses
         word_count = len(text_lower.split())
