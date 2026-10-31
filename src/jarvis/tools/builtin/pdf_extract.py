@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-import os
 import stat
 
 
@@ -35,7 +34,7 @@ def extract_pdf_text(path: Path, allowed_root: Path, *, max_pages: int = MAX_PAG
     candidate = Path(path)
     if not candidate.is_absolute():
         candidate = root / candidate
-    if not candidate.is_relative_to(root):
+    if not candidate.is_relative_to(root) or ".." in candidate.relative_to(root).parts:
         raise PermissionError("PDF hors dossier autorisé")
     current = root
     for part in candidate.relative_to(root).parts:
