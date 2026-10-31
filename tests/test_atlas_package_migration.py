@@ -98,3 +98,34 @@ def test_bundled_windows_smoke_uses_onedir_binary():
     assert "atlas_desktop.spec" in result
     assert 'if exist "dist\\ATLAS\\ATLAS.exe"' in result
     assert "    dist\\ATLAS\\ATLAS.exe" in result
+
+
+def test_failed_apply_restores_original_files(tmp_path, monkeypatch):
+    import pytest
+
+    tool = _migration_module()
+    monkeypatch.chdir(tmp_path)
+    old_a = tmp_path / "old_a.py"
+    old_b = tmp_path / "old_b.py"
+    new_a = tmp_path / "new_a.py"
+    new_b = tmp_path / "new_b.py"
+    old_a.write_bytes(b"original a")
+    old_b.write_bytes(b"original b")
+    original_write = Path.write_bytes
+
+    def fail_second_destination(self, data):
+        if self == new_b:
+            raise OSError("injected destination write failure")
+        return original_write(self, data)
+
+    monkeypatch.setattr(Path, "write_bytes", fail_second_destination)
+    with pytest.raises(OSError, match="injected destination"):
+        tool.apply_changes([
+            ("old_a.py", "new_a.py", "changed a"),
+            ("old_b.py", "new_b.py", "changed b"),
+        ])
+
+    assert old_a.read_bytes() == b"original a"
+    assert old_b.read_bytes() == b"original b"
+    assert not new_a.exists()
+    assert not new_b.exists()
