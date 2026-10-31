@@ -1138,6 +1138,33 @@ class VoiceListener(threading.Thread):
             return f"Il est {now.hour} heures pile."
         return f"Il est {now.hour} heures {now.minute:02d}."
 
+    @staticmethod
+    def _local_date_reply(query: str, wake_word: str, aliases=()) -> Optional[str]:
+        """Answer exact French current-date questions from the system clock."""
+        import re
+        from ..tasks import _normalized_task_intent
+        cleaned = query.strip()
+        names = sorted({name.strip() for name in ("atlas", wake_word, *(aliases or ()))
+                        if isinstance(name, str) and name.strip()}, key=len, reverse=True)
+        if names:
+            prefix = "|".join(re.escape(name) for name in names)
+            cleaned = re.sub(rf"^(?:{prefix})(?:\s*[,.:!?]\s*|\s+)", "",
+                             cleaned, count=1, flags=re.IGNORECASE).strip()
+        intent = _normalized_task_intent(cleaned)
+        if intent not in {
+            "quelle date sommes nous", "et quelle date sommes nous",
+            "on est quel jour", "et on est quel jour",
+            "quelle est la date aujourd hui", "quelle date aujourd hui",
+            "nous sommes quel jour", "quel jour sommes nous",
+        }:
+            return None
+        now = datetime.now().astimezone()
+        weekdays = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+        months = ("janvier", "février", "mars", "avril", "mai", "juin",
+                  "juillet", "août", "septembre", "octobre", "novembre", "décembre")
+        day = "premier" if now.day == 1 else str(now.day)
+        return f"Nous sommes le {weekdays[now.weekday()]} {day} {months[now.month - 1]} {now.year}."
+
     def _dispatch_async(self, query: str, *, language: Optional[str], generation: int) -> None:
         """Execute a single voice request without blocking transcript consumption."""
         if not self._dispatch_slot.acquire(blocking=False):
@@ -1241,9 +1268,16 @@ class VoiceListener(threading.Thread):
                 if direct_prompt is None:
                     # A new unrelated request invalidates an old PDF choice.
                     self._pending_pdf_clarification = None
+                date_reply = self._local_date_reply(
+                    query, getattr(self.cfg, "wake_word", "atlas"),
+                    getattr(self.cfg, "wake_aliases", ()) or (),
+                )
                 if clock_reply is not None:
                     reply = clock_reply
                     print(f"  ⏱️ voice_route=local_clock", flush=True)
+                elif date_reply is not None:
+                    reply = date_reply
+                    print(f"  ⏱️ voice_route=local_date", flush=True)
                 elif direct_prompt is not None and task_service is not None:
                     if not self._transcription_is_current(generation):
                         return
