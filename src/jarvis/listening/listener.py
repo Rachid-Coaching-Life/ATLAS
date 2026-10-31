@@ -1460,23 +1460,29 @@ class VoiceListener(threading.Thread):
         self.apply_capture_pause_reset()
 
         pending = self.state_manager.get_pending_query().strip()
-        # Whisper has completed a punctuated sentence and no further speech
-        # is being captured or decoded. Avoid waiting the full configurable
-        # collection timeout (4.5 seconds by default) in this common case.
-        # Keep the original timeout for unfinished phrases and queued speech.
+        # Whisper punctuation is not reliable enough to be the sole signal
+        # that the user finished speaking. Once capture and both transcription
+        # queues are idle, allow a short silence timeout for substantive input.
+        # Keep the configured timeout for incomplete fragments or live speech.
+        idle_and_drained = (
+            not self.is_speech_active
+            and self._transcription_jobs_q.empty()
+            and self._transcription_results_q.empty()
+        )
         complete_sentence = (
             len(pending.split()) >= 3
             and pending.endswith((".", "?", "!"))
             and not pending.endswith("...")
         )
-        idle_and_drained = complete_sentence and (
-            not self.is_speech_active
-            and self._transcription_jobs_q.empty()
-            and self._transcription_results_q.empty()
-        )
-        if complete_sentence and idle_and_drained:
+        if idle_and_drained and pending and complete_sentence:
             timed_out = self.state_manager.check_collection_timeout(
                 silence_override_sec=0.7,
+            )
+        elif idle_and_drained and len(pending.split()) >= 3:
+            # Unpunctuated Whisper output is common in voice commands.
+            # A slightly longer pause protects multipart utterances.
+            timed_out = self.state_manager.check_collection_timeout(
+                silence_override_sec=1.2,
             )
         else:
             timed_out = self.state_manager.check_collection_timeout()
