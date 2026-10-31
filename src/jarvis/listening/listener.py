@@ -1138,6 +1138,9 @@ class VoiceListener(threading.Thread):
         transferred = False
 
         def release_query(outcome=None):
+            # An unsuccessful speech request must not leave an old timer
+            # that could be attributed to unrelated future playback.
+            self._voice_reply_queued_at = None
             if outcome is not None:
                 print(f"  🔊 voice_outcome=tts_{outcome}", flush=True)
             if owner is not None:
@@ -1250,8 +1253,11 @@ class VoiceListener(threading.Thread):
             )
             self._stop_thinking_tune()
             if not self._transcription_is_current(generation):
+                print('  ⚠️ voice_outcome=stale_generation', flush=True)
                 debug_log('Discarded voice reply after generation invalidation', 'voice')
                 return
+            if not reply:
+                print('  ⚠️ voice_outcome=empty_reply', flush=True)
             if reply and (self.tts is None or not self.tts.enabled):
                 print("  ⚠️ voice_outcome=tts_unavailable : réponse vocale impossible", flush=True)
             if reply and self.tts is not None and self.tts.enabled:
