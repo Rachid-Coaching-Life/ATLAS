@@ -156,3 +156,33 @@ def test_read_named_pdf_does_not_open_viewer_or_call_model(tmp_path, monkeypatch
     assert "Bonjour ATLAS" in result
     assert "contrat.pdf" in result
     assert file.read_bytes() == before
+
+
+def test_task_pdf_content_only_in_transient_voice_slot(tmp_path, monkeypatch, capsys):
+    from types import SimpleNamespace
+    from jarvis import tasks
+
+    secret = "DOCUMENT_TEST_SECRET_39495"
+    records, events = [], []
+
+    class DummyDb:
+        def upsert_task_record(self, record):
+            records.append(dict(record))
+
+    monkeypatch.setattr(tasks, "_read_spoken_named_pdf", lambda *_: secret)
+    manager = tasks.TaskManager(
+        db=DummyDb(), cfg=SimpleNamespace(), dialogue_memory=None,
+        event_callback=events.append,
+    )
+    try:
+        identity = manager.submit("Lis-moi mon contrat")
+        done = manager.wait_for_task(identity, timeout=5)
+        assert done.status == tasks.TaskStatus.COMPLETED
+        assert secret not in str(done.as_dict())
+        assert secret not in str(records)
+        assert secret not in str(events)
+        assert secret not in capsys.readouterr().out
+        assert manager.consume_private_speech(identity) == secret
+        assert manager.consume_private_speech(identity) is None
+    finally:
+        manager.shutdown()
