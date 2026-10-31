@@ -49,7 +49,7 @@ def rewrite(path, source):
         target = target.replace("Jarvis Desktop (Windows)", "ATLAS Desktop (Windows)")
         target = target.replace("src\\jarvis\\_version.py", "src\\atlas\\_version.py")
         if path == "scripts/test_bundled_app.bat":
-            target = target.replace("dist\\ATLAS.exe", "dist\\ATLAS\\ATLAS.exe")
+            target = target.replace("dist" + chr(92) + "ATLAS.exe", "dist" + chr(92) + "ATLAS" + chr(92) + "ATLAS.exe")
     return target
 
 
