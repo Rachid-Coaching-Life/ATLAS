@@ -2963,6 +2963,18 @@ class ATLASSystemTray:
                     self.log_signals.task_event.emit(line)
                 if _should_emit_as_log(line):
                     self.log_signals.new_log.emit(line)
+                # Mirror only diagnostic outcomes/timings to the launch console.
+                # Do not expose raw transcripts or assistant replies.
+                if any(marker in line for marker in (
+                    "voice_route=", "voice_outcome=",
+                    "Traitement de la demande (",
+                    "Fin de commande → traitement",
+                    "Transcription Whisper",
+                    "Voix : préparation avant lecture",
+                    "Audio-frame processing stopped",
+                    "Speech detection failed",
+                )):
+                    print("[ atlas-voice ] " + line.rstrip(), flush=True)
         except Exception as e:
             debug_log(f"log reader error: {e}", "desktop")
             self.log_signals.new_log.emit(f"⚠️ Log reader error: {e}\n")
