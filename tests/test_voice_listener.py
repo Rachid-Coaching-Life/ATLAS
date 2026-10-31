@@ -2075,3 +2075,70 @@ def test_voice_collection_fast_timeout_only_after_complete_quiet_sentence(
     else:
         assert kwargs == {"silence_override_sec": expected_override}
     listener._dispatch_query.assert_not_called()
+
+
+def test_voice_dispatch_async_keeps_listening_thread_free(capsys):
+    """A blocked reply must not block later transcript processing."""
+    import threading
+    from types import SimpleNamespace
+    from jarvis.listening.listener import VoiceListener
+
+    entered = threading.Event()
+    release = threading.Event()
+    finished = threading.Event()
+    calls = []
+
+    def blocked_dispatch(text, *, language, generation):
+        calls.append(text)
+        entered.set()
+        try:
+            assert release.wait(2.0)
+        finally:
+            finished.set()
+
+    listener = SimpleNamespace(
+        _dispatch_slot=threading.Lock(),
+        _dispatch_query=blocked_dispatch,
+    )
+    VoiceListener._dispatch_async(listener, "premiere", language="fr", generation=1)
+    try:
+        assert entered.wait(1.0)
+        started = time.monotonic()
+        VoiceListener._dispatch_async(listener, "seconde", language="fr", generation=1)
+        assert time.monotonic() - started < 0.5
+        assert calls == ["premiere"]
+        assert "voice_outcome=busy" in capsys.readouterr().out
+    finally:
+        release.set()
+        assert finished.wait(2.0)
+
+    # After release, a later request is accepted.
+    deadline = time.monotonic() + 2.0
+    while listener._dispatch_slot.locked() and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert not listener._dispatch_slot.locked()
+    VoiceListener._dispatch_async(listener, "troisieme", language="fr", generation=1)
+    deadline = time.monotonic() + 2.0
+    while len(calls) < 2 and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert calls == ["premiere", "troisieme"]
+
+
+def test_voice_dispatch_async_releases_slot_after_exception(capsys):
+    import threading
+    from types import SimpleNamespace
+    from jarvis.listening.listener import VoiceListener
+
+    def failing_dispatch(text, *, language, generation):
+        raise RuntimeError("synthetic failure")
+
+    listener = SimpleNamespace(
+        _dispatch_slot=threading.Lock(),
+        _dispatch_query=failing_dispatch,
+    )
+    VoiceListener._dispatch_async(listener, "test", language="fr", generation=1)
+    deadline = time.monotonic() + 2.0
+    while listener._dispatch_slot.locked() and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert not listener._dispatch_slot.locked()
+    assert "voice_outcome=dispatch_error" in capsys.readouterr().out
