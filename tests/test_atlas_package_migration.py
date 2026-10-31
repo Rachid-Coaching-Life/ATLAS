@@ -71,9 +71,9 @@ def test_windows_build_scripts_follow_renamed_manifest_and_binary():
     tool = _migration_module()
     source = (
         "pyinstaller jarvis_desktop.spec\n"
-        "installer\\\\windows\\\\jarvis_setup.iss\n"
-        "dist\\\\Jarvis\\\\Jarvis.exe\n"
-        "dist\\\\Jarvis-Setup-x64.exe\n"
+        "installer\\windows\\jarvis_setup.iss\n"
+        "dist\\Jarvis\\Jarvis.exe\n"
+        "dist\\Jarvis-Setup-x64.exe\n"
         "Jarvis-Windows-x64.zip\n"
     )
     for path in ("scripts/build_installer.bat", ".github/workflows/build-desktop.yml"):
@@ -83,4 +83,4 @@ def test_windows_build_scripts_follow_renamed_manifest_and_binary():
         assert "ATLAS.exe" in result
         assert "ATLAS-Setup-x64.exe" in result
         assert "ATLAS-Windows-x64.zip" in result
-        assert "dist\\\\ATLAS\\\\ATLAS.exe" in result
+        assert "dist\\ATLAS\\ATLAS.exe" in result
