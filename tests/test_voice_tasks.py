@@ -30,6 +30,7 @@ def _voice_fixture(task_manager, monkeypatch):
     listener = object.__new__(VoiceListener)
     listener.db = object()
     listener.cfg = SimpleNamespace(wake_word="atlas", wake_aliases=[])
+    listener.state_manager = SimpleNamespace(_last_voice_time=0.0)
     listener.dialogue_memory = None
     listener._task_manager = task_manager
     listener._pending_pdf_clarification = None
