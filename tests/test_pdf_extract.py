@@ -186,3 +186,27 @@ def test_task_pdf_content_only_in_transient_voice_slot(tmp_path, monkeypatch, ca
         assert manager.consume_private_speech(identity) is None
     finally:
         manager.shutdown()
+
+
+@pytest.mark.parametrize("prompt", [
+    "Peux-tu me lire mon contrat",
+    "Est-ce que tu peux me lire mon contrat ?",
+    "Tu peux me lire mon contrat ?",
+    "Pourrais-tu me lire mon contrat ?",
+])
+def test_polite_spoken_pdf_read_uses_existing_direct_task(prompt):
+    from jarvis.tasks import _direct_spoken_pdf_read_request, _direct_voice_task_prompt
+
+    assert _direct_spoken_pdf_read_request(prompt) == ("contrat", None)
+    assert _direct_voice_task_prompt("ATLAS, " + prompt) == prompt
+
+
+@pytest.mark.parametrize("prompt", [
+    "Peux-tu me lire mon contrat et le supprimer ?",
+    "Est-ce que tu peux me lire mon contrat puis l'effacer ?",
+    "Peux-tu me lire mon contrat / Windows / secret ?",
+])
+def test_polite_spoken_pdf_read_refuses_compound_or_path(prompt):
+    from jarvis.tasks import _direct_spoken_pdf_read_request
+
+    assert _direct_spoken_pdf_read_request(prompt) is None
