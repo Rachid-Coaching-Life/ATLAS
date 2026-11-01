@@ -35,6 +35,11 @@ class ScreenshotTool(Tool):
         # Inline OCR capture logic (previously in separate helper)
         ocr_text: str = ""
         sc = shutil.which("screencapture")
+        if not sc:
+            return ToolExecutionResult(
+                success=False, reply_text=None,
+                error_message="Capture d'écran non disponible : commande screencapture absente."
+            )
         if sc:
             tmpdir = tempfile.mkdtemp(prefix="jarvis_ocr_")
             png_path = os.path.join(tmpdir, "shot.png")
@@ -42,11 +47,20 @@ class ScreenshotTool(Tool):
                 cmd = [sc, "-i", png_path]
                 try:
                     ret = subprocess.run(cmd)
-                except Exception:
-                    ret = None  # type: ignore
-                if ret and getattr(ret, "returncode", 1) == 0 and os.path.exists(png_path):
-                    tess = shutil.which("tesseract")
-                    if tess:
+                except OSError:
+                    ret = None
+                if not ret or ret.returncode != 0 or not os.path.exists(png_path):
+                    return ToolExecutionResult(
+                        success=False, reply_text=None,
+                        error_message="Capture annulée ou impossible."
+                    )
+                tess = shutil.which("tesseract")
+                if not tess:
+                    return ToolExecutionResult(
+                        success=False, reply_text=None,
+                        error_message="OCR indisponible : Tesseract absent."
+                    )
+                if tess:
                         try:
                             import pytesseract  # type: ignore
                             from PIL import Image  # type: ignore
@@ -66,4 +80,4 @@ class ScreenshotTool(Tool):
         debug_log(f"screenshot: ocr_chars={len(ocr_text)}", "screenshot")
         context.user_print("✅ Screenshot processed.")
         # Return raw OCR text as tool result (no LLM processing here)
-        return ToolExecutionResult(success=True, reply_text=ocr_text)
+        return ToolExecutionResult(success=True, reply_text=ocr_text or "Aucun texte détecté.")
