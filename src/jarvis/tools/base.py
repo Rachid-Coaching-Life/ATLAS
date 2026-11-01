@@ -6,6 +6,7 @@ ensuring consistency with MCP tool format and enabling dictionary-based executio
 
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, Callable
+from .confirmation import gate as confirmation_gate
 from .types import ToolExecutionResult
 
 
@@ -105,7 +106,14 @@ class Tool(ABC):
 
         This method creates the context and calls the tool's run method.
         Tools should implement run(), not this method.
+
+        Sensitive operations are blocked here, before ``run``, unless a human
+        confirmation was granted (see ``confirmation.gate``). Every builtin
+        tool goes through this method, whatever its caller.
         """
+        blocked = confirmation_gate(self.name, tool_args)
+        if blocked is not None:
+            return blocked
         context = ToolContext(
             db=db,
             cfg=cfg,

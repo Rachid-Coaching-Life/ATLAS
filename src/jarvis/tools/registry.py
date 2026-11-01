@@ -20,6 +20,7 @@ from .builtin.time_tool import TimeTool
 from .builtin.system_status import SystemStatusTool
 from .builtin.stop import StopTool
 from .builtin.tool_search import ToolSearchTool
+from .confirmation import gate as confirmation_gate
 from .types import ToolExecutionResult
 from ..config import Settings
 from .external.mcp_client import MCPClient
@@ -313,6 +314,10 @@ def run_tool_with_retries(
         server_name, mcp_tool_name = raw_name.split("__", 1)
         mcps_config = getattr(cfg, "mcps", {})
         if mcps_config and server_name in mcps_config:
+            # MCP tools have unknown effects: a human must confirm each call.
+            blocked = confirmation_gate(raw_name, tool_args)
+            if blocked is not None:
+                return blocked
             try:
                 if MCPClient is None:
                     return ToolExecutionResult(success=False, reply_text=None, error_message="MCP client not available. Install 'mcp' package.")
