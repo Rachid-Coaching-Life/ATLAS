@@ -60,16 +60,19 @@ class ScreenshotTool(Tool):
                         success=False, reply_text=None,
                         error_message="OCR indisponible : Tesseract absent."
                     )
-                if tess:
-                        try:
-                            import pytesseract  # type: ignore
-                            from PIL import Image  # type: ignore
-                            with Image.open(png_path) as im:
-                                text = pytesseract.image_to_string(im)
-                                if text and text.strip():
-                                    ocr_text = text.strip()
-                        except Exception:
-                            pass
+                try:
+                    import pytesseract  # type: ignore
+                    from PIL import Image  # type: ignore
+                    with Image.open(png_path) as im:
+                        text = pytesseract.image_to_string(im)
+                        if text and text.strip():
+                            ocr_text = text.strip()
+                except Exception as exc:
+                    debug_log(f"screenshot: OCR failed: {type(exc).__name__}", "screenshot")
+                    return ToolExecutionResult(
+                        success=False, reply_text=None,
+                        error_message="La reconnaissance du texte a échoué."
+                    )
             finally:
                 try:
                     if os.path.exists(png_path):
