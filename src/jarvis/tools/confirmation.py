@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import threading
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Dict, Optional
 
@@ -55,6 +55,10 @@ class ConfirmationRequest:
     risk: Risk
     summary: str
     timeout_sec: float
+    # Set when the request expires: a UI should close its dialog.
+    cancelled: threading.Event = field(
+        default_factory=threading.Event, compare=False, repr=False
+    )
 
 
 # A provider returns True only for an explicit approval. It may block until
@@ -75,6 +79,49 @@ def set_provider(provider: Optional[Provider]) -> None:
 def get_provider() -> Optional[Provider]:
     with _provider_lock:
         return _provider
+
+
+class ConfirmationRelay:
+    """Bridge for a UI living in another thread or process.
+
+    ``provider`` is registered with ``set_provider``. It publishes the request
+    through ``emit`` (a Qt signal, an IPC line...) and waits. The UI answers
+    with ``resolve(request_id, approved)``. An answer counts only for the exact
+    pending request, once, before expiry. Unknown, expired or repeated
+    identifiers are ignored. Nothing is persisted, so a restart of the
+    process invalidates every pending request. A failing ``emit`` means "no".
+    """
+
+    def __init__(self, emit: Callable[[ConfirmationRequest], None]) -> None:
+        self._emit = emit
+        self._lock = threading.Lock()
+        self._pending: Dict[str, Dict[str, Any]] = {}
+
+    def provider(self, request: ConfirmationRequest) -> bool:
+        slot: Dict[str, Any] = {"event": threading.Event(), "approved": False}
+        with self._lock:
+            self._pending[request.request_id] = slot
+        try:
+            self._emit(request)
+            if not slot["event"].wait(request.timeout_sec):
+                return False
+            return slot["approved"] is True
+        except Exception as exc:
+            debug_log(f"confirmation relay failed ({type(exc).__name__})", "tools")
+            return False
+        finally:
+            with self._lock:
+                self._pending.pop(request.request_id, None)
+
+    def resolve(self, request_id: str, approved: bool) -> bool:
+        """Record the user's answer; False if the request is not pending."""
+        with self._lock:
+            slot = self._pending.pop(request_id, None)
+        if slot is None:
+            return False
+        slot["approved"] = approved is True
+        slot["event"].set()
+        return True
 
 
 _LOCAL_FILES_READ = frozenset({"list", "search", "read"})
@@ -172,6 +219,7 @@ def request_confirmation(
 
     threading.Thread(target=_ask, name="atlas-confirmation", daemon=True).start()
     if not finished.wait(timeout_sec):
+        request.cancelled.set()
         decision = Decision.EXPIRED
     else:
         decision = Decision.APPROVED if outcome.get("approved") else Decision.DENIED
