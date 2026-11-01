@@ -303,7 +303,12 @@ def _open_spoken_named_pdf(title: str, folder_hint: Optional[str] = None) -> str
     return _open_explicit_local_pdf(folder, parts)
 
 
-_READ_PDF_PREFIX = re.compile(r"^lis(?:-moi| moi)?\s+", re.IGNORECASE)
+_READ_PDF_PREFIX = re.compile(
+    r"^(?:lis(?:-moi| moi)?|"
+    r"peux-tu me lire|tu peux me lire|"
+    r"pourrais-tu me lire|est-ce que tu peux me lire)\\s+",
+    re.IGNORECASE,
+)
 
 
 def _direct_spoken_pdf_read_request(prompt: str) -> Optional[tuple[str, Optional[str]]]:
