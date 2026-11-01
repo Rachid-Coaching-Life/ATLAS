@@ -153,7 +153,7 @@ def _dxgi_adapter_vram_mb() -> Optional[int]:
     IDXGIAdapter1 (IDXGIAdapter): + [10] GetDesc1
     """
     from ctypes import (windll, wintypes, Structure, POINTER, c_void_p,
-                        c_size_t, byref, c_uint32, WINFUNCTYPE, addressof)
+                        c_size_t, c_long, byref, c_uint32, WINFUNCTYPE, addressof)
 
     class GUID(Structure):
         _fields_ = [
@@ -185,15 +185,15 @@ def _dxgi_adapter_vram_mb() -> Optional[int]:
     # COM method type aliases
     ReleaseFunc = WINFUNCTYPE(wintypes.ULONG, c_void_p)
     EnumAdapters1Func = WINFUNCTYPE(
-        wintypes.HRESULT, c_void_p, c_uint32, POINTER(c_void_p),
+        c_long, c_void_p, c_uint32, POINTER(c_void_p),
     )
     GetDesc1Func = WINFUNCTYPE(
-        wintypes.HRESULT, c_void_p, POINTER(DXGI_ADAPTER_DESC1),
+        c_long, c_void_p, POINTER(DXGI_ADAPTER_DESC1),
     )
 
     dxgi = windll.dxgi
     create_factory = dxgi.CreateDXGIFactory1
-    create_factory.restype = wintypes.HRESULT
+    create_factory.restype = c_long
     create_factory.argtypes = [POINTER(GUID), POINTER(c_void_p)]
 
     factory_ptr = c_void_p()
