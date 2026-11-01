@@ -129,6 +129,7 @@ def test_tasks_restore_from_local_database_without_persisting_secrets(tmp_path):
         cfg=SimpleNamespace(),
         dialogue_memory=object(),
         max_workers=1,
+        persist_history=True,
     )
     with patch("jarvis.tasks.run_reply_engine", return_value="done token=super-secret"):
         task_id = manager.submit("remember token=secret-value")
@@ -142,6 +143,7 @@ def test_tasks_restore_from_local_database_without_persisting_secrets(tmp_path):
         cfg=SimpleNamespace(),
         dialogue_memory=object(),
         max_workers=1,
+        persist_history=True,
     )
     task = restored.get(task_id)
     assert task is not None
@@ -242,7 +244,7 @@ def test_invalid_saved_history_does_not_block_valid_tasks(tmp_path):
     database.upsert_task_record(dict(record, id='invalid', status='unknown-status'))
     manager = None
     try:
-        manager = TaskManager(database, SimpleNamespace(), object())
+        manager = TaskManager(database, SimpleNamespace(), object(), persist_history=True)
         assert manager.get('valid').result == 'Done'
         assert manager.get('invalid') is None
         with patch('jarvis.tasks.run_reply_engine', return_value='Still working'):
@@ -260,7 +262,7 @@ def test_desktop_task_delivery_is_silent_and_redacted(tmp_path, capsys):
     events = []
     database = Database(str(tmp_path/'delivery.db'), sqlite_vss_path=None)
     manager = TaskManager(database, SimpleNamespace(), object(),
-                          event_callback=events.append)
+                          event_callback=events.append, persist_history=True)
     secret = 'synthetic-secret-value'
 
     def reply(db, cfg, tts, prompt, memory, **kwargs):
@@ -298,7 +300,8 @@ def test_task_errors_do_not_expose_secrets_in_diagnostics(monkeypatch, failure):
         if failure == boundary:
             setattr(database, method, fail)
     manager = TaskManager(database, SimpleNamespace(), object(),
-                          event_callback=fail if failure == 'event' else None)
+                          event_callback=fail if failure == 'event' else None,
+                          persist_history=True)
     try:
         with patch('jarvis.tasks.run_reply_engine', side_effect=fail if failure == 'reply' else None,
                    return_value='Done'):
