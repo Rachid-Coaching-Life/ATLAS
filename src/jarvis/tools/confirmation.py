@@ -13,6 +13,7 @@ a tool argument influences the decision.
 from __future__ import annotations
 
 import threading
+import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
@@ -22,6 +23,8 @@ from ..debug import debug_log
 from .types import ToolExecutionResult
 
 DEFAULT_TIMEOUT_SEC = 60.0
+_RELAY_POLL_SEC = 0.05
+_RELAY_EXPIRY_GRACE_SEC = 1.0
 _SUMMARY_VALUE_LIMIT = 80
 
 
@@ -90,21 +93,43 @@ class ConfirmationRelay:
     pending request, once, before expiry. Unknown, expired or repeated
     identifiers are ignored. Nothing is persisted, so a restart of the
     process invalidates every pending request. A failing ``emit`` means "no".
+
+    The broker's clock is authoritative: when it expires a request it sets
+    ``request.cancelled``, and from that instant every answer is refused.
+    The relay notices within ``_RELAY_POLL_SEC`` (and in any case stops
+    waiting a grace period after the timeout, as a safety net).
+
+    ``on_expire`` (optional) is called once, with the request, when no answer
+    arrived in time, so the UI can close its dialog. It is never called when
+    the request was answered or when ``emit`` failed, and its own failures
+    are ignored.
     """
 
-    def __init__(self, emit: Callable[[ConfirmationRequest], None]) -> None:
+    def __init__(
+        self,
+        emit: Callable[[ConfirmationRequest], None],
+        on_expire: Optional[Callable[[ConfirmationRequest], None]] = None,
+    ) -> None:
         self._emit = emit
+        self._on_expire = on_expire
         self._lock = threading.Lock()
         self._pending: Dict[str, Dict[str, Any]] = {}
 
     def provider(self, request: ConfirmationRequest) -> bool:
-        slot: Dict[str, Any] = {"event": threading.Event(), "approved": False}
+        slot: Dict[str, Any] = {
+            "event": threading.Event(), "approved": False, "request": request,
+        }
         with self._lock:
             self._pending[request.request_id] = slot
         try:
             self._emit(request)
-            if not slot["event"].wait(request.timeout_sec):
-                return False
+            deadline = time.monotonic() + request.timeout_sec + _RELAY_EXPIRY_GRACE_SEC
+            while not slot["event"].wait(_RELAY_POLL_SEC):
+                if request.cancelled.is_set() or time.monotonic() >= deadline:
+                    with self._lock:
+                        self._pending.pop(request.request_id, None)
+                    self._notify_expired(request)
+                    return False
             return slot["approved"] is True
         except Exception as exc:
             debug_log(f"confirmation relay failed ({type(exc).__name__})", "tools")
@@ -113,11 +138,19 @@ class ConfirmationRelay:
             with self._lock:
                 self._pending.pop(request.request_id, None)
 
+    def _notify_expired(self, request: ConfirmationRequest) -> None:
+        if self._on_expire is None:
+            return
+        try:
+            self._on_expire(request)
+        except Exception as exc:
+            debug_log(f"confirmation expiry notice failed ({type(exc).__name__})", "tools")
+
     def resolve(self, request_id: str, approved: bool) -> bool:
         """Record the user's answer; False if the request is not pending."""
         with self._lock:
             slot = self._pending.pop(request_id, None)
-        if slot is None:
+        if slot is None or slot["request"].cancelled.is_set():
             return False
         slot["approved"] = approved is True
         slot["event"].set()
