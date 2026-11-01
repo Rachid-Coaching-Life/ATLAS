@@ -306,7 +306,7 @@ def _open_spoken_named_pdf(title: str, folder_hint: Optional[str] = None) -> str
 _READ_PDF_PREFIX = re.compile(
     r"^(?:lis(?:-moi| moi)?|"
     r"peux-tu me lire|tu peux me lire|"
-    r"pourrais-tu me lire|est-ce que tu peux me lire)\\s+",
+    r"pourrais-tu me lire|est-ce que tu peux me lire)\s+",
     re.IGNORECASE,
 )
 
