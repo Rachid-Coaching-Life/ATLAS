@@ -344,6 +344,33 @@ def _read_spoken_named_pdf(title: str, folder_hint: Optional[str] = None) -> str
     )
 
 
+def _has_pdf_study_intent(prompt: str) -> bool:
+    """Summary / question phrasings, including malformed ones (fail closed)."""
+    from .tools.builtin.pdf_study import has_study_intent
+    return has_study_intent(prompt)
+
+
+def _is_private_pdf_task(prompt: str) -> bool:
+    """True when the result is document text that must stay transient.
+
+    Pure and side-effect free: no disk access, no logging.
+    """
+    return _has_spoken_pdf_read_intent(prompt) or _has_pdf_study_intent(prompt)
+
+
+def _study_spoken_named_pdf(
+    title: str, folder_hint: Optional[str], question: Optional[str], cfg,
+) -> str:
+    """Summarise (question None) or answer from one local PDF, read-only."""
+    from .tools.builtin import pdf_study
+    from .tools.builtin.pdf_extract import extract_pdf_text
+
+    folder, parts = _find_spoken_named_pdf(title, folder_hint)
+    return pdf_study.study_document(
+        _local_inventory_directory(folder), Path(*parts), question, cfg, extract_pdf_text,
+    )
+
+
 def _direct_voice_task_prompt(
     query: str, wake_word: str = "ATLAS", wake_aliases=(),
     *, pending_pdf_title: Optional[str] = None,
@@ -387,6 +414,7 @@ def _direct_voice_task_prompt(
         or _has_pdf_open_intent(clean)
         or _has_spoken_pdf_open_intent(clean)
         or _has_spoken_pdf_read_intent(clean)
+        or _has_pdf_study_intent(clean)
     ):
         return clean
     return None
@@ -537,6 +565,11 @@ class TaskManager:
         self._executor.shutdown(wait=wait, cancel_futures=True)
         with self._lock:
             self._private_speech.clear()
+        try:
+            from .tools.builtin.pdf_study import clear_cache
+            clear_cache()
+        except Exception as exc:
+            debug_log(f"pdf study cache cleanup failed ({type(exc).__name__})", "tasks")
 
     def _run(self, task_id: str) -> None:
         with self._lock:
@@ -623,6 +656,24 @@ class TaskManager:
                     raise ValueError("Demande de lecture ambiguë : précisez uniquement le nom du PDF.")
                 title, folder_hint = requested_pdf
                 result = _read_spoken_named_pdf(title, folder_hint)
+            elif _has_pdf_study_intent(task.prompt):
+                from .tools.builtin import pdf_study
+                summary = pdf_study.parse_summary_request(task.prompt, _direct_spoken_pdf_request)
+                asked = (
+                    None if summary is not None
+                    else pdf_study.parse_question_request(task.prompt, _direct_spoken_pdf_request)
+                )
+                if summary is not None:
+                    title, folder_hint = summary
+                    question = None
+                elif asked is not None:
+                    title, folder_hint, question = asked
+                else:
+                    raise ValueError(
+                        "Demande ambiguë : dites « Résume le PDF nom » ou "
+                        "« Dans le PDF nom, votre question »."
+                    )
+                result = _study_spoken_named_pdf(title, folder_hint, question, self.cfg)
             elif _has_spoken_pdf_open_intent(task.prompt):
                 requested_pdf = _direct_spoken_pdf_request(task.prompt)
                 if requested_pdf is None:
@@ -639,9 +690,13 @@ class TaskManager:
             with self._lock:
                 if task.status is not TaskStatus.CANCELLED:
                     task.status = TaskStatus.COMPLETED
-                    if _has_spoken_pdf_read_intent(task.prompt):
+                    if _is_private_pdf_task(task.prompt):
                         self._private_speech[task.id] = result or ""
-                        task.result = "Lecture PDF préparée pour restitution vocale (contenu non conservé)."
+                        task.result = (
+                            "Lecture PDF préparée pour restitution vocale (contenu non conservé)."
+                            if _has_spoken_pdf_read_intent(task.prompt)
+                            else "Réponse PDF préparée pour restitution vocale (contenu non conservé)."
+                        )
                     else:
                         task.result = redact(result or "")
                     task.completed_at = time.time()
@@ -684,10 +739,10 @@ class TaskManager:
             key=lambda task: task.created_at,
         )
         for task in terminal[:-self.max_history]:
-            self._private_speech.pop(task.id, None)
             self._tasks.pop(task.id, None)
             self._futures.pop(task.id, None)
             self._cancel_events.pop(task.id, None)
+            self._private_speech.pop(task.id, None)
         if hasattr(self.db, "prune_task_records"):
             try:
                 self.db.prune_task_records(self.max_history)
