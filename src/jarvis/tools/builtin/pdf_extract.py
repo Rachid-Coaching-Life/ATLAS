@@ -8,11 +8,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import stat
+import time
+from typing import Optional
 
 
 MAX_PDF_BYTES = 12 * 1024 * 1024
 MAX_PAGES = 20
 MAX_CHARS = 30000
+# Study mode (summaries and questions) reads further, under a time budget.
+STUDY_MAX_PAGES = 200
+STUDY_MAX_CHARS = 400000
 
 
 @dataclass(frozen=True)
@@ -22,13 +27,25 @@ class ExtractedPDF:
     truncated: bool
 
 
-def extract_pdf_text(path: Path, allowed_root: Path, *, max_pages: int = MAX_PAGES) -> ExtractedPDF:
+def extract_pdf_text(
+    path: Path,
+    allowed_root: Path,
+    *,
+    max_pages: int = MAX_PAGES,
+    study: bool = False,
+    deadline: Optional[float] = None,
+) -> ExtractedPDF:
     """Extract bounded per-page text; reject files outside allowed_root.
 
     Caller supplies a permitted directory, not an arbitrary full-disk search.
     Scanned/image-only PDF pages return empty text; no OCR is attempted.
+    ``study`` raises the page and character budgets; ``deadline`` (a
+    ``time.monotonic()`` value) stops extraction early and marks the result
+    truncated. The first page is always extracted.
     """
-    if not 1 <= max_pages <= MAX_PAGES:
+    page_ceiling = STUDY_MAX_PAGES if study else MAX_PAGES
+    char_budget = STUDY_MAX_CHARS if study else MAX_CHARS
+    if not 1 <= max_pages <= page_ceiling:
         raise ValueError("Limite de pages invalide")
     root = Path(allowed_root).resolve(strict=True)
     candidate = Path(path)
@@ -63,9 +80,12 @@ def extract_pdf_text(path: Path, allowed_root: Path, *, max_pages: int = MAX_PAG
             raise ValueError("PDF chiffré non pris en charge")
         total = len(reader.pages)
         pages = []
-        chars_left = MAX_CHARS
+        chars_left = char_budget
         truncated = total > max_pages
         for index in range(min(total, max_pages)):
+            if deadline is not None and pages and time.monotonic() >= deadline:
+                truncated = True
+                break
             text = reader.pages[index].extract_text() or ""
             if len(text) > chars_left:
                 text = text[:chars_left]

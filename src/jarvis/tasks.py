@@ -100,6 +100,23 @@ def _direct_recursive_pdf_folder(prompt: str) -> Optional[str]:
     return _DIRECT_RECURSIVE_PDF_COMMANDS.get(_normalized_task_intent(prompt))
 
 
+_DIRECT_DUPLICATE_COMMANDS = {
+    f"{verb} les doublons {where}": folder
+    for verb in ("cherche", "recherche", "trouve")
+    for where, folder in (
+        ("dans mes documents", "Documents"),
+        ("dans mes telechargements", "Downloads"),
+        ("dans mon bureau", "Desktop"),
+        ("sur le bureau", "Desktop"),
+    )
+}
+
+
+def _direct_duplicate_folder(prompt: str) -> Optional[str]:
+    """Exact, read-only duplicate searches in one named user folder."""
+    return _DIRECT_DUPLICATE_COMMANDS.get(_normalized_task_intent(prompt))
+
+
 def _local_inventory_directory(folder: str) -> Path:
     """Use an existing home folder or known local OneDrive relocation only.
 
@@ -344,6 +361,42 @@ def _read_spoken_named_pdf(title: str, folder_hint: Optional[str] = None) -> str
     )
 
 
+def _has_pdf_study_intent(prompt: str) -> bool:
+    """Summary / question phrasings, including malformed ones (fail closed)."""
+    from .tools.builtin.pdf_study import has_study_intent
+    return has_study_intent(prompt)
+
+
+def _is_private_pdf_task(prompt: str) -> bool:
+    """True when the result is document text that must stay transient.
+
+    Pure and side-effect free: no disk access, no logging.
+    """
+    return _has_spoken_pdf_read_intent(prompt) or _has_pdf_study_intent(prompt)
+
+
+def _study_spoken_named_pdf(
+    title: str, folder_hint: Optional[str], question: Optional[str], cfg,
+) -> str:
+    """Summarise (question None) or answer from one local PDF, read-only."""
+    from .tools.builtin import pdf_study
+    from .tools.builtin.pdf_extract import extract_pdf_text
+
+    folder, parts = _find_spoken_named_pdf(title, folder_hint)
+    return pdf_study.study_document(
+        _local_inventory_directory(folder), Path(*parts), question, cfg, extract_pdf_text,
+    )
+
+
+def _find_duplicate_files(folder: str) -> str:
+    """Report byte-identical files in one user folder; read-only."""
+    from .tools.builtin import file_audit
+
+    return file_audit.format_report(
+        folder, file_audit.find_duplicates(_local_inventory_directory(folder)),
+    )
+
+
 def _direct_voice_task_prompt(
     query: str, wake_word: str = "ATLAS", wake_aliases=(),
     *, pending_pdf_title: Optional[str] = None,
@@ -384,9 +437,11 @@ def _direct_voice_task_prompt(
         or _direct_file_list_folder(clean) is not None
         or _direct_pdf_list_folder(clean) is not None
         or _direct_recursive_pdf_folder(clean) is not None
+        or _direct_duplicate_folder(clean) is not None
         or _has_pdf_open_intent(clean)
         or _has_spoken_pdf_open_intent(clean)
         or _has_spoken_pdf_read_intent(clean)
+        or _has_pdf_study_intent(clean)
     ):
         return clean
     return None
@@ -426,7 +481,13 @@ class Task:
 
 
 class TaskManager:
-    """Execute prompts through the normal reply engine in a bounded queue."""
+    """Execute prompts through the normal reply engine in a bounded queue.
+
+    Task history is kept in memory for the current session only. Saving it in
+    the local database (and restoring it at startup) is opt-in: pass
+    ``persist_history=True`` or set ``ATLAS_TASK_HISTORY=1``. By default any
+    history left in the database by an earlier version is erased at startup.
+    """
 
     def __init__(
         self,
@@ -437,6 +498,7 @@ class TaskManager:
         max_workers: int = 1,
         max_queued_tasks: int = 100,
         max_history: int = DEFAULT_TASK_HISTORY,
+        persist_history: Optional[bool] = None,
     ) -> None:
         for limit in (max_queued_tasks, max_history):
             if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
@@ -447,6 +509,9 @@ class TaskManager:
         self.event_callback = event_callback
         self.max_queued_tasks = max_queued_tasks
         self.max_history = max_history
+        if persist_history is None:
+            persist_history = os.environ.get("ATLAS_TASK_HISTORY") == "1"
+        self._persist_history = bool(persist_history)
         self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="jarvis-task")
         self._tasks: dict[str, Task] = {}
         self._private_speech: dict[str, str] = {}
@@ -537,6 +602,11 @@ class TaskManager:
         self._executor.shutdown(wait=wait, cancel_futures=True)
         with self._lock:
             self._private_speech.clear()
+        try:
+            from .tools.builtin.pdf_study import clear_cache
+            clear_cache()
+        except Exception as exc:
+            debug_log(f"pdf study cache cleanup failed ({type(exc).__name__})", "tasks")
 
     def _run(self, task_id: str) -> None:
         with self._lock:
@@ -606,6 +676,9 @@ class TaskManager:
                         or "Recherche PDF indisponible."
                     )
                 result = outcome.reply_text
+            elif (folder := _direct_duplicate_folder(task.prompt)) is not None:
+                # Read-only content comparison; nothing is moved or deleted.
+                result = _find_duplicate_files(folder)
             elif _has_pdf_open_intent(task.prompt):
                 # Invalid requests fail closed; they must never fall through
                 # to unconstrained LLM/tool routing.
@@ -623,6 +696,24 @@ class TaskManager:
                     raise ValueError("Demande de lecture ambiguë : précisez uniquement le nom du PDF.")
                 title, folder_hint = requested_pdf
                 result = _read_spoken_named_pdf(title, folder_hint)
+            elif _has_pdf_study_intent(task.prompt):
+                from .tools.builtin import pdf_study
+                summary = pdf_study.parse_summary_request(task.prompt, _direct_spoken_pdf_request)
+                asked = (
+                    None if summary is not None
+                    else pdf_study.parse_question_request(task.prompt, _direct_spoken_pdf_request)
+                )
+                if summary is not None:
+                    title, folder_hint = summary
+                    question = None
+                elif asked is not None:
+                    title, folder_hint, question = asked
+                else:
+                    raise ValueError(
+                        "Demande ambiguë : dites « Résume le PDF nom » ou "
+                        "« Dans le PDF nom, votre question »."
+                    )
+                result = _study_spoken_named_pdf(title, folder_hint, question, self.cfg)
             elif _has_spoken_pdf_open_intent(task.prompt):
                 requested_pdf = _direct_spoken_pdf_request(task.prompt)
                 if requested_pdf is None:
@@ -639,9 +730,13 @@ class TaskManager:
             with self._lock:
                 if task.status is not TaskStatus.CANCELLED:
                     task.status = TaskStatus.COMPLETED
-                    if _has_spoken_pdf_read_intent(task.prompt):
+                    if _is_private_pdf_task(task.prompt):
                         self._private_speech[task.id] = result or ""
-                        task.result = "Lecture PDF préparée pour restitution vocale (contenu non conservé)."
+                        task.result = (
+                            "Lecture PDF préparée pour restitution vocale (contenu non conservé)."
+                            if _has_spoken_pdf_read_intent(task.prompt)
+                            else "Réponse PDF préparée pour restitution vocale (contenu non conservé)."
+                        )
                     else:
                         task.result = redact(result or "")
                     task.completed_at = time.time()
@@ -684,18 +779,18 @@ class TaskManager:
             key=lambda task: task.created_at,
         )
         for task in terminal[:-self.max_history]:
-            self._private_speech.pop(task.id, None)
             self._tasks.pop(task.id, None)
             self._futures.pop(task.id, None)
             self._cancel_events.pop(task.id, None)
-        if hasattr(self.db, "prune_task_records"):
+            self._private_speech.pop(task.id, None)
+        if self._persist_history and hasattr(self.db, "prune_task_records"):
             try:
                 self.db.prune_task_records(self.max_history)
             except Exception as exc:
                 debug_log(f"task history pruning failed ({type(exc).__name__})", "tasks")
 
     def _persist(self, task: Task) -> None:
-        if not hasattr(self.db, "upsert_task_record"):
+        if not self._persist_history or not hasattr(self.db, "upsert_task_record"):
             return
         record = task.as_dict()
         record["prompt"] = redact(task.prompt)
@@ -709,6 +804,14 @@ class TaskManager:
             debug_log(f"task persistence failed ({type(exc).__name__})", "tasks")
 
     def _restore(self) -> None:
+        if not self._persist_history:
+            # No history is kept: erase what an earlier version saved.
+            if hasattr(self.db, "prune_task_records"):
+                try:
+                    self.db.prune_task_records(0)
+                except Exception as exc:
+                    debug_log(f"legacy task history cleanup failed ({type(exc).__name__})", "tasks")
+            return
         if not hasattr(self.db, "get_task_records"):
             return
         try:
