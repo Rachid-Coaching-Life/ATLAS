@@ -3031,8 +3031,8 @@ class ATLASSystemTray:
         dialog.setIcon(QMessageBox.Icon.Warning)
         dialog.setText("Autoriser cette action sensible ?")
         dialog.setInformativeText(
-            f"Outil : {data['tool']}\\nOpération : {data['operation']}\\n"
-            f"Risque : {data['risk']}\\n{data['summary']}\\n"
+            f"Outil : {data['tool']}\nOpération : {data['operation']}\n"
+            f"Risque : {data['risk']}\n{data['summary']}\n"
             f"Délai : {data['timeout_sec']:g} secondes"
         )
         dialog.setTextFormat(Qt.TextFormat.PlainText)
@@ -3053,7 +3053,7 @@ class ATLASSystemTray:
             elif source is self.daemon_process and source.poll() is None:
                 try:
                     if source.stdin is not None:
-                        source.stdin.write(reply_line(request_id, approved) + "\\n")
+                        source.stdin.write(reply_line(request_id, approved) + "\n")
                         source.stdin.flush()
                 except (OSError, ValueError):
                     pass
