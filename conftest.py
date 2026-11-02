@@ -33,6 +33,12 @@ def pytest_sessionstart(session):
             module = importlib.import_module(backend)
         except (ImportError, OSError):
             continue
+        except Exception as exc:
+            # Headless runner may not initialize PortAudio before audio server startup.
+            # Do not mask unexpected import exceptions.
+            if backend == "sounddevice" and type(exc).__name__ == "PortAudioError":
+                continue
+            raise
         for name in names:
             target = module
             parts = name.split(".")
