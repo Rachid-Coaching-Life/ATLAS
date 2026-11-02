@@ -36,6 +36,11 @@ jobs:
       - name: Run unit tests
         run: |
           python -m pytest -q -m unit
+      - name: Diagnose audio capture boundary repeatability
+        if: success() || failure()
+        run: |
+          python -m pytest -q tests/test_audio_capture_pipeline.py -k test_speech_reaches_whisper_at_configured_boundary --count=10
+
       - name: Verify ATLAS confirmation gate and desktop IPC
         if: success() || failure()
         env:
