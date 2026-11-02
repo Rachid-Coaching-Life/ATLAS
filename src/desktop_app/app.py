@@ -3074,8 +3074,11 @@ class ATLASSystemTray:
         )
 
     def _close_confirmation_dialogs(self) -> None:
-        pending = list(self._confirmation_pending.values())
-        self._confirmation_pending.clear()
+        pending_map = getattr(self, "_confirmation_pending", None)
+        if not pending_map:
+            return
+        pending = list(pending_map.values())
+        pending_map.clear()
         for dialog, _source in pending:
             dialog.close()
 
