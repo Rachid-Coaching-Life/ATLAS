@@ -33,6 +33,13 @@ def pytest_sessionstart(session):
             module = importlib.import_module(backend)
         except (ImportError, OSError):
             continue
+        except Exception as exc:
+            # PortAudio may fail *during import* on headless Linux runners.
+            # Only this known device-initialization error is recoverable;
+            # unexpected import failures must remain visible to the CI.
+            if backend == "sounddevice" and type(exc).__name__ == "PortAudioError":
+                continue
+            raise
         for name in names:
             target = module
             parts = name.split(".")
