@@ -412,6 +412,22 @@ In bundled mode, the daemon runs in the same process, so callbacks can be set di
 - `on_status`: Status messages ("Writing diary entry...")
 - `on_complete`: Completion signal (success/failure)
 
+#### Sensitive-tool confirmations
+
+Actions classified as sensitive require an explicit graphical confirmation. The daemon remains
+the authority on expiration and authorisation. In source/subprocess mode the daemon emits
+strictly parsed `__CONFIRM__:` request and `__CONFIRM_CANCEL__:` expiration frames;
+the desktop sends a newline-terminated `__CONFIRM_REPLY__:` with the exact pending
+request identifier. In bundled/QThread mode the same frame contract is delivered by
+Qt signals to the GUI thread and replies resolve the in-process confirmation relay.
+
+The dialog presents the tool, operation, risk, summary and deadline, with explicit
+**Autoriser** and **Refuser** buttons. Closing or expiring a dialog cannot authorise
+an action. The GUI never infers approval from speech or tool output, ignores unknown
+and duplicate identifiers, ignores messages from replaced daemon instances, and
+clears visible requests when stopping. Confirmation protocol frames do not enter
+the general activity log. An unavailable UI or broken stdin must fail closed.
+
 #### Subprocess Mode (Development)
 
 In subprocess mode, the daemon runs as a separate process. IPC is achieved via stdout:

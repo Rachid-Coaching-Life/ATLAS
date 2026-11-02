@@ -798,7 +798,7 @@ def test_speech_reaches_whisper_at_configured_boundary(
     monkeypatch.setattr(VoiceListener, '_start_llm_warmup', lambda _self: [])
     monkeypatch.setattr(VoiceListener, '_start_transcription_worker', lambda _self: None)
     monkeypatch.setattr('jarvis.activity.get_jarvis_state', lambda: MagicMock())
-    obj = VoiceListener(MagicMock(), cfg, SimpleNamespace(is_speaking=lambda: tts_speaking, set_playback_callbacks=lambda *callbacks: None, preparing_request_at=lambda timestamp: None), None)
+    obj = VoiceListener(MagicMock(), cfg, SimpleNamespace(enabled=True, is_speaking=lambda: tts_speaking, set_playback_callbacks=lambda *callbacks: None, preparing_request_at=lambda timestamp: None), None)
     frame_samples = cfg.sample_rate * frame_ms // 1000
     speech_frames = limit_frames - 2 if silent_endpoint else limit_frames * 3
     speech = np.linspace(.05, .2, frame_samples * speech_frames, dtype=np.float32)

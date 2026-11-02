@@ -1212,6 +1212,29 @@ def _run_daemon(smoke_test: bool = False) -> None:
     #      ``__CHAT_QUERY__:{"text":"..."}`` lines so the chat window can submit
     #      text when the daemon runs as a separate process. Non-chat lines are
     #      ignored so the monitor is a no-op for users who never open the chat.
+    _start_stdin_monitor = (
+        (sys.platform == "win32" and not getattr(sys, 'frozen', False))
+        or (
+            not getattr(sys, 'frozen', False)
+            and os.environ.get("JARVIS_STDIN_IPC") == "1"
+        )
+    )
+
+    # Only the process that owns stdin may install the IPC confirmation relay.
+    # Embedded/Qt mode registers its own provider independently.
+    confirmation_relay = None
+    if _start_stdin_monitor:
+        from .tools.confirmation import set_provider
+        from .tools.confirmation_ipc import make_stdio_relay
+        confirmation_write_lock = threading.Lock()
+
+        def _emit_confirmation_line(frame: str) -> None:
+            with confirmation_write_lock:
+                print(frame, flush=True)
+
+        confirmation_relay = make_stdio_relay(_emit_confirmation_line)
+        set_provider(confirmation_relay.provider)
+
     def stdin_monitor():
         try:
             # When parent closes our stdin, readline returns empty
@@ -1222,6 +1245,10 @@ def _run_daemon(smoke_test: bool = False) -> None:
                     request_stop()
                     break
                 stripped = line.strip()
+                if confirmation_relay is not None:
+                    from .tools.confirmation_ipc import handle_reply_line
+                    if handle_reply_line(confirmation_relay, stripped):
+                        continue
                 if stripped == "SHUTDOWN":
                     debug_log("SHUTDOWN command received, requesting stop", "jarvis")
                     request_stop()
@@ -1251,13 +1278,6 @@ def _run_daemon(smoke_test: bool = False) -> None:
     # so that a bare ``python -m jarvis.main < /dev/null`` (or a systemd unit
     # with StandardInput=null) does NOT start the monitor and immediately exit
     # on EOF. Bundled mode uses a QThread, not a subprocess, so it's skipped.
-    _start_stdin_monitor = (
-        (sys.platform == "win32" and not getattr(sys, 'frozen', False))
-        or (
-            not getattr(sys, 'frozen', False)
-            and os.environ.get("JARVIS_STDIN_IPC") == "1"
-        )
-    )
     if _start_stdin_monitor:
         stdin_thread = threading.Thread(target=stdin_monitor, daemon=True)
         stdin_thread.start()
@@ -1282,6 +1302,9 @@ def _run_daemon(smoke_test: bool = False) -> None:
     except KeyboardInterrupt:
         debug_log("daemon received KeyboardInterrupt", "jarvis")
     finally:
+        if confirmation_relay is not None:
+            from .tools.confirmation import set_provider
+            set_provider(None)
         request_stop()
         print("🔄 Daemon shutting down - saving memory...", flush=True)
         debug_log("daemon finally block starting - performing cleanup", "jarvis")

@@ -113,6 +113,23 @@ def _isolate_user_config_path(tmp_path_factory, monkeypatch):
     monkeypatch.setenv("JARVIS_CONFIG_PATH", str(sandbox / "config.json"))
 
 
+@pytest.fixture(autouse=True)
+def _approve_sensitive_tools_for_behavioural_tests():
+    """Run existing behavioural tests as if the user had confirmed every action.
+
+    In production the confirmation gate refuses sensitive tools unless a human
+    approves (see ``jarvis.tools.confirmation``). Most tests exercise the
+    tools themselves, not the gate, so they get an approving provider. The
+    gate's own tests (``test_confirmation_*``) install their own provider,
+    which replaces this one.
+    """
+    from jarvis.tools import confirmation
+
+    confirmation.set_provider(lambda _request: True)
+    yield
+    confirmation.set_provider(None)
+
+
 @pytest.fixture
 def mock_config():
     """Provide a mock configuration for unit tests."""

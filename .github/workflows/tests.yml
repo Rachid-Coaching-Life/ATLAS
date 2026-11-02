@@ -24,7 +24,11 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/release-plugin" --ignore-scripts --no-audit --no-fund @semantic-release/github@9
           node tests/release_publication.mjs "$RUNNER_TEMP/release-plugin/node_modules/@semantic-release/github"
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y portaudio19-dev libegl1 libxkbcommon0
+        run: sudo apt-get update && sudo apt-get install -y portaudio19-dev pulseaudio libegl1 libxkbcommon0
+      - name: Start headless audio server for test imports
+        run: |
+          pulseaudio --start --exit-idle-time=-1
+          pactl info
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
@@ -32,6 +36,18 @@ jobs:
       - name: Run unit tests
         run: |
           python -m pytest -q -m unit
+      - name: Diagnose audio capture boundary repeatability
+        if: success() || failure()
+        run: |
+          python -m pytest -q tests/test_audio_capture_pipeline.py -k test_speech_reaches_whisper_at_configured_boundary --count=10
+
+      - name: Verify ATLAS confirmation gate and desktop IPC
+        if: success() || failure()
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python -m pytest -q tests/test_confirmation_gate.py tests/test_confirmation_ipc.py tests/test_confirmation_mcp.py tests/test_desktop_confirmation_log.py tests/test_desktop_confirmation_bridge.py
+
       - name: 🧪 Verify local provider transport
         run: |
           python -m pytest -q -m integration tests/test_openai_compatible_e2e.py tests/test_provider_model_resolution.py tests/test_setup_wizard.py tests/test_local_llm_privacy.py

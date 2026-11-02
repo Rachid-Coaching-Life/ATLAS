@@ -25,7 +25,18 @@ class DummyDB:
         return mid == 1
 
 
+@pytest.fixture
+def approve_sensitive():
+    """These tests exercise tool behaviour, not the confirmation gate."""
+    from jarvis.tools import confirmation
+
+    confirmation.set_provider(lambda request: True)
+    yield
+    confirmation.set_provider(None)
+
+
 @pytest.mark.unit
+@pytest.mark.usefixtures("approve_sensitive")
 def test_delete_meal_success():
     db = DummyDB()
     cfg = DummyCfg()
@@ -45,6 +56,7 @@ def test_delete_meal_success():
 
 
 @pytest.mark.unit
+@pytest.mark.usefixtures("approve_sensitive")
 def test_delete_meal_failure():
     db = DummyDB()
     cfg = DummyCfg()
@@ -117,7 +129,7 @@ def test_local_files_list_and_read(tmp_path):
 
 
 @pytest.mark.unit
-@pytest.mark.usefixtures("local_files_home")
+@pytest.mark.usefixtures("local_files_home", "approve_sensitive")
 def test_local_files_write_append_delete():
     db = DummyDB()
     cfg = DummyCfg()
