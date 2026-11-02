@@ -36,6 +36,13 @@ jobs:
       - name: Run unit tests
         run: |
           python -m pytest -q -m unit
+      - name: Verify ATLAS confirmation gate and desktop IPC
+        if: success() || failure()
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python -m pytest -q tests/test_confirmation_gate.py tests/test_confirmation_ipc.py tests/test_confirmation_mcp.py tests/test_desktop_confirmation_log.py tests/test_desktop_confirmation_bridge.py
+
       - name: 🧪 Verify local provider transport
         run: |
           python -m pytest -q -m integration tests/test_openai_compatible_e2e.py tests/test_provider_model_resolution.py tests/test_setup_wizard.py tests/test_local_llm_privacy.py
