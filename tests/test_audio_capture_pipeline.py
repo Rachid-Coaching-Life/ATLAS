@@ -813,6 +813,9 @@ def test_speech_reaches_whisper_at_configured_boundary(
             return super().get(*args, **kwargs)
 
     obj._audio_q = Feed()
+    # This test targets frame boundaries, not the separate startup TTS handshake.
+    # The greeting pauses capture and can race with the synthetic input callback.
+    monkeypatch.setattr(obj, '_announce_voice_ready', lambda: None)
 
     class Stream:
         active = True
