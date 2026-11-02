@@ -41,12 +41,12 @@ def test_subprocess_confirmation_approval_and_denial():
     tray = _tray(process)
     tray._on_confirmation_frame(_frame("yes"), process)
     dialog, _ = tray._confirmation_pending["yes"]
-    dialog.buttons()[0].click()
+    next(button for button in dialog.buttons() if button.text() == "Autoriser").click()
     app.processEvents()
     assert process.stdin.getvalue() == reply_line("yes", True) + "\n"
     tray._on_confirmation_frame(_frame("no"), process)
     dialog, _ = tray._confirmation_pending["no"]
-    dialog.buttons()[1].click()
+    next(button for button in dialog.buttons() if button.text() == "Refuser").click()
     app.processEvents()
     assert process.stdin.getvalue().endswith(reply_line("no", False) + "\n")
 
