@@ -1151,11 +1151,15 @@ class LogSignals(QObject):
     new_log = pyqtSignal(str)
     voice_status = pyqtSignal(object, str)
     task_event = pyqtSignal(str)
+    confirmation_frame = pyqtSignal(str, object)
 
     def dispatch_output(self, line: str) -> None:
         """Separate task protocol frames from user-facing activity lines."""
         from jarvis.tasks import TASK_EVENT_PREFIX
-        if line.startswith(TASK_EVENT_PREFIX):
+        from jarvis.tools.confirmation_ipc import REQUEST_PREFIX, CANCEL_PREFIX, REPLY_PREFIX
+        if line.startswith((REQUEST_PREFIX, CANCEL_PREFIX, REPLY_PREFIX)):
+            self.confirmation_frame.emit(line, None)
+        elif line.startswith(TASK_EVENT_PREFIX):
             self.task_event.emit(line)
         elif _should_emit_as_log(line):
             self.new_log.emit(line)
@@ -1746,8 +1750,19 @@ class DaemonThread(KeepAliveWorker):
                 self.log_signals.new_log.emit("🚀 ATLAS daemon started\n")
                 self.log_signals.new_log.emit("📋 Initializing daemon components...\n")
 
-                # Run daemon - this should run the main loop
-                daemon_main()
+                from jarvis.tools.confirmation import ConfirmationRelay, set_provider
+                from jarvis.tools.confirmation_ipc import request_frame, cancel_frame
+                relay = ConfirmationRelay(
+                    emit=lambda req: self.log_signals.confirmation_frame.emit(request_frame(req), self),
+                    on_expire=lambda req: self.log_signals.confirmation_frame.emit(cancel_frame(req), self),
+                )
+                self.confirmation_relay = relay
+                set_provider(relay.provider)
+                try:
+                    daemon_main()
+                finally:
+                    set_provider(None)
+                    self.confirmation_relay = None
 
                 from jarvis.daemon import is_stop_requested
                 if is_stop_requested():
@@ -1831,6 +1846,8 @@ class ATLASSystemTray:
             cancel_callback=self.cancel_task,
         )
         self.log_signals.task_event.connect(self.task_centre.process_log_line)
+        self._confirmation_pending = {}
+        self.log_signals.confirmation_frame.connect(self._on_confirmation_frame)
 
         # Create memory viewer window (hidden by default)
         self.memory_viewer = MemoryViewerWindow()
@@ -2758,6 +2775,7 @@ class ATLASSystemTray:
             return
         self._daemon_stuck = False
         self._daemon_stop_expected = False
+        self._close_confirmation_dialogs()
         self._set_chat_daemon_status("starting")
         try:
             if self.is_bundled:
@@ -2943,6 +2961,7 @@ class ATLASSystemTray:
 
         from jarvis.daemon import CHAT_IPC_PREFIX, VOICE_STATUS_IPC_PREFIX
         from jarvis.tasks import TASK_EVENT_PREFIX
+        from jarvis.tools.confirmation_ipc import REQUEST_PREFIX, CANCEL_PREFIX, REPLY_PREFIX
         process = self.daemon_process
 
         try:
@@ -2965,6 +2984,8 @@ class ATLASSystemTray:
                     self.log_signals.voice_status.emit(process, line)
                 elif line.startswith(TASK_EVENT_PREFIX):
                     self.log_signals.task_event.emit(line)
+                elif line.startswith((REQUEST_PREFIX, CANCEL_PREFIX, REPLY_PREFIX)):
+                    self.log_signals.confirmation_frame.emit(line, process)
                 if _should_emit_as_log(line):
                     self.log_signals.new_log.emit(line)
                 # Mirror only diagnostic outcomes/timings to the launch console.
@@ -2982,6 +3003,73 @@ class ATLASSystemTray:
         except Exception as e:
             debug_log(f"log reader error: {e}", "desktop")
             self.log_signals.new_log.emit(f"⚠️ Log reader error: {e}\n")
+
+    def _on_confirmation_frame(self, line: str, source) -> None:
+        """Handle confirmation protocol exclusively on the GUI thread."""
+        from jarvis.tools.confirmation_ipc import (
+            REQUEST_PREFIX, CANCEL_PREFIX, parse_request_frame,
+            parse_cancel_frame, reply_line,
+        )
+        from PyQt6.QtWidgets import QMessageBox
+        if source is not None and source is not self.daemon_process and source is not self.daemon_thread:
+            return
+        if line.startswith(CANCEL_PREFIX):
+            request_id = parse_cancel_frame(line.strip())
+            pending = self._confirmation_pending.get(request_id)
+            if pending is not None and pending[1] is source:
+                self._confirmation_pending.pop(request_id, None)
+                pending[0].close()
+            return
+        if not line.startswith(REQUEST_PREFIX):
+            return
+        data = parse_request_frame(line.strip())
+        if data is None or data["request_id"] in self._confirmation_pending:
+            return
+        request_id = data["request_id"]
+        dialog = QMessageBox()
+        dialog.setWindowTitle("ATLAS — Autorisation nécessaire")
+        dialog.setIcon(QMessageBox.Icon.Warning)
+        dialog.setText("Autoriser cette action sensible ?")
+        dialog.setInformativeText(
+            f"Outil : {data['tool']}\\nOpération : {data['operation']}\\n"
+            f"Risque : {data['risk']}\\n{data['summary']}\\n"
+            f"Délai : {data['timeout_sec']:g} secondes"
+        )
+        dialog.setTextFormat(Qt.TextFormat.PlainText)
+        approve_button = dialog.addButton("Autoriser", QMessageBox.ButtonRole.AcceptRole)
+        refuse_button = dialog.addButton("Refuser", QMessageBox.ButtonRole.RejectRole)
+        dialog.setDefaultButton(refuse_button)
+        self._confirmation_pending[request_id] = (dialog, source)
+
+        def finished(_result: int) -> None:
+            entry = self._confirmation_pending.pop(request_id, None)
+            if entry is None or entry[0] is not dialog:
+                return
+            approved = dialog.clickedButton() is approve_button
+            if source is self.daemon_thread:
+                relay = getattr(source, "confirmation_relay", None)
+                if relay is not None:
+                    relay.resolve(request_id, approved)
+            elif source is self.daemon_process and source.poll() is None:
+                try:
+                    if source.stdin is not None:
+                        source.stdin.write(reply_line(request_id, approved) + "\\n")
+                        source.stdin.flush()
+                except (OSError, ValueError):
+                    pass
+
+        dialog.finished.connect(finished)
+        dialog.show()
+        QTimer.singleShot(
+            max(1, int(data["timeout_sec"] * 1000)),
+            lambda: dialog.close() if self._confirmation_pending.get(request_id, (None,))[0] is dialog else None,
+        )
+
+    def _close_confirmation_dialogs(self) -> None:
+        pending = list(self._confirmation_pending.values())
+        self._confirmation_pending.clear()
+        for dialog, _source in pending:
+            dialog.close()
 
     def _on_chat_ipc_line(self, line: str) -> None:
         """Handle a ``__CHAT__:`` event line on the Qt main thread.
@@ -3020,6 +3108,7 @@ class ATLASSystemTray:
 
         try:
             self._daemon_stop_expected = True
+            self._close_confirmation_dialogs()
             self._set_chat_daemon_status("stopping")
             if self.is_bundled and worker:
                 # When running in a QThread, use the stop flag for graceful shutdown
