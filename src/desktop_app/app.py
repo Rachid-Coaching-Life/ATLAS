@@ -1157,7 +1157,7 @@ class LogSignals(QObject):
         from jarvis.tasks import TASK_EVENT_PREFIX
         if line.startswith(TASK_EVENT_PREFIX):
             self.task_event.emit(line)
-        else:
+        elif _should_emit_as_log(line):
             self.new_log.emit(line)
 
 
