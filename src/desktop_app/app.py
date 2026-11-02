@@ -2942,6 +2942,7 @@ class ATLASSystemTray:
             return
         self.daemon_thread = None
         self._daemon_stuck = False
+        self._close_confirmation_dialogs()
         # stop_daemon owns the UI transition while it processes Qt events.
         if self._daemon_stop_expected:
             return
@@ -2970,6 +2971,7 @@ class ATLASSystemTray:
                 if not line:
                     # EOF - process has ended
                     debug_log("log reader: EOF reached, daemon stdout closed", "desktop")
+                    self.log_signals.confirmation_frame.emit("__ATLAS_CONFIRM_DISCONNECT__", process)
                     break
                 # Debug: log IPC events specifically
                 if "__DIARY__:" in line:
@@ -3012,6 +3014,12 @@ class ATLASSystemTray:
         )
         from PyQt6.QtWidgets import QMessageBox
         if source is not None and source is not self.daemon_process and source is not self.daemon_thread:
+            return
+        if line == "__ATLAS_CONFIRM_DISCONNECT__":
+            for request_id, (dialog, owner) in list(self._confirmation_pending.items()):
+                if owner is source:
+                    self._confirmation_pending.pop(request_id, None)
+                    dialog.close()
             return
         if line.startswith(CANCEL_PREFIX):
             request_id = parse_cancel_frame(line.strip())
