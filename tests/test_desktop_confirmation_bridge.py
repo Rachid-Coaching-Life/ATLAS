@@ -73,7 +73,7 @@ def test_unknown_cancel_duplicate_and_stale_daemon():
 
 
 def test_embedded_confirmation_frames_use_private_signal():
-    _app()
+    app = _app()
     signals = LogSignals()
     seen, logs = [], []
     signals.confirmation_frame.connect(lambda line, source: seen.append((line, source)))
