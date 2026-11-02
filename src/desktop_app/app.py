@@ -121,7 +121,11 @@ def _should_emit_as_log(line: str) -> bool:
     from jarvis.daemon import CHAT_IPC_PREFIX, VOICE_STATUS_IPC_PREFIX
 
     from jarvis.tasks import TASK_EVENT_PREFIX
-    return not line.startswith((CHAT_IPC_PREFIX, VOICE_STATUS_IPC_PREFIX, TASK_EVENT_PREFIX))
+    from jarvis.tools.confirmation_ipc import REQUEST_PREFIX, CANCEL_PREFIX, REPLY_PREFIX
+    return not line.startswith((
+        CHAT_IPC_PREFIX, VOICE_STATUS_IPC_PREFIX, TASK_EVENT_PREFIX,
+        REQUEST_PREFIX, CANCEL_PREFIX, REPLY_PREFIX,
+    ))
 
 
 def _collect_runtime_status_snapshot(
