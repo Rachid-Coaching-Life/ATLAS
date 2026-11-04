@@ -282,7 +282,10 @@ def _valid_timeout(value: Any) -> Optional[float]:
     """Return the timeout as a float, or None when it must be refused."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    timeout = float(value)
+    try:
+        timeout = float(value)
+    except (OverflowError, ValueError, TypeError):
+        return None
     if not math.isfinite(timeout) or not 0 < timeout <= MAX_TIMEOUT_SEC:
         return None
     return timeout
