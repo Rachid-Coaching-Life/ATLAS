@@ -27,7 +27,7 @@ def test_timeout_limits_match_the_wire_protocol():
 
 @pytest.mark.parametrize("timeout", [
     math.inf, -math.inf, math.nan, -1, -0.001, 0, 0.0, 300.001, 301, 1e12,
-    True, False, None, "60", [60],
+    True, False, None, "60", [60], 10**400, -(10**400),
 ])
 def test_invalid_timeout_is_refused_without_asking(timeout):
     asked = []
@@ -38,7 +38,7 @@ def test_invalid_timeout_is_refused_without_asking(timeout):
     assert asked == []
 
 
-@pytest.mark.parametrize("timeout", [math.inf, math.nan, 0, 301])
+@pytest.mark.parametrize("timeout", [math.inf, math.nan, 0, 301, 10**400, -(10**400)])
 def test_gate_blocks_the_tool_on_invalid_timeout(timeout):
     confirmation.set_provider(lambda request: True)
     result = confirmation.gate("localFiles", DELETE, timeout_sec=timeout)
