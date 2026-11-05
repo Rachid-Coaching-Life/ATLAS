@@ -2,7 +2,8 @@
 
 Fail-closed policy: a sensitive operation runs only after an explicit
 approval returned by a registered confirmation provider. Without a provider,
-with a refusal, an error or a timeout, the operation is NOT executed.
+with a refusal, an error, an invalid timeout or a timeout, the operation is
+NOT executed.
 
 The gate is independent of any GUI toolkit. The desktop application registers
 a provider with ``set_provider``; the provider shows the request to the user
@@ -12,20 +13,32 @@ a tool argument influences the decision.
 """
 from __future__ import annotations
 
+import math
 import threading
 import time
+import unicodedata
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from ..debug import debug_log
 from .types import ToolExecutionResult
 
 DEFAULT_TIMEOUT_SEC = 60.0
+# Longest delay the wire protocol accepts (see confirmation_ipc.MAX_TIMEOUT_SEC).
+MAX_TIMEOUT_SEC = 300.0
 _RELAY_POLL_SEC = 0.05
 _RELAY_EXPIRY_GRACE_SEC = 1.0
 _SUMMARY_VALUE_LIMIT = 80
+_SUMMARY_KEY_LIMIT = 30
+_SUMMARY_MAX_ARGS = 5
+# Must stay <= confirmation_ipc.MAX_SUMMARY_CHARS so the frame never cuts it.
+_SUMMARY_MAX_CHARS = 400
+_SUMMARY_NOTICE_RESERVE = 60
+_PATH_KEYS = frozenset(
+    {"path", "file", "filename", "source", "destination", "target"}
+)
 
 
 class Risk(str, Enum):
@@ -48,6 +61,7 @@ class Decision(str, Enum):
     DENIED = "denied"
     EXPIRED = "expired"
     UNAVAILABLE = "unavailable"
+    INVALID = "invalid"  # invalid request parameters: refused, nothing asked
 
 
 @dataclass(frozen=True)
@@ -198,26 +212,83 @@ def classify(tool_name: Optional[str], args: Any = None) -> Risk:
     return _BUILTIN_RISK.get(name, Risk.EXTERNAL)
 
 
-def _short(value: Any) -> str:
-    text = str(value).replace("\n", " ")
-    if len(text) > _SUMMARY_VALUE_LIMIT:
-        text = text[:_SUMMARY_VALUE_LIMIT] + "…"
-    return text
+def _clean(text: Any) -> str:
+    """Make text safe to show in a dialog.
+
+    Line/paragraph separators and control characters (category Cc, Zl, Zp)
+    become a space; invisible format characters (category Cf: bidirectional
+    controls, zero-width characters...) are removed.
+    """
+    out: List[str] = []
+    for char in str(text):
+        category = unicodedata.category(char)
+        if category in ("Cc", "Zl", "Zp"):
+            out.append(" ")
+        elif category != "Cf":
+            out.append(char)
+    return "".join(out)
+
+
+def _short(value: Any, keep_end: bool = False, limit: int = _SUMMARY_VALUE_LIMIT) -> str:
+    text = _clean(value)
+    if len(text) <= limit:
+        return text
+    if keep_end:  # the end of a path (file name) is what matters
+        return "…" + text[-limit:]
+    return text[:limit] + "…"
+
+
+def _omitted_notice(count: int) -> str:
+    return f" (+{count} argument{'s' if count > 1 else ''} non affiché{'s' if count > 1 else ''})"
 
 
 def summarize(tool_name: str, args: Any) -> str:
-    """Describe the action for the user. File contents are never included."""
+    """Describe the action for the user. File contents are never included.
+
+    The text is sanitised, bounded by ``_SUMMARY_MAX_CHARS`` and states how
+    many arguments are not shown.
+    """
+    name = _short(tool_name, limit=_SUMMARY_KEY_LIMIT * 2)
     if tool_name == "localFiles" and isinstance(args, dict):
-        operation = _local_files_operation(args) or "?"
-        text = f"localFiles : {operation} sur {_short(args.get('path', '?'))}"
+        operation = _short(_local_files_operation(args) or "?")
+        text = f"localFiles : {operation} sur {_short(args.get('path', '?'), keep_end=True)}"
         content = args.get("content")
         if isinstance(content, str):
             text += f" ({len(content)} caractères)"
-        return text
+        hidden = len([k for k in args if k not in ("operation", "path", "content")])
+        if hidden:
+            text += _omitted_notice(hidden)
+        return text[:_SUMMARY_MAX_CHARS]
     if isinstance(args, dict) and args:
-        details = ", ".join(f"{k}={_short(v)}" for k, v in list(args.items())[:5])
-        return f"{tool_name} ({details})"
-    return str(tool_name)
+        parts: List[str] = []
+        used = len(name) + 3
+        budget = _SUMMARY_MAX_CHARS - _SUMMARY_NOTICE_RESERVE
+        for key, value in args.items():
+            key_text = _short(key, limit=_SUMMARY_KEY_LIMIT)
+            part = f"{key_text}={_short(value, keep_end=key_text in _PATH_KEYS)}"
+            if len(parts) >= _SUMMARY_MAX_ARGS or used + len(part) + 2 > budget:
+                break
+            parts.append(part)
+            used += len(part) + 2
+        hidden = len(args) - len(parts)
+        text = f"{name} ({', '.join(parts)})" if parts else name
+        if hidden:
+            text += _omitted_notice(hidden)
+        return text[:_SUMMARY_MAX_CHARS]
+    return name
+
+
+def _valid_timeout(value: Any) -> Optional[float]:
+    """Return the timeout as a float, or None when it must be refused."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        timeout = float(value)
+    except (OverflowError, ValueError, TypeError):
+        return None
+    if not math.isfinite(timeout) or not 0 < timeout <= MAX_TIMEOUT_SEC:
+        return None
+    return timeout
 
 
 def request_confirmation(
@@ -226,17 +297,25 @@ def request_confirmation(
     risk: Risk,
     timeout_sec: float = DEFAULT_TIMEOUT_SEC,
 ) -> Decision:
-    """Ask the registered provider and return the decision (never raises)."""
+    """Ask the registered provider and return the decision (never raises).
+
+    A timeout that is not a finite number in ]0, MAX_TIMEOUT_SEC] is refused
+    at once (``Decision.INVALID``): nothing is asked and nothing is clamped.
+    """
+    timeout = _valid_timeout(timeout_sec)
+    if timeout is None:
+        debug_log("confirmation refused: invalid timeout", "tools")
+        return Decision.INVALID
     provider = get_provider()
     if provider is None:
         return Decision.UNAVAILABLE
     request = ConfirmationRequest(
         request_id=uuid.uuid4().hex[:12],
-        tool=str(tool_name),
-        operation=_local_files_operation(args) if tool_name == "localFiles" else "",
+        tool=_clean(str(tool_name)),
+        operation=_clean(_local_files_operation(args)) if tool_name == "localFiles" else "",
         risk=risk,
         summary=summarize(str(tool_name), args),
-        timeout_sec=float(timeout_sec),
+        timeout_sec=timeout,
     )
     outcome: Dict[str, Any] = {}
     finished = threading.Event()
@@ -251,7 +330,7 @@ def request_confirmation(
             finished.set()
 
     threading.Thread(target=_ask, name="atlas-confirmation", daemon=True).start()
-    if not finished.wait(timeout_sec):
+    if not finished.wait(timeout):
         request.cancelled.set()
         decision = Decision.EXPIRED
     else:
@@ -269,6 +348,9 @@ _MESSAGES = {
     Decision.EXPIRED: "Action annulée : aucune confirmation reçue à temps. Rien n'a été exécuté.",
     Decision.UNAVAILABLE: (
         "Action non exécutée : aucune interface de confirmation n'est disponible."
+    ),
+    Decision.INVALID: (
+        "Action non exécutée : délai de confirmation invalide. Rien n'a été exécuté."
     ),
 }
 
