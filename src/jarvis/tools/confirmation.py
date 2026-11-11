@@ -230,12 +230,13 @@ def _clean(text: Any) -> str:
 
 
 def _short(value: Any, keep_end: bool = False, limit: int = _SUMMARY_VALUE_LIMIT) -> str:
-    text = _clean(value)
-    if len(text) <= limit:
-        return text
+    # Bound Unicode scanning before sanitising long JSON-derived values.
+    raw = str(value)
+    if len(raw) <= limit:
+        return _clean(raw)
     if keep_end:  # the end of a path (file name) is what matters
-        return "…" + text[-limit:]
-    return text[:limit] + "…"
+        return "…" + _clean(raw[-limit:])
+    return _clean(raw[:limit]) + "…"
 
 
 def _omitted_notice(count: int) -> str:
@@ -309,14 +310,19 @@ def request_confirmation(
     provider = get_provider()
     if provider is None:
         return Decision.UNAVAILABLE
-    request = ConfirmationRequest(
-        request_id=uuid.uuid4().hex[:12],
-        tool=_clean(str(tool_name)),
-        operation=_clean(_local_files_operation(args)) if tool_name == "localFiles" else "",
-        risk=risk,
-        summary=summarize(str(tool_name), args),
-        timeout_sec=timeout,
-    )
+    try:
+        request = ConfirmationRequest(
+            request_id=uuid.uuid4().hex[:12],
+            tool=_clean(str(tool_name)),
+            operation=_clean(_local_files_operation(args)) if tool_name == "localFiles" else "",
+            risk=risk,
+            summary=summarize(str(tool_name), args),
+            timeout_sec=timeout,
+        )
+    except Exception as exc:
+        # Malformed argument representations must never reach an approval UI.
+        debug_log(f"confirmation summary refused ({type(exc).__name__})", "tools")
+        return Decision.INVALID
     outcome: Dict[str, Any] = {}
     finished = threading.Event()
 
