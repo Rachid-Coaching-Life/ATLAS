@@ -28,5 +28,5 @@ def test_installer_uses_atlas_identity_and_bundled_executable():
     assert '#define MyAppName "ATLAS"' in script
     assert '#define MyAppExeName "ATLAS.exe"' in script
     assert 'OutputBaseFilename=ATLAS-Setup-x64' in script
-    assert r'Source: "..\\..\\dist\\ATLAS\\*"' in script
-    assert r'Filename: "{app}\\{#MyAppExeName}"' in script
+    assert r'Source: "..\..\dist\ATLAS\*"' in script
+    assert r'Filename: "{app}\{#MyAppExeName}"' in script
