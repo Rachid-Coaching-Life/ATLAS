@@ -194,6 +194,33 @@ def test_file_content_is_still_never_shown():
     assert "secret" not in summary and "6 caractères" in summary
 
 
+
+
+class _UnprintableArgument:
+    def __str__(self):
+        raise RuntimeError("untrusted stringify")
+
+
+def test_unprintable_arguments_fail_closed_without_provider_call():
+    asked = []
+    confirmation.set_provider(lambda request: asked.append(request) or True)
+    args = {"query": _UnprintableArgument()}
+    decision = confirmation.request_confirmation("externalTool", args, Risk.EXTERNAL)
+    assert decision is Decision.INVALID
+    assert asked == []
+    blocked = confirmation.gate("externalTool", args)
+    assert blocked is not None and blocked.success is False
+    assert asked == []
+
+
+def test_large_argument_is_bounded_without_changing_the_notice():
+    huge = "a" * 2_000_000 + "FIN"
+    summary = confirmation.summarize("externalTool", {"query": huge, "path": huge})
+    assert len(summary) <= confirmation._SUMMARY_MAX_CHARS
+    assert "query=" in summary
+    assert "FIN" in summary  # path-like values preserve their end
+    assert "a" * 100 not in summary
+
 def test_non_dict_arguments_do_not_crash():
     assert confirmation.summarize("someTool", None) == "someTool"
     assert confirmation.summarize("localFiles", ["delete"]) == "localFiles"
