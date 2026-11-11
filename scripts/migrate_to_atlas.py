@@ -15,7 +15,9 @@ Sub-commands (standard library only):
 
 Licences, copyright and upstream attribution lines are never rewritten. Git
 history is kept by using ``git mv``. Assertions are never touched: only names
-are renamed, consistently, in code, tests and configuration.
+are renamed, consistently, in code, tests and configuration. A negative
+assertion on the former name (``assert 'Jarvis' not in output``) keeps that
+name: it checks that the old product name is absent from the ATLAS interfaces.
 """
 from __future__ import annotations
 
@@ -51,14 +53,19 @@ TOOLING = {
     "src/atlas/legacy_compat.py": "legacy compatibility layer (reads the former names on purpose)",
     "tests/test_atlas_legacy_compat.py": "tests of the legacy compatibility layer",
 }
+# Lines that carry the upstream project's identity or an upstream destination
+# are never rewritten: licence, copyright, attribution, and URLs or repository
+# references that would otherwise point to something that does not exist.
 KEEP_LINE = re.compile(
-    "github[.]com/isair|barissencan|baris@|ko-fi[.]com/isair|sponsors/isair|copyright|"
-    "[(]c[)] [0-9]|spdx-license-identifier|isair/jarvis",
+    "github[.]com/isair|githubusercontent[.]com/isair|isair[.]github[.]io|barissencan|baris@|"
+    "ko-fi[.]com/isair|sponsors/isair|owner:[^a-z]{0,3}isair|(?<![a-z])isair/|copyright|"
+    "[(]c[)] [0-9]|spdx-license-identifier",
     re.IGNORECASE,
 )
 UPSTREAM_ID = re.compile("(?<![A-Za-z])isair(?![A-Za-z])", re.IGNORECASE)
 ANY_FORM = re.compile("jarvi", re.IGNORECASE)
 EXACT_FORM = re.compile("jarvis", re.IGNORECASE)
+FORMER_NAME_WORD = re.compile("(?<![A-Za-z])jarvis(?![A-Za-z])", re.IGNORECASE)
 
 # Order matters. The product name in prose becomes ATLAS, identifiers use Atlas.
 TEXT_RULES = [
@@ -73,6 +80,16 @@ TEXT_RULES = [
     (re.compile("(?<![A-Za-z])Jarvis(?![A-Za-z])"), "ATLAS"),
     (re.compile("(?<![A-Za-z])jarvis(?![a-z])"), "atlas"),
 ]
+
+# Approximation fixtures of the wake-word tests. The former word is not close to
+# the new one, so these misspellings are replaced by a real approximation of
+# "atlas": difflib ratio 0.909 (threshold 0.78) and a token no longer than the
+# name plus one, which is the rule of is_wake_word_detected. Thresholds and
+# assertions are not touched.
+FIXTURE_APPROXIMATIONS = {
+    "tests/test_wake_detection.py": (("jarvas", "atlass"),),
+    "tests/test_wake_alias_boundaries.py": (("jarvas", "atlass"),),
+}
 
 
 def text_name(value: str) -> str:
@@ -177,11 +194,53 @@ def _rewrite_slice(piece: str, lines: list, first_row: int) -> str:
     return NL.join(out)
 
 
+def _char_col(lines: list, row: int, byte_col: int) -> int:
+    """ast offsets are UTF-8 bytes, tokenize offsets are characters."""
+    line = lines[row - 1] if 0 < row <= len(lines) else ""
+    return len(line.encode("utf-8")[:byte_col].decode("utf-8", errors="ignore"))
+
+
+def _literal_span(lines: list, node) -> tuple:
+    return ((node.lineno, _char_col(lines, node.lineno, node.col_offset)),
+            (node.end_lineno, _char_col(lines, node.end_lineno, node.end_col_offset)))
+
+
+def _former_literal(node) -> bool:
+    return (isinstance(node, ast.Constant) and isinstance(node.value, str)
+            and bool(FORMER_NAME_WORD.search(node.value)))
+
+
+def negative_assertion_spans(source: str, lines: list) -> list:
+    """Spans of the string literals in ``assert 'Jarvis' not in x`` and assertNotIn.
+
+    These assertions check that the former name is absent from an ATLAS
+    interface. Rewriting them into ``'ATLAS' not in x`` would forbid the new
+    name and contradict the positive assertions next to them, so they are kept.
+    Only the whole former name counts: ``'Jarvisring'`` is a fixture, not the name.
+    """
+    spans = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Assert):
+            for sub in ast.walk(node.test):
+                if (isinstance(sub, ast.Compare) and sub.ops and isinstance(sub.ops[0], ast.NotIn)
+                        and _former_literal(sub.left)):
+                    spans.append(_literal_span(lines, sub.left))
+        elif (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+              and node.func.attr == "assertNotIn" and node.args and _former_literal(node.args[0])):
+            spans.append(_literal_span(lines, node.args[0]))
+    return spans
+
+
+def _inside(token, spans: list) -> bool:
+    return any(start <= token.start and token.end <= end for start, end in spans)
+
+
 def transform_python(source: str):
     """Return (new source, conflicts). Raises SyntaxError if either side is invalid."""
     ast.parse(source)
     lines, starts = _offsets(source)
     tokens = python_tokens(source)
+    spans = negative_assertion_spans(source, lines)
     names = {token.string for token in tokens if token.type == tokenize.NAME}
     conflicts, edits = [], []
     for token in tokens:
@@ -196,6 +255,8 @@ def transform_python(source: str):
                     conflicts.append(f"{token.string} -> {new} already exists")
                 edits.append((begin, end, new))
         elif _string_like(token.type):
+            if _inside(token, spans):
+                continue
             piece = source[begin:end]
             expected = token.string
             if token.type == getattr(tokenize, "FSTRING_MIDDLE", -1):
@@ -326,6 +387,7 @@ def install_templates(root: Path, report: dict) -> list:
 def classify_python(source: str):
     """Yield (category, line number, text) for each reference in a Python file."""
     lines = io.StringIO(source).readlines()
+    spans = negative_assertion_spans(source, lines)
     for token in python_tokens(source):
         if not ANY_FORM.search(token.string):
             continue
@@ -335,6 +397,8 @@ def classify_python(source: str):
             kind = "import" if text.startswith(("import ", "from ")) else "identifier"
         elif token.type == tokenize.COMMENT:
             kind = "comment"
+        elif _inside(token, spans):
+            kind = "kept-negative-assertion"
         else:
             kind = "string"
         yield kind, row, text
@@ -373,7 +437,9 @@ def scan_references(root: Path, workflows: bool = False, website: bool = False) 
                 if ANY_FORM.search(line):
                     entries.append({"kind": "text", "line": number, "text": line.strip()[:160]})
         for entry in entries:
-            if keep_line(entry["text"]) or keep_line(source.split(NL)[entry["line"] - 1]):
+            if entry["kind"] == "kept-negative-assertion":
+                entry["category"] = "kept-negative"
+            elif keep_line(entry["text"]) or keep_line(source.split(NL)[entry["line"] - 1]):
                 entry["category"] = "attribution"
             elif EXACT_FORM.search(entry["text"]) or EXACT_FORM.search(source.split(NL)[entry["line"] - 1]):
                 entry["category"] = "unmigrated"
@@ -444,6 +510,8 @@ def cmd_apply(args) -> int:
             else:
                 report["problems"].append(f"{rel}: not rewritten ({error})")
                 continue
+        for old_text, new_text in FIXTURE_APPROXIMATIONS.get(rel, ()):
+            new = new.replace(old_text, new_text)
         if new != source:
             write_text(path, new)
             report["modified"].append(rel)
@@ -506,6 +574,8 @@ def cmd_check(args) -> int:
                   if e["category"] == "unmigrated"]
     review = [(rel, e) for rel, entries in found["files"].items() for e in entries
               if e["category"] == "variant-review"]
+    kept = [f"{rel}:{e['line']}: {e['text']}" for rel, entries in found["files"].items() for e in entries
+            if e["category"] == "kept-negative"]
     for rel, entry in unmigrated:
         problems.append(f"unmigrated reference {rel}:{entry['line']} ({entry['kind']}): {entry['text']}")
     for item in found["names"]:
@@ -545,10 +615,12 @@ def cmd_check(args) -> int:
     for item in upstream:
         warnings.append(f"upstream identifier left for an owner decision {item}")
     report = {"problems": problems, "warnings": warnings, "exceptions": exceptions,
-              "attribution_lines": attributions, "imports": {k: len(v) for k, v in imports.items()},
+              "attribution_lines": attributions, "kept_negative_assertions": kept,
+              "imports": {k: len(v) for k, v in imports.items()},
               "counts": summarize_scan(found)}
     write_report(Path(args.report_dir) / "check-report.json" if args.report_dir else None, report)
-    print(f"problems: {len(problems)}; warnings: {len(warnings)}; excepted files: {len(exceptions)}")
+    print(f"problems: {len(problems)}; warnings: {len(warnings)}; excepted files: {len(exceptions)}; "
+          f"kept negative assertions: {len(kept)}")
     for item in problems:
         print("PROBLEM:", item, file=sys.stderr)
     return 1 if problems else 0
@@ -618,6 +690,10 @@ def cmd_summary(args) -> int:
             out += [f"  - {item}" for item in items[:40]]
         if "renamed" in data:
             out.append(f"- chemins renommes: {len(data['renamed'])}; fichiers modifies: {len(data.get('modified', []))}")
+        if "kept_negative_assertions" in data:
+            kept = data["kept_negative_assertions"]
+            out.append(f"- assertions negatives conservees (absence de l'ancien nom): {len(kept)}")
+            out += [f"  - {item}" for item in kept[:40]]
         if "exceptions" in data:
             out.append("- exceptions justifiees:")
             out += [f"  - {e['path']} ({e['lines']} lignes): {e['reason']}" for e in data["exceptions"]]

@@ -1,4 +1,6 @@
 """The migration script on a small synthetic repository (git required)."""
+import difflib
+import json
 import shutil
 import subprocess
 import sys
@@ -109,6 +111,81 @@ def migrate(repo):
     git(repo, "add", "-A")
 
 
+def commit(repo, message):
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", message)
+
+
+def test_negative_assertions_on_the_former_name_are_kept(repo):
+    interface = repo / "tests/test_interface.py"
+    interface.write_text(L(
+        "def test_interface(output, placeholder, prompt2, self):",
+        "    assert '🤖 Jarvis' in output",
+        "    assert '🤖 Jarvis' not in output",
+        '    assert "Jarvis" not in placeholder',
+        '    assert "Jarvisring" not in prompt2',
+        '    self.assertNotIn("Jarvis", output)',
+    ), encoding="utf-8")
+    commit(repo, "interface test")
+    migrate(repo)
+    migrated = interface.read_text(encoding="utf-8")
+    assert "assert '🤖 ATLAS' in output" in migrated
+    assert "assert '🤖 Jarvis' not in output" in migrated
+    assert 'assert "Jarvis" not in placeholder' in migrated
+    assert 'self.assertNotIn("Jarvis", output)' in migrated
+    assert 'assert "Atlasring" not in prompt2' in migrated
+    assert "'ATLAS' not in" not in migrated and '"ATLAS" not in' not in migrated
+    assert migrated.count("assert ") == 4
+    tool(repo, "check", "--skip-imports", "--report-dir", reports(repo))
+    report = json.loads((Path(reports(repo)) / "check-report.json").read_text(encoding="utf-8"))
+    assert len(report["kept_negative_assertions"]) == 3
+
+
+def test_upstream_repository_references_are_not_rewritten(repo):
+    skill = repo / ".agents/skills/triage/SKILL.md"
+    skill.parent.mkdir(parents=True, exist_ok=True)
+    skill.write_text(L('Query: repository(owner:"isair", name:"jarvis") discussions', "A plain Jarvis mention"),
+                     encoding="utf-8")
+    site = repo / "tests/test_public_website.py"
+    site.write_text(L(
+        "def test_site():",
+        "    base = 'https://isair.github.io/jarvis/'",
+        "    raw = 'https://raw.githubusercontent.com/isair/jarvis/main/x'",
+        "    assert base and raw",
+    ), encoding="utf-8")
+    commit(repo, "upstream references")
+    migrate(repo)
+    assert 'owner:"isair", name:"jarvis"' in skill.read_text(encoding="utf-8")
+    assert "A plain ATLAS mention" in skill.read_text(encoding="utf-8")
+    text = site.read_text(encoding="utf-8")
+    assert "https://isair.github.io/jarvis/" in text and "githubusercontent.com/isair/jarvis/main/x" in text
+    tool(repo, "check", "--skip-imports", "--report-dir", reports(repo))
+
+
+def test_wake_word_approximation_fixtures_use_pertinent_atlas_variants(repo):
+    detection = repo / "tests/test_wake_detection.py"
+    detection.write_text(L(
+        "def test_fuzzy_match():",
+        '    assert is_wake_word_detected("hey jarvas", "jarvis", [], fuzzy_ratio=0.78) is True',
+    ), encoding="utf-8")
+    boundaries = repo / "tests/test_wake_alias_boundaries.py"
+    boundaries.write_text(L(
+        "CASES = [('jarvis', 'joris', 'jarvas')]",
+        "def test_threshold():",
+        "    assert not is_wake_word_detected('jarvas hello', 'jarvis', ['joris'], fuzzy_ratio=1.0)",
+    ), encoding="utf-8")
+    commit(repo, "wake fixtures")
+    migrate(repo)
+    first = detection.read_text(encoding="utf-8")
+    second = boundaries.read_text(encoding="utf-8")
+    assert '"hey atlass", "atlas", [], fuzzy_ratio=0.78) is True' in first
+    assert "('atlas', 'joris', 'atlass')" in second
+    assert "'atlass hello', 'atlas', ['joris'], fuzzy_ratio=1.0)" in second
+    assert "jarvas" not in first + second
+    ratio = difflib.SequenceMatcher(a="atlas", b="atlass").ratio()
+    assert 0.78 <= ratio < 1.0 and len("atlass") <= len("atlas") + 1
+
+
 def test_wake_word_compounds_are_migrated_without_losing_boundary_checks(repo):
     fixture = repo / "tests/test_wake_alias_boundaries.py"
     fixture.write_text(L(
@@ -116,8 +193,7 @@ def test_wake_word_compounds_are_migrated_without_losing_boundary_checks(repo):
         "    assert 'jarvisian' != 'Jarvis'",
         "    assert 'Jarvisring' != 'Jarvis'",
     ), encoding="utf-8")
-    git(repo, "add", "-A")
-    git(repo, "commit", "-q", "-m", "add wake-word boundary fixtures")
+    commit(repo, "add wake-word boundary fixtures")
     migrate(repo)
     migrated = fixture.read_text(encoding="utf-8")
     assert "'atlasian' != 'ATLAS'" in migrated
@@ -137,8 +213,7 @@ def test_active_history_module_does_not_block_package_rename(repo):
     history = repo / "src/jarvis/dictation/history.py"
     history.parent.mkdir(parents=True, exist_ok=True)
     history.write_text("def read_history():\n    return 'ok'\n", encoding="utf-8")
-    git(repo, "add", "-A")
-    git(repo, "commit", "-q", "-m", "add active history module")
+    commit(repo, "add active history module")
     migrate(repo)
     assert (repo / "src/atlas/dictation/history.py").exists()
     assert not (repo / "src/jarvis/dictation/history.py").exists()
@@ -148,8 +223,7 @@ def test_code_modules_named_like_documents_do_not_block_the_rename(repo):
     for name in ("notice.py", "license_info.py", "changelog.py", "release_notes.py", "third_party.py"):
         module = repo / "src/jarvis" / name
         module.write_text("VALUE = 1" + NL, encoding="utf-8")
-    git(repo, "add", "-A")
-    git(repo, "commit", "-q", "-m", "modules named like documents")
+    commit(repo, "modules named like documents")
     migrate(repo)
     for name in ("notice.py", "license_info.py", "changelog.py", "release_notes.py", "third_party.py"):
         assert (repo / "src/atlas" / name).is_file()
