@@ -137,7 +137,7 @@ jobs:
           # without its binaries is worse than a failed job.
           set -euo pipefail
           missing=0
-          for name in Jarvis-Windows Jarvis-macOS-arm64 Jarvis-macOS-x64 Jarvis-Linux; do
+          for name in ATLAS-Windows ATLAS-macOS-arm64 ATLAS-macOS-x64 ATLAS-Linux; do
             echo "Downloading $name..."
             if ! gh run download ${{ github.run_id }} --repo ${{ github.repository }} \
               --name "$name" \
@@ -175,10 +175,10 @@ jobs:
             ### 📦 Downloads
             | Platform | File | Notes |
             |----------|------|-------|
-            | **Windows** | `Jarvis-Windows-x64.zip` | Extract → Run `Jarvis.exe` |
-            | **macOS (Apple Silicon)** | `Jarvis-macOS-arm64.zip` | Extract → Move to Applications → Right-click → Open |
-            | **macOS (Intel)** | `Jarvis-macOS-x64.zip` | Extract → Move to Applications → Right-click → Open |
-            | **Linux** | `Jarvis-Linux-x64.tar.gz` | `tar -xzf` → Run `./Jarvis/Jarvis` |
+            | **Windows** | `ATLAS-Windows-x64.zip` | Extract → Run `ATLAS.exe` |
+            | **macOS (Apple Silicon)** | `ATLAS-macOS-arm64.zip` | Extract → Move to Applications → Right-click → Open |
+            | **macOS (Intel)** | `ATLAS-macOS-x64.zip` | Extract → Move to Applications → Right-click → Open |
+            | **Linux** | `ATLAS-Linux-x64.tar.gz` | `tar -xzf` → Run `./ATLAS/ATLAS` |
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -321,10 +321,10 @@ jobs:
             ### 📦 Downloads
             | Platform | File | Notes |
             |----------|------|-------|
-            | **Windows** | `Jarvis-Windows-x64.zip` | Extract → Run `Jarvis.exe` |
-            | **macOS (Apple Silicon)** | `Jarvis-macOS-arm64.zip` | Extract → Move to Applications → Right-click → Open |
-            | **macOS (Intel)** | `Jarvis-macOS-x64.zip` | Extract → Move to Applications → Right-click → Open |
-            | **Linux** | `Jarvis-Linux-x64.tar.gz` | `tar -xzf` → Run `./Jarvis/Jarvis` |
+            | **Windows** | `ATLAS-Windows-x64.zip` | Extract → Run `ATLAS.exe` |
+            | **macOS (Apple Silicon)** | `ATLAS-macOS-arm64.zip` | Extract → Move to Applications → Right-click → Open |
+            | **macOS (Intel)** | `ATLAS-macOS-x64.zip` | Extract → Move to Applications → Right-click → Open |
+            | **Linux** | `ATLAS-Linux-x64.tar.gz` | `tar -xzf` → Run `./ATLAS/ATLAS` |
 
             **Branch**: develop
             **Commit**: ${{ github.sha }}
