@@ -27,7 +27,8 @@ jobs:
       - name: Install focused test dependency
         run: python -m pip install pytest
       - name: Verify the ATLAS installer contract
-        run: python -m pytest -q tests/test_atlas_installer_safety.py
+        # Source-only tests do not need the application dependencies or conftest.
+        run: python -m pytest -q --noconftest tests/test_atlas_installer_safety.py
 
   windows-installer:
     name: Build ATLAS Windows installer and smoke-test
