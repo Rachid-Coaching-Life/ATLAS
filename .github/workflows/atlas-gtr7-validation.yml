@@ -1,0 +1,23 @@
+name: ATLAS GTR7 Windows Validation
+
+on:
+  # A single isolated push qualification; future runs can be started manually.
+  push:
+    branches:
+      - chatgpt/atlas-build-workflows
+    paths:
+      - .github/workflows/atlas-gtr7-validation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-installer:
+    name: Build ATLAS Windows installer and smoke-test
+    uses: ./.github/workflows/build-desktop.yml
+    with:
+      version: dev-gtr7-validation
+      channel: develop
+      smoke_test: true
+      target_os: windows

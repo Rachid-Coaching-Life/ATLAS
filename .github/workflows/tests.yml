@@ -151,7 +151,7 @@ jobs:
           # A narrow source copy avoids shadowing stdlib types with tools/types.py.
           probe_source = Path('build/search-native/source')
           probe_source.mkdir(parents=True, exist_ok=True)
-          shutil.copyfile('src/jarvis/tools/search_http.py', probe_source / 'search_http.py')
+          shutil.copyfile('src/atlas/tools/search_http.py', probe_source / 'search_http.py')
           subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean',
                           '--onedir', '--name', 'search-probe', '--paths', str(probe_source),
                           '--additional-hooks-dir', 'installer/hooks',
@@ -159,6 +159,6 @@ jobs:
                           '--specpath', 'build/search-native', 'tests/fixtures/search_transport_probe.py'], check=True)
           env = os.environ.copy()
           executable = 'search-probe.exe' if os.name == 'nt' else 'search-probe'
-          env['JARVIS_SEARCH_PROBE_EXE'] = str(Path('build/search-native/dist/search-probe', executable).resolve())
+          env['ATLAS_SEARCH_PROBE_EXE'] = str(Path('build/search-native/dist/search-probe', executable).resolve())
           subprocess.run([sys.executable, '-m', 'pytest', '-q', '-m', 'integration',
                           'tests/test_search_http.py'], env=env, check=True)
