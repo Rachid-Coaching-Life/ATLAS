@@ -7,6 +7,7 @@ from collections import deque
 from pathlib import Path
 from typing import Dict, Any, Optional
 from ...debug import debug_log
+from .. import local_paths
 from ..base import Tool, ToolContext
 from ..types import ToolExecutionResult
 
@@ -16,6 +17,7 @@ _SEARCH_MAX_ENTRIES = 3000
 _SEARCH_MAX_RESULTS = 50
 _SEARCH_MAX_DEPTH = 5
 _SEARCH_MAX_SECONDS = 3.0
+_MUTATING_OPERATIONS = frozenset({"write", "append", "delete"})
 
 
 def _bounded_pdf_search(root: Path, home_root: Path, *, deadline: Optional[float] = None) -> str:
@@ -105,6 +107,37 @@ def _bounded_pdf_search(root: Path, home_root: Path, *, deadline: Optional[float
     return "\n".join(lines)
 
 
+def _write_text(target: Path, content: str, *, append: bool) -> None:
+    """Write ``content`` without ever following a link to another file.
+
+    The path is re-checked right before opening. The opened descriptor is then
+    compared with the path, before anything is truncated or written, so that a
+    link swapped in between is detected. O_NOFOLLOW also rejects a link as last
+    component on platforms that have it (not Windows).
+    """
+    local_paths.resolve_mutation_target(str(target))
+    flags = os.O_WRONLY | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
+    if append:
+        flags |= os.O_APPEND
+    descriptor = os.open(target, flags, 0o666)
+    try:
+        opened, current = os.fstat(descriptor), os.lstat(target)
+        if stat.S_ISLNK(current.st_mode) or (
+            opened.st_ino and current.st_ino
+            and (opened.st_ino, opened.st_dev) != (current.st_ino, current.st_dev)
+        ):
+            raise PermissionError("Path not allowed: the file changed while it was opened")
+        local_paths.resolve_mutation_target(str(target))
+    except BaseException:
+        os.close(descriptor)
+        raise
+    with os.fdopen(descriptor, "a" if append else "w", encoding="utf-8",
+                   errors="replace" if append else "strict") as handle:
+        if not append:
+            handle.truncate(0)
+        handle.write(content)
+
+
 class LocalFilesTool(Tool):
     """Tool for safe local file operations within user's home directory."""
 
@@ -134,25 +167,10 @@ class LocalFilesTool(Tool):
     def run(self, args: Optional[Dict[str, Any]], context: ToolContext) -> ToolExecutionResult:
         """Execute the local files tool."""
         try:
-            # Safety: restrict to user's home directory by default
-            home_root = Path(os.path.expanduser("~")).resolve()
-
-            def _expand_user_path(p: str) -> str:
-                if p == "~":
-                    return os.path.expanduser("~")
-                if p.startswith("~/") or p.startswith("~\\"):
-                    return os.path.join(os.path.expanduser("~"), p[2:])
-                return os.path.expanduser(p)
-
-            def _resolve_safe(p: str) -> Path:
-                resolved = Path(_expand_user_path(p)).resolve()
-                try:
-                    # Allow exactly the home root or its descendants
-                    if resolved == home_root or str(resolved).startswith(str(home_root) + os.sep):
-                        return resolved
-                except Exception:
-                    pass
-                raise PermissionError(f"Path not allowed: {resolved}")
+            # Safety: restrict to user's home directory by default.
+            # Path rules are shared with the confirmation text (local_paths).
+            home_root = local_paths.home_root()
+            _resolve_safe = local_paths.resolve_home_path
 
             if not (args and isinstance(args, dict)):
                 return ToolExecutionResult(success=False, reply_text="localFiles requires a JSON object with at least 'operation' and 'path'.")
@@ -167,7 +185,11 @@ class LocalFilesTool(Tool):
             if not path_arg:
                 return ToolExecutionResult(success=False, reply_text="localFiles requires 'operation' and 'path'.")
 
-            target = _resolve_safe(path_arg)
+            if operation in _MUTATING_OPERATIONS:
+                # Refuses links and junctions: the target must be the path shown.
+                target = local_paths.resolve_mutation_target(path_arg)
+            else:
+                target = _resolve_safe(path_arg)
 
             # Dedicated bounded recursive search. Existing list() behaviour
             # and its callers are intentionally unchanged.
@@ -273,7 +295,7 @@ class LocalFilesTool(Tool):
                     return ToolExecutionResult(success=False, reply_text="Write requires string 'content'.")
                 try:
                     target.parent.mkdir(parents=True, exist_ok=True)
-                    target.write_text(content, encoding="utf-8")
+                    _write_text(target, content, append=False)
                     return ToolExecutionResult(success=True, reply_text=f"Wrote {len(content)} characters to {target}")
                 except Exception as e:
                     return ToolExecutionResult(success=False, reply_text=f"Write failed: {e}")
@@ -285,8 +307,7 @@ class LocalFilesTool(Tool):
                     return ToolExecutionResult(success=False, reply_text="Append requires string 'content'.")
                 try:
                     target.parent.mkdir(parents=True, exist_ok=True)
-                    with target.open("a", encoding="utf-8", errors="replace") as f:
-                        f.write(content)
+                    _write_text(target, content, append=True)
                     return ToolExecutionResult(success=True, reply_text=f"Appended {len(content)} characters to {target}")
                 except Exception as e:
                     return ToolExecutionResult(success=False, reply_text=f"Append failed: {e}")
@@ -295,6 +316,9 @@ class LocalFilesTool(Tool):
             if operation == "delete":
                 try:
                     if target.exists() and target.is_file():
+                        # Re-check right before acting: a link may have appeared
+                        # since the target was resolved (and confirmed).
+                        local_paths.resolve_mutation_target(str(target))
                         target.unlink()
                         return ToolExecutionResult(success=True, reply_text=f"Deleted file: {target}")
                     return ToolExecutionResult(success=False, reply_text=f"File not found: {target}")

@@ -23,6 +23,7 @@ from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
 from ..debug import debug_log
+from .local_paths import describe_target
 from .types import ToolExecutionResult
 
 DEFAULT_TIMEOUT_SEC = 60.0
@@ -247,12 +248,20 @@ def summarize(tool_name: str, args: Any) -> str:
     """Describe the action for the user. File contents are never included.
 
     The text is sanitised, bounded by ``_SUMMARY_MAX_CHARS`` and states how
-    many arguments are not shown.
+    many arguments are not shown. For ``localFiles`` the target is resolved
+    with the rules of the tool itself and shown after an arrow whenever it
+    differs from the path as given (relative path, ``..``, absolute form), or
+    marked as refused when the tool will not act on it.
     """
     name = _short(tool_name, limit=_SUMMARY_KEY_LIMIT * 2)
     if tool_name == "localFiles" and isinstance(args, dict):
-        operation = _short(_local_files_operation(args) or "?")
-        text = f"localFiles : {operation} sur {_short(args.get('path', '?'), keep_end=True)}"
+        operation_name = _local_files_operation(args)
+        operation = _short(operation_name or "?")
+        given = args.get("path", "?")
+        text = f"localFiles : {operation} sur {_short(given, keep_end=True)}"
+        target = describe_target(operation_name, given)
+        if target and target != given:
+            text += f" → {_short(target, keep_end=True, limit=100)}"
         content = args.get("content")
         if isinstance(content, str):
             text += f" ({len(content)} caractères)"
