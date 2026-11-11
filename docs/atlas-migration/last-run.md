@@ -14,11 +14,7 @@
 
 ## Verification
 
-- problems: 4
-  - unmigrated reference tests/test_intent_judge.py:174 (string): assert "Jarvisring" not in prompt2
-  - unmigrated reference tests/test_wake_alias_boundaries.py:12 (string): 'jarvisian is a made-up word',
-  - unmigrated reference tests/test_wake_alias_boundaries.py:52 (string): ('atlas explain jarvisian philosophy', 'explain jarvisian philosophy'),
-  - unmigrated reference tests/test_wake_alias_boundaries.py:52 (string): ('atlas explain jarvisian philosophy', 'explain jarvisian philosophy'),
+- problems: 0
 - conflicts: 0
 - warnings: 10
   - to review (spelling variant) src/atlas/dictation/dictation_engine.py:431: """Apply custom dictionary corrections to transcribed text.
@@ -39,11 +35,11 @@
   - .github/workflows/release.yml (9 lignes): workflow file: GITHUB_TOKEN cannot push workflow changes, migrate it separately
   - .github/workflows/tests.yml (2 lignes): workflow file: GITHUB_TOKEN cannot push workflow changes, migrate it separately
   - LICENSE (1 lignes): licence or third-party notice
-  - docs/atlas-migration/last-run.md (22 lignes): migration reports
+  - docs/atlas-migration/last-run.md (24 lignes): migration reports
   - scripts/atlas_migration/legacy_compat.py.tmpl (8 lignes): migration templates (name the former name by design)
   - scripts/atlas_migration/test_atlas_legacy_compat.py.tmpl (14 lignes): migration templates (name the former name by design)
-  - scripts/migrate_to_atlas.py (16 lignes): migration tooling (names the former name by design)
-  - tests/test_atlas_migration_script.py (42 lignes): tests of the migration tooling
+  - scripts/migrate_to_atlas.py (18 lignes): migration tooling (names the former name by design)
+  - tests/test_atlas_migration_script.py (45 lignes): tests of the migration tooling
   - website/build.py (3 lignes): public upstream website, separate deliverable: owner decision
   - website/getting-started.html (4 lignes): public upstream website, separate deliverable: owner decision
   - website/home.html (8 lignes): public upstream website, separate deliverable: owner decision
@@ -55,13 +51,78 @@
 ## Comparaison des tests
 
 ```
-(missing)
+baseline: 6316 tests, 45 failing
+after:    6326 tests, 43 failing
+REGRESSION: tests.test_atlas_self_introduction::test_self_intro_needs_no_llm_or_tools_and_preserves_voice_and_memory
+REGRESSION: tests.test_issue_report_flow::test_atlas_issue_dialog_is_french_and_targets_the_atlas_repository
+REGRESSION: tests.test_wake_alias_boundaries::test_primary_approximation_and_exact_alias_remain_usable[atlas-joris-jarvas]
+REGRESSION: tests.test_wake_detection.TestWakeWordDetection::test_fuzzy_match
+
 ```
 
 ## Tests apres migration (fin du journal)
 
 ```
-(missing)
+FAILED tests/test_voice_query_language.py::test_pending_reply_language_tracks_accepted_request[whitespace] - AssertionError: assert [] == [('ATLAS, tel...ather', 'en')]
+  
+  Right contains one more item: ('ATLAS, tell me the weather', 'en')
+  
+  Full diff:
+  + []
+  - [
+  -     (
+  -         'ATLAS, tell me the weather',
+  -         'en',
+  -     ),
+  - ]
+FAILED tests/test_voice_query_language.py::test_pending_reply_language_tracks_accepted_request[repetition] - AssertionError: assert [] == [('ATLAS, tel...ather', 'en')]
+  
+  Right contains one more item: ('ATLAS, tell me the weather', 'en')
+  
+  Full diff:
+  + []
+  - [
+  -     (
+  -         'ATLAS, tell me the weather',
+  -         'en',
+  -     ),
+  - ]
+FAILED tests/test_voice_query_language.py::test_pending_reply_language_tracks_accepted_request[echo] - AssertionError: assert [] == [('ATLAS, tel...ather', 'en')]
+  
+  Right contains one more item: ('ATLAS, tell me the weather', 'en')
+  
+  Full diff:
+  + []
+  - [
+  -     (
+  -         'ATLAS, tell me the weather',
+  -         'en',
+  -     ),
+  - ]
+FAILED tests/test_voice_query_language.py::test_pending_reply_language_tracks_accepted_request[undirected] - AssertionError: assert 'ATLAS, tell ...S, pas à toi.' == 'ATLAS, tell me the weather'
+  
+  - ATLAS, tell me the weather
+  + ATLAS, tell me the weather Je parle à ATLAS, pas à toi.
+FAILED tests/test_voice_query_language.py::test_pending_reply_language_tracks_accepted_request[accepted] - AssertionError: assert 'ATLAS, tell ..., 오늘 날씨는 어때요?' == 'ATLAS, 오늘 날씨는 어때요?'
+  
+  - ATLAS, 오늘 날씨는 어때요?
+  + ATLAS, tell me the weather ATLAS, 오늘 날씨는 어때요?
+FAILED tests/test_voice_query_language.py::test_pending_reply_language_tracks_accepted_request[unknown] - AssertionError: assert 'ATLAS, tell ...the forecast.' == 'ATLAS, provide the forecast.'
+  
+  - ATLAS, provide the forecast.
+  + ATLAS, tell me the weather ATLAS, provide the forecast.
+FAILED tests/test_voice_tasks.py::test_live_voice_query_routes_to_real_task_and_speaks_success - AttributeError: 'VoiceListener' object has no attribute 'state_manager'
+FAILED tests/test_voice_tasks.py::test_voice_ambiguity_asks_followup_then_uses_named_folder - AttributeError: 'VoiceListener' object has no attribute 'state_manager'
+FAILED tests/test_voice_tasks.py::test_non_task_voice_query_keeps_existing_reply_engine - AttributeError: 'VoiceListener' object has no attribute 'state_manager'
+FAILED tests/test_voice_tasks.py::test_voice_destructive_compound_file_request_fails_closed - AttributeError: 'VoiceListener' object has no attribute 'state_manager'
+FAILED tests/test_voice_tasks.py::test_incomplete_voice_search_requires_folder_before_opening - AttributeError: 'VoiceListener' object has no attribute 'state_manager'
+FAILED tests/test_wake_alias_boundaries.py::test_primary_approximation_and_exact_alias_remain_usable[atlas-joris-jarvas] - AssertionError: assert False
+ +  where False = is_wake_word_detected('jarvas, hello', 'atlas', ['joris'])
+FAILED tests/test_wake_detection.py::TestWakeWordDetection::test_fuzzy_match - AssertionError: assert False is True
+ +  where False = is_wake_word_detected('hey jarvas', 'atlas', [], fuzzy_ratio=0.78)
+FAILED tests/tools/builtin/test_web_search.py::TestLanguagePlumbingEndToEnd::test_listener_passes_detected_language_to_reply_engine - AttributeError: 'VoiceListener' object has no attribute 'state_manager'
+43 failed, 6280 passed, 3 skipped, 218 deselected, 3 warnings in 224.08s (0:03:44)
+
 ```
 
 ## Tests avant migration (fin du journal)
@@ -125,7 +186,7 @@ FAILED tests/test_voice_tasks.py::test_non_task_voice_query_keeps_existing_reply
 FAILED tests/test_voice_tasks.py::test_voice_destructive_compound_file_request_fails_closed - AttributeError: 'VoiceListener' object has no attribute 'state_manager'
 FAILED tests/test_voice_tasks.py::test_incomplete_voice_search_requires_folder_before_opening - AttributeError: 'VoiceListener' object has no attribute 'state_manager'
 FAILED tests/tools/builtin/test_web_search.py::TestLanguagePlumbingEndToEnd::test_listener_passes_detected_language_to_reply_engine - AttributeError: 'VoiceListener' object has no attribute 'state_manager'
-45 failed, 6267 passed, 3 skipped, 218 deselected, 3 warnings in 226.90s (0:03:46)
+45 failed, 6268 passed, 3 skipped, 218 deselected, 3 warnings in 226.28s (0:03:46)
 
 ```
 
