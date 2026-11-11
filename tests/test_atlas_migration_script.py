@@ -116,6 +116,17 @@ def test_inventory_changes_nothing(repo):
     assert git(repo, "status", "--porcelain") == before
 
 
+def test_active_history_module_does_not_block_package_rename(repo):
+    history = repo / "src/jarvis/dictation/history.py"
+    history.parent.mkdir(parents=True, exist_ok=True)
+    history.write_text("def read_history():\n    return 'ok'\n", encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "add active history module")
+    migrate(repo)
+    assert (repo / "src/atlas/dictation/history.py").exists()
+    assert not (repo / "src/jarvis/dictation/history.py").exists()
+
+
 def test_package_files_and_paths_are_renamed_with_git(repo):
     migrate(repo)
     assert (repo / "src/atlas/config.py").is_file() and not (repo / "src/jarvis").exists()
