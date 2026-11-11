@@ -62,6 +62,10 @@ EXACT_FORM = re.compile("jarvis", re.IGNORECASE)
 
 # Order matters. The product name in prose becomes ATLAS, identifiers use Atlas.
 TEXT_RULES = [
+    # Whole test-fixture compounds containing the previous wake-word stem.
+    # Preserve the semantic negative/boundary assertions while rebranding.
+    (re.compile(r"Jarvis(?=ring\\b)"), "Atlas"),
+    (re.compile(r"jarvis(?=ian\\b)"), "atlas"),
     (re.compile("JARVIS(?=_)"), "ATLAS"),
     (re.compile("(?<![A-Za-z])JARVIS(?![A-Za-z])"), "ATLAS"),
     (re.compile("Jarvis(?=[A-Z])"), "Atlas"),
