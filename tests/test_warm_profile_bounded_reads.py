@@ -4,8 +4,8 @@ import sqlite3
 
 import pytest
 
-from jarvis.memory.graph import GraphMemoryStore
-from jarvis.memory.graph_ops import build_warm_profile
+from atlas.memory.graph import GraphMemoryStore
+from atlas.memory.graph_ops import build_warm_profile
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 

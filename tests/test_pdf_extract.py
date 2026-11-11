@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from pypdf import PdfWriter
 
-from jarvis.tools.builtin.pdf_extract import extract_pdf_text, MAX_PDF_BYTES
+from atlas.tools.builtin.pdf_extract import extract_pdf_text, MAX_PDF_BYTES
 
 
 pytestmark = pytest.mark.unit
@@ -117,7 +117,7 @@ def test_rejects_symbolic_link(tmp_path):
 
 
 def test_spoken_pdf_read_reuses_name_parser():
-    from jarvis.tasks import _direct_spoken_pdf_read_request, _direct_voice_task_prompt
+    from atlas.tasks import _direct_spoken_pdf_read_request, _direct_voice_task_prompt
 
     assert _direct_spoken_pdf_read_request("Lis-moi mon contrat") == ("contrat", None)
     assert _direct_spoken_pdf_read_request("Lis moi ma facture sur le bureau") == ("facture", "Desktop")
@@ -126,7 +126,7 @@ def test_spoken_pdf_read_reuses_name_parser():
 
 
 def test_read_named_pdf_does_not_open_viewer_or_call_model(tmp_path, monkeypatch):
-    from jarvis import tasks
+    from atlas import tasks
     from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
     documents = tmp_path / "Documents"
@@ -160,7 +160,7 @@ def test_read_named_pdf_does_not_open_viewer_or_call_model(tmp_path, monkeypatch
 
 def test_task_pdf_content_only_in_transient_voice_slot(tmp_path, monkeypatch, capsys):
     from types import SimpleNamespace
-    from jarvis import tasks
+    from atlas import tasks
 
     secret = "DOCUMENT_TEST_SECRET_39495"
     records, events = [], []
@@ -195,7 +195,7 @@ def test_task_pdf_content_only_in_transient_voice_slot(tmp_path, monkeypatch, ca
     "Pourrais-tu me lire mon contrat ?",
 ])
 def test_polite_spoken_pdf_read_uses_existing_direct_task(prompt):
-    from jarvis.tasks import _direct_spoken_pdf_read_request, _direct_voice_task_prompt
+    from atlas.tasks import _direct_spoken_pdf_read_request, _direct_voice_task_prompt
 
     assert _direct_spoken_pdf_read_request(prompt) == ("contrat", None)
     assert _direct_voice_task_prompt("ATLAS, " + prompt) == prompt
@@ -207,6 +207,6 @@ def test_polite_spoken_pdf_read_uses_existing_direct_task(prompt):
     "Peux-tu me lire mon contrat / Windows / secret ?",
 ])
 def test_polite_spoken_pdf_read_refuses_compound_or_path(prompt):
-    from jarvis.tasks import _direct_spoken_pdf_read_request
+    from atlas.tasks import _direct_spoken_pdf_read_request
 
     assert _direct_spoken_pdf_read_request(prompt) is None

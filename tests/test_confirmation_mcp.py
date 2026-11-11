@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis.tools import confirmation
+from atlas.tools import confirmation
 
 
 @pytest.fixture(autouse=True)
@@ -15,7 +15,7 @@ def _reset_provider():
 
 @pytest.mark.unit
 def test_registry_mcp_tool_needs_confirmation(monkeypatch):
-    registry = pytest.importorskip("jarvis.tools.registry")
+    registry = pytest.importorskip("atlas.tools.registry")
     invoked = []
 
     class FakeClient:

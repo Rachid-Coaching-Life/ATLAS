@@ -4,8 +4,8 @@ import json
 import pytest
 from unittest.mock import MagicMock
 
-from jarvis.tools.registry import ToolSpec
-from jarvis.tools.selection import (
+from atlas.tools.registry import ToolSpec
+from atlas.tools.selection import (
     select_tools,
     ToolSelectionStrategy,
     _tokenise,
@@ -463,7 +463,7 @@ class TestLLMStrategy:
     def test_caps_chatty_router_output_at_max(self):
         """A router that echoes the whole catalogue must still produce a
         compact selection — the hard cap guarantees downstream prompt size."""
-        from jarvis.tools.selection import _LLM_MAX_SELECTED
+        from atlas.tools.selection import _LLM_MAX_SELECTED
 
         backend = _llm_backend(
             return_value=_selection('webSearch', 'getWeather', 'logMeal', 'fetchMeals', 'screenshot', 'localFiles', 'homeassistant__turn_on')
@@ -587,7 +587,7 @@ class TestLLMStrategy:
 @pytest.mark.parametrize('provider', ['ollama', 'openai_compatible'])
 def test_reasoning_router_has_room_for_answer_before_fallback(monkeypatch, provider):
     from types import SimpleNamespace
-    from jarvis.llm import get_llm_backend
+    from atlas.llm import get_llm_backend
     tools = _builtin()
     reasoning_tokens = len(('Consider each catalogue entry carefully. ' * len(tools) * 4).split())
     answer = _selection('getWeather')
@@ -602,7 +602,7 @@ def test_reasoning_router_has_room_for_answer_before_fallback(monkeypatch, provi
             'choices': [{'message': {'content': content}}],
         }
         return response
-    monkeypatch.setattr('jarvis.llm.http.post', post)
+    monkeypatch.setattr('atlas.llm.http.post', post)
     cfg = SimpleNamespace(llm_provider=provider, llm_base_url='http://127.0.0.1:11439/v1',
                           ollama_base_url='http://127.0.0.1:11439')
     selected = select_tools(

@@ -6,9 +6,9 @@ import pytest
 
 from evals.conftest import requires_judge_llm
 from evals.helpers import judge_pass_fail, voice_config
-from jarvis.reply import engine
-from jarvis.tools.types import ToolExecutionResult
-from jarvis.tools.registry import BUILTIN_TOOLS
+from atlas.reply import engine
+from atlas.tools.types import ToolExecutionResult
+from atlas.tools.registry import BUILTIN_TOOLS
 
 _SEARCH_ARGUMENT = BUILTIN_TOOLS["webSearch"].inputSchema["required"][0]
 

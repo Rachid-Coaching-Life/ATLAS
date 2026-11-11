@@ -47,24 +47,24 @@ def main():
     options = parser.parse_args()
     app = QApplication([])
     app.setQuitOnLastWindowClosed(False)
-    with TemporaryDirectory(prefix='jarvis-screenshots-') as temporary, ExitStack() as stack:
+    with TemporaryDirectory(prefix='atlas-screenshots-') as temporary, ExitStack() as stack:
         stack.enter_context(patch.dict(os.environ, {
             'XDG_CONFIG_HOME': temporary,
             'XDG_DATA_HOME': temporary,
-            'JARVIS_CONFIG_PATH': str(Path(temporary) / 'config.json'),
+            'ATLAS_CONFIG_PATH': str(Path(temporary) / 'config.json'),
         }))
         stack.enter_context(patch.object(socket.socket, 'connect', side_effect=AssertionError('Screenshots must be offline')))
         from desktop_app.qt_worker import KeepAliveWorker
         stack.enter_context(patch.object(KeepAliveWorker, 'start', side_effect=AssertionError('Screenshots must not start workers')))
-        from jarvis import activity
-        from jarvis.activity import JarvisState
+        from atlas import activity
+        from atlas.activity import AtlasState
         from desktop_app import face_widget
-        stack.enter_context(patch.object(activity, '_get_jarvis_state_file',
+        stack.enter_context(patch.object(activity, '_get_atlas_state_file',
             return_value=str(Path(temporary) / 'face-state')))
-        stack.enter_context(patch.object(activity, '_jarvis_state_instance', None))
+        stack.enter_context(patch.object(activity, '_atlas_state_instance', None))
         face = face_widget.FaceWindow()
         face.face._animation_timer.stop()
-        face.face._state_manager.set_state(JarvisState.IDLE)
+        face.face._state_manager.set_state(AtlasState.IDLE)
         face.face._animate()
         face.face._activation_level = 1.0
         capture(face, 'face.png')
@@ -97,7 +97,7 @@ def main():
         logs = desktop_app.LogViewerWindow()
         logs.resize(900, 560)
         for line in (
-            '🚀 Jarvis daemon started',
+            '🚀 ATLAS daemon started',
             '💾 Initialising dialogue memory…',
             '✓ Dialogue memory initialised',
             '⚠️ 📍 Optional location features unavailable. Add a GeoLite2 database in Setup → Location.',

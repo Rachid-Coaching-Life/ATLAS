@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from jarvis.config import export_example_config, get_default_config
+from atlas.config import export_example_config, get_default_config
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 

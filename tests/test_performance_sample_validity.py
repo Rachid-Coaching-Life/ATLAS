@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from jarvis.llm.ollama import OllamaBackend
+from atlas.llm.ollama import OllamaBackend
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 
@@ -58,7 +58,7 @@ def test_valid_micro_samples_keep_provider_and_outcome(benchmark, monkeypatch):
 
 
 def test_empty_pipeline_samples_fail_and_keep_report(benchmark, monkeypatch):
-    from jarvis.reply import engine
+    from atlas.reply import engine
     monkeypatch.setattr(OllamaBackend, 'direct', lambda *args, **kwargs: None)
     def run(db, cfg, location, query, dialogue):
         return OllamaBackend('http://owned.invalid').direct('owned model', 'system', 'user')
@@ -69,7 +69,7 @@ def test_empty_pipeline_samples_fail_and_keep_report(benchmark, monkeypatch):
 
 
 def test_empty_pipeline_answer_fails_even_with_returned_model_text(benchmark, monkeypatch):
-    from jarvis.reply import engine
+    from atlas.reply import engine
     monkeypatch.setattr(OllamaBackend, 'direct', lambda *args, **kwargs: 'intermediate response')
     def run(db, cfg, location, query, dialogue):
         OllamaBackend('http://owned.invalid').direct('owned model', 'system', 'user')
@@ -83,7 +83,7 @@ def test_empty_pipeline_answer_fails_even_with_returned_model_text(benchmark, mo
 
 
 def test_failed_pipeline_keeps_error_evidence_and_closes_store(benchmark, monkeypatch):
-    from jarvis.reply import engine
+    from atlas.reply import engine
     stores = []
     failure = RuntimeError('owned pipeline failure')
     def direct(*args, **kwargs):
@@ -104,7 +104,7 @@ def test_failed_pipeline_keeps_error_evidence_and_closes_store(benchmark, monkey
 
 
 def test_valid_pipeline_remains_usable_without_retaining_answer_text(benchmark, monkeypatch):
-    from jarvis.reply import engine
+    from atlas.reply import engine
     answer = 'owned private answer'
     monkeypatch.setattr(OllamaBackend, 'direct', lambda *args, **kwargs: answer)
     def run(db, cfg, location, query, dialogue):
@@ -117,7 +117,7 @@ def test_valid_pipeline_remains_usable_without_retaining_answer_text(benchmark, 
 
 
 def test_pipeline_failure_is_explicit_without_retaining_exception_text(benchmark, monkeypatch):
-    from jarvis.reply import engine
+    from atlas.reply import engine
     failure = RuntimeError('owned private failure detail')
     def run(*args, **kwargs):
         raise failure

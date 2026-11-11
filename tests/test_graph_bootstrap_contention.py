@@ -4,7 +4,7 @@ from contextlib import closing
 
 import pytest
 
-from jarvis.memory import graph
+from atlas.memory import graph
 
 pytestmark = pytest.mark.unit
 

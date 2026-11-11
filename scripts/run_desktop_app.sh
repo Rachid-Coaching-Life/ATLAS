@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Test script for the Jarvis Desktop App
+# Test script for the ATLAS Desktop App
 
 # Parse arguments
 VOICE_DEBUG=0
@@ -16,7 +16,7 @@ done
 # Navigate to project root first
 cd "$(dirname "$0")/.." || exit
 
-echo "🔧 Testing Jarvis Desktop App locally..."
+echo "🔧 Testing ATLAS Desktop App locally..."
 if [ "$VOICE_DEBUG" = "1" ]; then
     echo "   📋 Voice debug: ENABLED"
 fi
@@ -42,7 +42,7 @@ for candidate in python3.12 python3.11 python3; do
     done
 done
 if [ -z "$PYTHON" ]; then
-    echo "⚠️  Python 3.11+ is required. Install a supported Python before starting Jarvis."
+    echo "⚠️  Python 3.11+ is required. Install a supported Python before starting ATLAS."
     exit 1
 fi
 
@@ -89,7 +89,7 @@ export PYTHONPATH="$(pwd)/src:$PYTHONPATH"
 
 # Set voice debug environment variable if requested
 if [ "$VOICE_DEBUG" = "1" ]; then
-    export JARVIS_VOICE_DEBUG=1
+    export ATLAS_VOICE_DEBUG=1
 fi
 
 python -m desktop_app

@@ -18,13 +18,13 @@ pytestmark = pytest.mark.integration
 
 @pytest.fixture(params=['source', 'frozen'])
 def download(request):
-    executable = os.environ.get('JARVIS_SEARCH_PROBE_EXE')
+    executable = os.environ.get('ATLAS_SEARCH_PROBE_EXE')
     if request.param == 'frozen' and not executable:
-        pytest.skip('Set JARVIS_SEARCH_PROBE_EXE to qualify the frozen native transport')
+        pytest.skip('Set ATLAS_SEARCH_PROBE_EXE to qualify the frozen native transport')
 
     def run(url, timeout=2, limit=1024):
         if request.param == 'source':
-            from jarvis.tools.search_http import download_search_html
+            from atlas.tools.search_http import download_search_html
             try:
                 status, body = download_search_html(url, timeout, limit)
                 return {'status': status, 'body': body.decode()}

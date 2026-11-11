@@ -3,7 +3,7 @@ import sqlite3
 
 import pytest
 
-from jarvis.memory import graph
+from atlas.memory import graph
 
 pytestmark = pytest.mark.unit
 

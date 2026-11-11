@@ -1,5 +1,5 @@
 import pytest
-from jarvis.listening.echo_detection import EchoDetector
+from atlas.listening.echo_detection import EchoDetector
 
 pytestmark = pytest.mark.unit
 

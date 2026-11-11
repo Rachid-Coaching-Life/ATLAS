@@ -13,7 +13,7 @@ class TestPiperTTSInterface:
 
     def test_has_required_methods(self):
         """PiperTTS should have the same interface as TextToSpeech."""
-        from jarvis.output.tts import PiperTTS
+        from atlas.output.tts import PiperTTS
 
         # Create instance with TTS disabled (no model needed)
         tts = PiperTTS(enabled=False)
@@ -39,7 +39,7 @@ class TestPiperTTSInterface:
 
     def test_initialization_disabled(self):
         """PiperTTS should handle disabled state gracefully."""
-        from jarvis.output.tts import PiperTTS
+        from atlas.output.tts import PiperTTS
 
         tts = PiperTTS(enabled=False)
 
@@ -52,7 +52,7 @@ class TestPiperTTSInterface:
 
     def test_initialization_with_all_parameters(self):
         """PiperTTS should accept all configuration parameters."""
-        from jarvis.output.tts import PiperTTS
+        from atlas.output.tts import PiperTTS
 
         tts = PiperTTS(
             enabled=True,
@@ -83,7 +83,7 @@ class TestPiperTTSErrorHandling:
 
     def test_missing_model_with_failed_download(self, tmp_path):
         """PiperTTS should handle failed download gracefully."""
-        from jarvis.output.tts import PiperTTS
+        from atlas.output.tts import PiperTTS
         from unittest.mock import patch
 
         # Use a non-existent custom path to force download attempt
@@ -91,7 +91,7 @@ class TestPiperTTSErrorHandling:
         tts = PiperTTS(enabled=True, model_path=custom_model)
 
         # Mock the download to fail
-        with patch("jarvis.output.tts._download_piper_voice", return_value=None):
+        with patch("atlas.output.tts._download_piper_voice", return_value=None):
             result = tts._ensure_initialized()
             assert result is False
             assert tts._init_error is not None
@@ -99,20 +99,20 @@ class TestPiperTTSErrorHandling:
 
     def test_nonexistent_model_file_with_failed_download(self):
         """PiperTTS should handle nonexistent model file gracefully when download fails."""
-        from jarvis.output.tts import PiperTTS
+        from atlas.output.tts import PiperTTS
         from unittest.mock import patch
 
         tts = PiperTTS(enabled=True, model_path="/nonexistent/path/model.onnx")
 
         # Mock the download to fail
-        with patch("jarvis.output.tts._download_piper_voice", return_value=None):
+        with patch("atlas.output.tts._download_piper_voice", return_value=None):
             result = tts._ensure_initialized()
             assert result is False
             assert tts._init_error is not None
 
     def test_missing_config_json(self, tmp_path):
         """PiperTTS should require .onnx.json config file."""
-        from jarvis.output.tts import PiperTTS
+        from atlas.output.tts import PiperTTS
         from unittest.mock import patch
 
         # Create a fake model file but no config
@@ -122,21 +122,21 @@ class TestPiperTTSErrorHandling:
         tts = PiperTTS(enabled=True, model_path=str(model_file))
 
         # Mock download to fail (since config doesn't exist)
-        with patch("jarvis.output.tts._download_piper_voice", return_value=None):
+        with patch("atlas.output.tts._download_piper_voice", return_value=None):
             result = tts._ensure_initialized()
             assert result is False
             assert tts._init_error is not None
 
     def test_user_path_expansion(self):
         """PiperTTS should expand ~ in model path."""
-        from jarvis.output.tts import PiperTTS
+        from atlas.output.tts import PiperTTS
         from unittest.mock import patch
         import os
 
         tts = PiperTTS(enabled=True, model_path="~/nonexistent/model.onnx")
 
         # Mock download to fail
-        with patch("jarvis.output.tts._download_piper_voice", return_value=None):
+        with patch("atlas.output.tts._download_piper_voice", return_value=None):
             tts._ensure_initialized()
 
             # The error should reference the expanded path (with home directory)
@@ -148,14 +148,14 @@ class TestPiperTTSErrorHandling:
 
     def test_explicit_model_path_skips_default(self, tmp_path):
         """When explicit model_path is given, don't use default."""
-        from jarvis.output.tts import PiperTTS, _get_default_piper_model_path
+        from atlas.output.tts import PiperTTS, _get_default_piper_model_path
         from unittest.mock import patch
 
         custom_path = str(tmp_path / "custom-voice.onnx")
         tts = PiperTTS(enabled=True, model_path=custom_path)
 
         # Mock download to return the custom path
-        with patch("jarvis.output.tts._download_piper_voice", return_value=None):
+        with patch("atlas.output.tts._download_piper_voice", return_value=None):
             tts._ensure_initialized()
 
             # Error should reference the custom path, not default
@@ -170,7 +170,7 @@ class TestPiperTTSWithMocking:
 
     def test_initialization_checks_both_files(self, tmp_path):
         """PiperTTS should check both .onnx and .onnx.json files exist."""
-        from jarvis.output.tts import PiperTTS
+        from atlas.output.tts import PiperTTS
         from unittest.mock import patch
 
         # Create model file but not config
@@ -180,16 +180,16 @@ class TestPiperTTSWithMocking:
         tts = PiperTTS(enabled=True, model_path=str(model_file))
 
         # Mock download to fail
-        with patch("jarvis.output.tts._download_piper_voice", return_value=None):
+        with patch("atlas.output.tts._download_piper_voice", return_value=None):
             result = tts._ensure_initialized()
 
             assert result is False
             assert tts._init_error is not None
 
-    @patch("jarvis.output.tts.os.path.exists", return_value=True)
+    @patch("atlas.output.tts.os.path.exists", return_value=True)
     def test_piper_import_error_handling(self, mock_exists):
         """PiperTTS should handle missing piper-tts library gracefully."""
-        from jarvis.output.tts import PiperTTS
+        from atlas.output.tts import PiperTTS
 
         with patch.dict("sys.modules", {"piper": None, "piper.voice": None}):
             # Force reimport to trigger import error
@@ -202,7 +202,7 @@ class TestPiperTTSWithMocking:
 
             # Mock the import to raise ImportError
             with patch(
-                "jarvis.output.tts.PiperTTS._ensure_initialized",
+                "atlas.output.tts.PiperTTS._ensure_initialized",
                 wraps=tts._ensure_initialized,
             ):
                 # Manually trigger what would happen with import error
@@ -216,7 +216,7 @@ class TestPiperTTSWithMocking:
     @pytest.mark.unit
     def test_speak_delivers_text_to_worker(self):
         """An available voice passes speech text to its worker."""
-        from jarvis.output.tts import PiperTTS
+        from atlas.output.tts import PiperTTS
 
         tts = PiperTTS(enabled=True)
         delivered = []
@@ -235,7 +235,7 @@ class TestPiperTTSWithMocking:
 
     def test_speak_does_nothing_when_disabled(self):
         """PiperTTS.speak should do nothing when disabled."""
-        from jarvis.output.tts import PiperTTS
+        from atlas.output.tts import PiperTTS
 
         tts = PiperTTS(enabled=False)
         tts.speak("Hello world")
@@ -245,7 +245,7 @@ class TestPiperTTSWithMocking:
 
     def test_speak_does_nothing_for_empty_text(self):
         """PiperTTS.speak should do nothing for empty text."""
-        from jarvis.output.tts import PiperTTS
+        from atlas.output.tts import PiperTTS
 
         tts = PiperTTS(enabled=True, model_path="/fake/model.onnx")
         tts.speak("")
@@ -256,7 +256,7 @@ class TestPiperTTSWithMocking:
 
     def test_interrupt_sets_flag(self):
         """PiperTTS.interrupt should set the interrupt flag."""
-        from jarvis.output.tts import PiperTTS
+        from atlas.output.tts import PiperTTS
 
         tts = PiperTTS(enabled=True)
 
@@ -266,7 +266,7 @@ class TestPiperTTSWithMocking:
 
     def test_is_speaking_returns_event_state(self):
         """PiperTTS.is_speaking should return the speaking event state."""
-        from jarvis.output.tts import PiperTTS
+        from atlas.output.tts import PiperTTS
 
         tts = PiperTTS(enabled=True)
 
@@ -280,7 +280,7 @@ class TestPiperTTSWithMocking:
 
     def test_get_last_spoken_text_returns_stored_text(self):
         """PiperTTS.get_last_spoken_text should return the last spoken text."""
-        from jarvis.output.tts import PiperTTS
+        from atlas.output.tts import PiperTTS
 
         tts = PiperTTS(enabled=True)
 
@@ -295,14 +295,14 @@ class TestPiperTTSFactory:
 
     def test_creates_piper_engine(self):
         """create_tts_engine should create PiperTTS for engine='piper'."""
-        from jarvis.output.tts import create_tts_engine, PiperTTS
+        from atlas.output.tts import create_tts_engine, PiperTTS
 
         tts = create_tts_engine(engine="piper", enabled=False)
         assert isinstance(tts, PiperTTS)
 
     def test_creates_piper_engine_case_insensitive(self):
         """create_tts_engine should handle 'PIPER', 'Piper', etc."""
-        from jarvis.output.tts import create_tts_engine, PiperTTS
+        from atlas.output.tts import create_tts_engine, PiperTTS
 
         tts1 = create_tts_engine(engine="PIPER", enabled=False)
         tts2 = create_tts_engine(engine="Piper", enabled=False)
@@ -312,7 +312,7 @@ class TestPiperTTSFactory:
 
     def test_passes_piper_parameters(self):
         """create_tts_engine should pass all Piper parameters."""
-        from jarvis.output.tts import create_tts_engine, PiperTTS
+        from atlas.output.tts import create_tts_engine, PiperTTS
 
         tts = create_tts_engine(
             engine="piper",
@@ -337,21 +337,21 @@ class TestPiperTTSFactory:
 
     def test_default_engine_is_piper(self):
         """create_tts_engine should default to Piper TTS."""
-        from jarvis.output.tts import create_tts_engine, PiperTTS
+        from atlas.output.tts import create_tts_engine, PiperTTS
 
         tts = create_tts_engine(enabled=False)
         assert isinstance(tts, PiperTTS)
 
     def test_unknown_engine_falls_back_to_piper(self):
         """create_tts_engine with unknown engine should create PiperTTS."""
-        from jarvis.output.tts import create_tts_engine, PiperTTS
+        from atlas.output.tts import create_tts_engine, PiperTTS
 
         tts = create_tts_engine(engine="unknown", enabled=False)
         assert isinstance(tts, PiperTTS)
 
     def test_chatterbox_engine_still_works(self):
         """create_tts_engine should still create ChatterboxTTS."""
-        from jarvis.output.tts import create_tts_engine, ChatterboxTTS
+        from atlas.output.tts import create_tts_engine, ChatterboxTTS
 
         tts = create_tts_engine(engine="chatterbox", enabled=False)
         assert isinstance(tts, ChatterboxTTS)
@@ -361,29 +361,29 @@ class TestPiperTTSAutoDownload:
     """Tests for Piper TTS auto-download functionality."""
 
     def test_get_default_model_path(self):
-        """Default model path should be in ~/.local/share/jarvis/models/piper/."""
-        from jarvis.output.tts import _get_default_piper_model_path, PIPER_DEFAULT_VOICE
+        """Default model path should be in ~/.local/share/atlas/models/piper/."""
+        from atlas.output.tts import _get_default_piper_model_path, PIPER_DEFAULT_VOICE
 
         path = _get_default_piper_model_path()
 
         assert PIPER_DEFAULT_VOICE in path
         assert path.endswith(".onnx")
-        assert "jarvis" in path
+        assert "atlas" in path
         assert "piper" in path
 
     def test_get_piper_models_dir(self):
-        """Models directory should be created under jarvis data dir."""
-        from jarvis.output.tts import _get_piper_models_dir
+        """Models directory should be created under atlas data dir."""
+        from atlas.output.tts import _get_piper_models_dir
 
         models_dir = _get_piper_models_dir()
 
         assert models_dir.exists()
-        assert "jarvis" in str(models_dir)
+        assert "atlas" in str(models_dir)
         assert "piper" in str(models_dir)
 
     def test_piper_uses_default_when_no_path(self):
         """PiperTTS should use default model path when none configured."""
-        from jarvis.output.tts import PiperTTS, _get_default_piper_model_path
+        from atlas.output.tts import PiperTTS, _get_default_piper_model_path
 
         tts = PiperTTS(enabled=True, model_path=None)
 
@@ -395,7 +395,7 @@ class TestPiperTTSAutoDownload:
 
     def test_default_voice_is_reasonable(self):
         """Default voice should be a reasonable choice."""
-        from jarvis.output.tts import PIPER_DEFAULT_VOICE
+        from atlas.output.tts import PIPER_DEFAULT_VOICE
 
         # ATLAS defaults to French; the legacy English assertion was obsolete.
         assert PIPER_DEFAULT_VOICE.startswith("fr_FR")
@@ -408,7 +408,7 @@ class TestPiperTTSConfig:
 
     def test_config_has_piper_fields(self):
         """Settings dataclass should have all Piper TTS fields."""
-        from jarvis.config import Settings
+        from atlas.config import Settings
         import inspect
 
         # Get the field names from Settings
@@ -425,7 +425,7 @@ class TestPiperTTSConfig:
 
     def test_default_config_has_piper_values(self):
         """get_default_config should include Piper TTS defaults."""
-        from jarvis.config import get_default_config
+        from atlas.config import get_default_config
 
         defaults = get_default_config()
 
@@ -449,18 +449,18 @@ class TestPiperTTSConfig:
 
     def test_piper_normal_speed_loaded_when_no_user_override(self):
         """The GTR7-validated normal speed is now the portable default."""
-        from jarvis.config import load_settings
+        from atlas.config import load_settings
         from unittest.mock import patch
 
-        with patch("jarvis.config._load_json", return_value={}):
+        with patch("atlas.config._load_json", return_value={}):
             assert load_settings().tts_piper_length_scale == 1.0
 
     def test_piper_explicit_speed_override_is_preserved(self):
         """Changing ATLAS defaults must not rewrite personal voice speed."""
-        from jarvis.config import load_settings
+        from atlas.config import load_settings
         from unittest.mock import patch
 
-        with patch("jarvis.config._load_json", return_value={
+        with patch("atlas.config._load_json", return_value={
             "_config_version": 3,
             "tts_piper_length_scale": 0.85,
         }):
@@ -468,7 +468,7 @@ class TestPiperTTSConfig:
 
     def test_tts_engine_defaults_to_piper(self):
         """tts_engine should default to 'piper'."""
-        from jarvis.config import load_settings, get_default_config
+        from atlas.config import load_settings, get_default_config
         from unittest.mock import patch
 
         # Check default config
@@ -476,27 +476,27 @@ class TestPiperTTSConfig:
         assert defaults["tts_engine"] == "piper"
 
         # Mock empty config file - should use default
-        with patch("jarvis.config._load_json", return_value={}):
+        with patch("atlas.config._load_json", return_value={}):
             settings = load_settings()
             assert settings.tts_engine == "piper"
 
     def test_tts_engine_migrates_system_to_piper(self):
         """tts_engine 'system' should be auto-migrated to 'piper' for existing users."""
-        from jarvis.config import load_settings
+        from atlas.config import load_settings
         from unittest.mock import patch
 
         # Old config with system TTS (no _config_version = pre-migration)
         config_data = {"tts_engine": "system"}
 
-        with patch("jarvis.config._load_json", return_value=config_data):
-            with patch("jarvis.config._save_json", return_value=True):
+        with patch("atlas.config._load_json", return_value=config_data):
+            with patch("atlas.config._save_json", return_value=True):
                 settings = load_settings()
                 # Should be migrated to piper
                 assert settings.tts_engine == "piper"
 
     def test_invalid_engine_falls_back_to_piper(self):
         """Invalid tts_engine values should fall back to piper."""
-        from jarvis.config import load_settings
+        from atlas.config import load_settings
         from unittest.mock import patch
 
         # Config with invalid TTS engine
@@ -505,15 +505,15 @@ class TestPiperTTSConfig:
             "_config_version": 1
         }
 
-        with patch("jarvis.config._load_json", return_value=config_data), \
-             patch("jarvis.config._save_json", return_value=True):
+        with patch("atlas.config._load_json", return_value=config_data), \
+             patch("atlas.config._save_json", return_value=True):
             settings = load_settings()
             # Should fall back to piper
             assert settings.tts_engine == "piper"
 
     def test_chatterbox_engine_preserved(self):
         """tts_engine 'chatterbox' should be preserved."""
-        from jarvis.config import load_settings
+        from atlas.config import load_settings
         from unittest.mock import patch
 
         config_data = {
@@ -521,8 +521,8 @@ class TestPiperTTSConfig:
             "_config_version": 1
         }
 
-        with patch("jarvis.config._load_json", return_value=config_data), \
-             patch("jarvis.config._save_json", return_value=True):
+        with patch("atlas.config._load_json", return_value=config_data), \
+             patch("atlas.config._save_json", return_value=True):
             settings = load_settings()
             assert settings.tts_engine == "chatterbox"
 
@@ -532,7 +532,7 @@ class TestPiperTTSThreadSafety:
 
     def test_multiple_interrupts_safe(self):
         """Multiple calls to interrupt should be safe."""
-        from jarvis.output.tts import PiperTTS
+        from atlas.output.tts import PiperTTS
 
         tts = PiperTTS(enabled=True)
 
@@ -542,7 +542,7 @@ class TestPiperTTSThreadSafety:
 
     def test_start_stop_cycle(self):
         """Start and stop should be safe to call multiple times."""
-        from jarvis.output.tts import PiperTTS
+        from atlas.output.tts import PiperTTS
 
         tts = PiperTTS(enabled=False)  # Disabled to avoid actual model loading
 
@@ -553,7 +553,7 @@ class TestPiperTTSThreadSafety:
 
     def test_concurrent_speaks(self):
         """Multiple threads calling speak should not crash."""
-        from jarvis.output.tts import PiperTTS
+        from atlas.output.tts import PiperTTS
 
         tts = PiperTTS(enabled=True, model_path="/fake/model.onnx")
 
@@ -578,7 +578,7 @@ class TestPiperVoiceDownloadRetry:
 
     @pytest.fixture
     def retry_download(self, tmp_path, monkeypatch):
-        from jarvis.output import tts
+        from atlas.output import tts
 
         monkeypatch.setattr(tts, "_get_piper_models_dir", lambda: tmp_path)
         clock = MagicMock(wraps=time)

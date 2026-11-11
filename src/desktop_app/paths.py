@@ -13,23 +13,23 @@ from pathlib import Path
 
 
 def get_log_dir() -> Path:
-    """Return the platform-appropriate directory for Jarvis logs.
+    """Return the platform-appropriate directory for ATLAS logs.
 
     Falls back to a temp directory if the preferred location cannot be
     created (e.g. read-only home, permission denied) so callers never have
     to handle mkdir failure themselves.
     """
     if sys.platform == "darwin":
-        preferred = Path.home() / "Library" / "Logs" / "Jarvis"
+        preferred = Path.home() / "Library" / "Logs" / "ATLAS"
     elif sys.platform == "win32":
-        preferred = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Jarvis"
+        preferred = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "ATLAS"
     else:
-        preferred = Path.home() / ".jarvis"
+        preferred = Path.home() / ".atlas"
 
     try:
         preferred.mkdir(parents=True, exist_ok=True, mode=0o700)
         return preferred
     except OSError:
-        fallback = Path(tempfile.gettempdir()) / "jarvis-logs"
+        fallback = Path(tempfile.gettempdir()) / "atlas-logs"
         fallback.mkdir(parents=True, exist_ok=True, mode=0o700)
         return fallback

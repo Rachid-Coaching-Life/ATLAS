@@ -34,9 +34,9 @@ class TestDiaryScrubEndpoint:
     def setup_app(self, tmp_path, monkeypatch, mock_config):
         # Patch the runtime modules used by the endpoint.
         from desktop_app import memory_viewer
-        import jarvis.memory.conversation as cmod
-        from jarvis.memory.db import Database
-        import jarvis.config as config
+        import atlas.memory.conversation as cmod
+        from atlas.memory.db import Database
+        import atlas.config as config
 
         monkeypatch.setattr(config, "load_settings", lambda: mock_config)
         # Rewrite and event privacy are independent of optional embeddings.
@@ -61,7 +61,7 @@ class TestDiaryScrubEndpoint:
             ),
         ]:
             seed_db.upsert_conversation_summary(
-                date_utc=date_utc, summary=summary, topics=None, source_app="jarvis",
+                date_utc=date_utc, summary=summary, topics=None, source_app="atlas",
             )
 
         # Make the endpoint use the seeded path.

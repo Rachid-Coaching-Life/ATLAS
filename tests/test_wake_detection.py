@@ -4,7 +4,7 @@ Tests for wake word and stop command detection.
 
 import pytest
 
-from jarvis.listening.wake_detection import (
+from atlas.listening.wake_detection import (
     is_wake_word_detected,
     is_stop_command,
 )
@@ -15,24 +15,24 @@ class TestWakeWordDetection:
     """Tests for is_wake_word_detected."""
 
     def test_exact_match(self):
-        assert is_wake_word_detected("hey jarvis", "jarvis", []) is True
+        assert is_wake_word_detected("hey atlas", "atlas", []) is True
 
     def test_alias_match(self):
-        assert is_wake_word_detected("hey computer", "jarvis", ["computer"]) is True
+        assert is_wake_word_detected("hey computer", "atlas", ["computer"]) is True
 
     def test_no_match(self):
-        assert is_wake_word_detected("hello world", "jarvis", []) is False
+        assert is_wake_word_detected("hello world", "atlas", []) is False
 
     def test_empty_text(self):
-        assert is_wake_word_detected("", "jarvis", []) is False
+        assert is_wake_word_detected("", "atlas", []) is False
 
     def test_fuzzy_match(self):
         """Fuzzy matching catches slight transcription errors."""
-        assert is_wake_word_detected("hey jarvas", "jarvis", [], fuzzy_ratio=0.78) is True
+        assert is_wake_word_detected("hey atlass", "atlas", [], fuzzy_ratio=0.78) is True
 
     def test_fuzzy_below_threshold(self):
         """Completely different word doesn't fuzzy-match."""
-        assert is_wake_word_detected("hey banana", "jarvis", [], fuzzy_ratio=0.78) is False
+        assert is_wake_word_detected("hey banana", "atlas", [], fuzzy_ratio=0.78) is False
 
 
 @pytest.mark.unit
@@ -66,14 +66,14 @@ class TestFrenchStopDefaults:
         "tais-toi", "TAIS TOI !", "Atlas, tais-toi !",
     ])
     def test_default_french_stop_interrupts(self, heard):
-        from jarvis.config import get_default_config
+        from atlas.config import get_default_config
 
         assert is_stop_command(
             heard, get_default_config()["stop_commands"],
         ), f"French stop should interrupt: {heard!r}"
 
     def test_french_stop_does_not_match_unrelated_infinitive(self):
-        from jarvis.config import get_default_config
+        from atlas.config import get_default_config
 
         assert not is_stop_command(
             "je voudrais arrêter la musique demain",
@@ -81,15 +81,15 @@ class TestFrenchStopDefaults:
         )
 
     def test_loaded_settings_use_french_stop_defaults(self):
-        from jarvis.config import load_settings
+        from atlas.config import load_settings
 
         assert is_stop_command("arrête !", load_settings().stop_commands)
         assert is_stop_command("tais-toi !", load_settings().stop_commands)
 
     @pytest.mark.parametrize("heard", ["arrête", "tais-toi"])
     def test_standalone_french_stop_is_not_discarded_as_tts_echo(self, heard):
-        from jarvis.config import get_default_config
-        from jarvis.listening.wake_detection import is_stop_command_echo
+        from atlas.config import get_default_config
+        from atlas.listening.wake_detection import is_stop_command_echo
 
         # A standalone interruption control retains priority over playback echo.
         assert not is_stop_command_echo(
@@ -101,14 +101,14 @@ class TestFrenchStopDefaults:
         self, custom, monkeypatch, tmp_path,
     ):
         import json
-        from jarvis.config import load_settings
+        from atlas.config import load_settings
 
         config = tmp_path / "atlas-config.json"
         config.write_text(
             json.dumps({"_config_version": 3, "stop_commands": custom}),
             encoding="utf-8",
         )
-        monkeypatch.setenv("JARVIS_CONFIG_PATH", str(config))
+        monkeypatch.setenv("ATLAS_CONFIG_PATH", str(config))
         loaded = load_settings().stop_commands
 
         assert loaded == custom
@@ -128,7 +128,7 @@ class TestFrenchStopDefaults:
     ("", False),
 ])
 def test_exact_standalone_wake_name_only(heard, expected):
-    from jarvis.listening.wake_detection import is_standalone_wake_word
+    from atlas.listening.wake_detection import is_standalone_wake_word
     assert is_standalone_wake_word(heard, "atlas", ["atlasse"]) is expected
 
 
@@ -151,6 +151,6 @@ def test_exact_standalone_wake_name_only(heard, expected):
 ])
 def test_explicit_wake_address_requires_literal_initial_name_and_comma(heard, expected):
     """Only a clear direct address may bypass the slower LLM intent judge."""
-    from jarvis.listening.wake_detection import is_explicit_wake_address
+    from atlas.listening.wake_detection import is_explicit_wake_address
 
     assert is_explicit_wake_address(heard, "atlas", ["atlasse"]) is expected

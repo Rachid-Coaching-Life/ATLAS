@@ -50,7 +50,7 @@ class TestModelSizeDetection:
     ])
     def test_detect_model_size(self, model_name, expected_small):
         """Model size detection works for various model names."""
-        from jarvis.reply.prompts import detect_model_size, ModelSize
+        from atlas.reply.prompts import detect_model_size, ModelSize
 
         result = detect_model_size(model_name)
         expected = ModelSize.SMALL if expected_small else ModelSize.LARGE
@@ -70,7 +70,7 @@ class TestPromptComponents:
         assert against BEHAVIOURAL sections, not specific tokens in one
         language.
         """
-        from jarvis.reply.prompts import get_system_prompts, ModelSize
+        from atlas.reply.prompts import get_system_prompts, ModelSize
 
         prompts = get_system_prompts(ModelSize.SMALL)
 
@@ -90,7 +90,7 @@ class TestPromptComponents:
         named-entity and auto-derive rules. qwen3.8:27b and similar
         confabulate specifics and occasionally ask for tool args the tool
         already auto-derives, so the large variant is not a no-op."""
-        from jarvis.reply.prompts import get_system_prompts, ModelSize
+        from atlas.reply.prompts import get_system_prompts, ModelSize
 
         prompts = get_system_prompts(ModelSize.LARGE)
 
@@ -102,7 +102,7 @@ class TestPromptComponents:
     def test_small_model_tool_constraints_has_weather_section(self):
         """Small model constraints include a weather-specific rule that covers
         statements, questions, and contextual remarks about weather."""
-        from jarvis.reply.prompts import get_system_prompts, ModelSize
+        from atlas.reply.prompts import get_system_prompts, ModelSize
 
         prompts = get_system_prompts(ModelSize.SMALL)
         text = prompts.tool_constraints.lower()
@@ -115,7 +115,7 @@ class TestPromptComponents:
 
     def test_small_model_balanced_incentives(self):
         """Small models get forceful tool incentives - must call tools, exceptions only for greetings."""
-        from jarvis.reply.prompts import get_system_prompts, ModelSize
+        from atlas.reply.prompts import get_system_prompts, ModelSize
 
         prompts = get_system_prompts(ModelSize.SMALL)
 
@@ -126,7 +126,7 @@ class TestPromptComponents:
 
     def test_large_model_proactive_incentives(self):
         """Large models get proactive tool incentives."""
-        from jarvis.reply.prompts import get_system_prompts, ModelSize
+        from atlas.reply.prompts import get_system_prompts, ModelSize
 
         prompts = get_system_prompts(ModelSize.LARGE)
 
@@ -135,7 +135,7 @@ class TestPromptComponents:
 
     def test_both_sizes_have_core_components(self):
         """Both model sizes have the core prompt components."""
-        from jarvis.reply.prompts import get_system_prompts, ModelSize
+        from atlas.reply.prompts import get_system_prompts, ModelSize
 
         for size in [ModelSize.SMALL, ModelSize.LARGE]:
             prompts = get_system_prompts(size)
@@ -149,7 +149,7 @@ class TestPromptComponents:
 
     def test_to_list_returns_non_empty_strings(self):
         """to_list() returns only non-empty prompt strings."""
-        from jarvis.reply.prompts import get_system_prompts, ModelSize
+        from atlas.reply.prompts import get_system_prompts, ModelSize
 
         for size in [ModelSize.SMALL, ModelSize.LARGE]:
             prompts = get_system_prompts(size)
@@ -161,7 +161,7 @@ class TestPromptComponents:
 
     def test_small_model_to_list_includes_constraints(self):
         """Small model to_list() includes tool constraints."""
-        from jarvis.reply.prompts import get_system_prompts, ModelSize
+        from atlas.reply.prompts import get_system_prompts, ModelSize
 
         prompts = get_system_prompts(ModelSize.SMALL)
         prompt_list = prompts.to_list()
@@ -179,7 +179,7 @@ class TestPromptComponents:
         larger models confabulate for unfamiliar entities or nag the user
         for args the tool already auto-derives (field failure 2026-04-20).
         """
-        from jarvis.reply.prompts import get_system_prompts, ModelSize
+        from atlas.reply.prompts import get_system_prompts, ModelSize
 
         prompts = get_system_prompts(ModelSize.LARGE)
         prompt_list = prompts.to_list()
@@ -205,7 +205,7 @@ class TestPromptLanguageAgnosticism:
         false sense of coverage. The new rule describes the SEMANTIC
         category ("a greeting or casual social phrase, whatever language"),
         letting the model rely on its own multilingual understanding."""
-        from jarvis.reply.prompts import get_system_prompts, ModelSize
+        from atlas.reply.prompts import get_system_prompts, ModelSize
 
         prompts = get_system_prompts(ModelSize.SMALL)
         constraints = prompts.tool_constraints.lower()
@@ -227,7 +227,7 @@ class TestPromptLanguageAgnosticism:
 
     def test_greeting_constraint_is_narrow(self):
         """Greeting constraint is narrowly scoped, not overly restrictive."""
-        from jarvis.reply.prompts import get_system_prompts, ModelSize
+        from atlas.reply.prompts import get_system_prompts, ModelSize
 
         prompts = get_system_prompts(ModelSize.SMALL)
         constraints = prompts.tool_constraints.lower()

@@ -20,7 +20,7 @@ import types
 
 import pytest
 
-from jarvis.output.tune_player import (
+from atlas.output.tune_player import (
     TunePlayer,
     _generate_thinking_pad_samples,
     _get_thinking_pad_samples,

@@ -1,7 +1,7 @@
 """End-to-end integration tests for the OpenAI-compatible provider path.
 
 These stand up a minimal in-process HTTP server that speaks the OpenAI wire
-shape and drive the REAL ``jarvis.llm`` backends + factory + config loader
+shape and drive the REAL ``atlas.llm`` backends + factory + config loader
 through it over actual HTTP. This catches wire-shape regressions (request
 payload, response normalisation, tool-call decoding, SSE streaming, auth
 header, per-provider config resolution) without depending on a live vendor
@@ -141,36 +141,36 @@ class TestOpenAICompatibleEndToEnd:
     """Drive the real backend over HTTP against the stub."""
 
     def test_factory_dispatches_to_openai_backend_at_configured_url(self, stub):
-        from jarvis.llm import get_llm_backend, OpenAICompatibleBackend
+        from atlas.llm import get_llm_backend, OpenAICompatibleBackend
         backend = get_llm_backend(_cfg(stub))
         assert isinstance(backend, OpenAICompatibleBackend)
         assert backend.base_url == stub.base_url
 
     def test_direct_returns_assistant_text(self, stub):
-        from jarvis.llm import get_llm_backend
+        from atlas.llm import get_llm_backend
         out = get_llm_backend(_cfg(stub)).direct("stub-chat", "sys", "hi", timeout_sec=5)
         assert out == "Hello from stub"
 
     def test_sends_bearer_api_key(self, stub):
-        from jarvis.llm import get_llm_backend
+        from atlas.llm import get_llm_backend
         get_llm_backend(_cfg(stub)).direct("stub-chat", "sys", "hi", timeout_sec=5)
         auths = [h.get("Authorization") for p, h, _ in stub.calls if p.endswith("/chat/completions")]
         assert auths and auths[0] == "Bearer sk-stub"
 
     def test_no_auth_header_when_key_empty(self, stub):
-        from jarvis.llm import get_llm_backend
+        from atlas.llm import get_llm_backend
         get_llm_backend(_cfg(stub, llm_api_key="")).direct("stub-chat", "sys", "hi", timeout_sec=5)
         auths = [h.get("Authorization") for p, h, _ in stub.calls if p.endswith("/chat/completions")]
         assert auths and auths[0] is None
 
     def test_chat_normalises_message_to_top_level(self, stub):
-        from jarvis.llm import get_llm_backend
+        from atlas.llm import get_llm_backend
         resp = get_llm_backend(_cfg(stub)).chat(
             "stub-chat", [{"role": "user", "content": "hi"}], timeout_sec=5)
         assert resp["message"]["content"] == "Hello from stub"
 
     def test_chat_decodes_tool_call_arguments_to_dict(self, stub):
-        from jarvis.llm import get_llm_backend
+        from atlas.llm import get_llm_backend
         resp = get_llm_backend(_cfg(stub)).chat(
             "stub-chat", [{"role": "user", "content": "weather?"}],
             tools=[{"type": "function", "function": {"name": "getWeather"}}],
@@ -180,7 +180,7 @@ class TestOpenAICompatibleEndToEnd:
         assert isinstance(args, dict) and args["location"] == "London"
 
     def test_decoded_response_can_be_sent_as_history_without_mutation(self, stub):
-        from jarvis.llm import get_llm_backend
+        from atlas.llm import get_llm_backend
         backend = get_llm_backend(_cfg(stub))
         response = backend.chat("stub-chat", [{"role": "user", "content": "weather?"}],
                                 tools=[{"type": "function", "function": {"name": "getWeather"}}],
@@ -195,7 +195,7 @@ class TestOpenAICompatibleEndToEnd:
         assert json.loads(wire_arguments) == saved_response["message"]["tool_calls"][0]["function"]["arguments"]
 
     def test_streaming_reassembles_sse_and_fires_on_token(self, stub):
-        from jarvis.llm import get_llm_backend
+        from atlas.llm import get_llm_backend
         toks: list[str] = []
         full = get_llm_backend(_cfg(stub)).streaming(
             "stub-chat", "sys", "hi", on_token=toks.append, timeout_sec=5)
@@ -208,7 +208,7 @@ class TestOpenAICompatibleEndToEnd:
         ({'llm_api_key': '', 'embedding_api_key': ''}, None),
     ])
     def test_embeddings_use_inherited_provider_and_resolved_credentials(self, stub, keys, expected_authorisation):
-        from jarvis.llm import get_embedding_backend, OpenAICompatibleBackend
+        from atlas.llm import get_embedding_backend, OpenAICompatibleBackend
         eb = get_embedding_backend(_cfg(stub, **keys))
         assert isinstance(eb, OpenAICompatibleBackend)
         assert eb.embed("hello", "stub-embed", timeout_sec=5) == [0.1, 0.2, 0.3]
@@ -216,7 +216,7 @@ class TestOpenAICompatibleEndToEnd:
         assert requests and all(headers.get('Authorization') == expected_authorisation for headers in requests)
 
     def test_list_models(self, stub):
-        from jarvis.llm import get_llm_backend
+        from atlas.llm import get_llm_backend
         models = get_llm_backend(_cfg(stub)).list_models(timeout_sec=5)
         assert "stub-chat" in models and "stub-embed" in models
 
@@ -225,14 +225,14 @@ class TestCheckCapabilities:
     """``check_capabilities`` probes the real endpoints and reports honestly."""
 
     def test_full_featured_server(self, stub):
-        from jarvis.llm import OpenAICompatibleBackend
+        from atlas.llm import OpenAICompatibleBackend
         backend = OpenAICompatibleBackend(stub.base_url, api_key="sk-stub")
         caps = backend.check_capabilities("stub-chat", "stub-embed", timeout_sec=5)
         assert caps.reachable and caps.chat and caps.tools and caps.embeddings
         assert "stub-chat" in caps.models
 
     def test_server_without_tools(self):
-        from jarvis.llm import OpenAICompatibleBackend
+        from atlas.llm import OpenAICompatibleBackend
         srv = _StubServer(tools=False).start()
         try:
             caps = OpenAICompatibleBackend(srv.base_url).check_capabilities(
@@ -243,7 +243,7 @@ class TestCheckCapabilities:
             srv.stop()
 
     def test_server_without_embeddings(self):
-        from jarvis.llm import OpenAICompatibleBackend
+        from atlas.llm import OpenAICompatibleBackend
         srv = _StubServer(embeddings=False).start()
         try:
             caps = OpenAICompatibleBackend(srv.base_url).check_capabilities(
@@ -254,7 +254,7 @@ class TestCheckCapabilities:
             srv.stop()
 
     def test_unreachable_server_is_not_reachable(self):
-        from jarvis.llm import OpenAICompatibleBackend
+        from atlas.llm import OpenAICompatibleBackend
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as endpoint:
             endpoint.bind(("127.0.0.1", 0))
             port = endpoint.getsockname()[1]
@@ -278,10 +278,10 @@ class TestConfigRoundTrip:
             "llm_chat_model": "stub-chat",
             "embedding_model": "stub-embed",
         }))
-        monkeypatch.setenv("JARVIS_CONFIG_PATH", str(cfg_path))
+        monkeypatch.setenv("ATLAS_CONFIG_PATH", str(cfg_path))
 
-        from jarvis.config import load_settings
-        from jarvis.llm import get_llm_backend, OpenAICompatibleBackend
+        from atlas.config import load_settings
+        from atlas.llm import get_llm_backend, OpenAICompatibleBackend
 
         settings = load_settings()
         assert settings.llm_provider == "openai_compatible"
@@ -296,7 +296,7 @@ class TestConfigRoundTrip:
 
 
 def test_timing_recorder_observes_owned_http_requests(stub):
-    from jarvis.llm.factory import get_llm_backend
+    from atlas.llm.factory import get_llm_backend
     from tests.performance.timing_recorder import TimingRecorder
 
     cfg = _cfg(stub)

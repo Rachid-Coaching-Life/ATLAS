@@ -3,7 +3,7 @@
 from contextlib import closing
 import sqlite3
 import pytest
-from jarvis.memory.db import Database
+from atlas.memory.db import Database
 
 @pytest.mark.unit
 @pytest.mark.parametrize("finish", ["commit", "rollback"])

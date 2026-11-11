@@ -63,11 +63,11 @@ except ImportError:
     HAS_WEBENGINE = False
     QWebEngineView = None
 
-from jarvis.debug import debug_log
-from jarvis.llm.model_names import missing_ollama_models
-from jarvis.config import get_config_path, _default_db_path, get_model_recommendations, Settings
+from atlas.debug import debug_log
+from atlas.llm.model_names import missing_ollama_models
+from atlas.config import get_config_path, _default_db_path, get_model_recommendations, Settings
 from desktop_app.diary_dialog import DiaryUpdateDialog
-from desktop_app.themes import JARVIS_THEME_STYLESHEET, COLORS, apply_theme
+from desktop_app.themes import ATLAS_THEME_STYLESHEET, COLORS, apply_theme
 from desktop_app.log_output import LogStream, clean_log, parse_progress
 from desktop_app.face_widget import FaceWindow
 
@@ -79,7 +79,7 @@ _LOG_SEPARATOR = "─" * 50
 class OllamaRuntimeOwnership:
     """Tracks whether this desktop session launched the local Ollama runtime."""
 
-    started_by_jarvis: bool = False
+    started_by_atlas: bool = False
     launch_method: str = ""
     process: Optional[subprocess.Popen] = None
     stopped: bool = False
@@ -118,10 +118,10 @@ def _should_emit_as_log(line: str) -> bool:
     redacted query and scrubbed reply activity lines for chat. Diary IPC
     carries progress and token deltas for the log window.
     """
-    from jarvis.daemon import CHAT_IPC_PREFIX, VOICE_STATUS_IPC_PREFIX
+    from atlas.daemon import CHAT_IPC_PREFIX, VOICE_STATUS_IPC_PREFIX
 
-    from jarvis.tasks import TASK_EVENT_PREFIX
-    from jarvis.tools.confirmation_ipc import REQUEST_PREFIX, CANCEL_PREFIX, REPLY_PREFIX
+    from atlas.tasks import TASK_EVENT_PREFIX
+    from atlas.tools.confirmation_ipc import REQUEST_PREFIX, CANCEL_PREFIX, REPLY_PREFIX
     return not line.startswith((
         CHAT_IPC_PREFIX, VOICE_STATUS_IPC_PREFIX, TASK_EVENT_PREFIX,
         REQUEST_PREFIX, CANCEL_PREFIX, REPLY_PREFIX,
@@ -140,7 +140,7 @@ def _collect_runtime_status_snapshot(
 ) -> RuntimeStatusSnapshot:
     """Collect runtime status without mutating desktop or daemon state."""
     if settings_loader is None:
-        from jarvis.config import load_settings as settings_loader
+        from atlas.config import load_settings as settings_loader
     if ollama_checker is None:
         from desktop_app.setup_wizard import check_ollama_server as ollama_checker
 
@@ -166,7 +166,7 @@ def _collect_runtime_status_snapshot(
             daemon_pid = os.getpid()
 
     ownership = ollama_runtime_ownership or OllamaRuntimeOwnership()
-    if ownership.started_by_jarvis and not ownership.stopped:
+    if ownership.started_by_atlas and not ownership.stopped:
         ollama_owner = "ATLAS"
     elif ollama_running:
         ollama_owner = "External"
@@ -269,7 +269,7 @@ class RuntimeStatusDialog(QDialog):
     def __init__(self, snapshot: RuntimeStatusSnapshot, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Runtime Status")
-        self.setStyleSheet(JARVIS_THEME_STYLESHEET)
+        self.setStyleSheet(ATLAS_THEME_STYLESHEET)
         self.setMinimumWidth(380)
 
         layout = QVBoxLayout(self)
@@ -330,7 +330,7 @@ def _stop_owned_ollama_runtime(
     """
     if (
         ownership is None
-        or not ownership.started_by_jarvis
+        or not ownership.started_by_atlas
         or ownership.stopped
     ):
         return False
@@ -573,7 +573,7 @@ def get_crash_paths() -> tuple[Path, Path, Path]:
     from desktop_app.paths import get_log_dir
     log_dir = get_log_dir()
 
-    crash_log = log_dir / "jarvis_desktop_crash.log"
+    crash_log = log_dir / "atlas_desktop_crash.log"
     crash_marker = log_dir / ".crash_marker"
     previous_crash = log_dir / "previous_crash.log"
 
@@ -608,7 +608,7 @@ def collect_macos_crash_report(
         if not diagnostics_dir.is_dir():
             return None
 
-        app_name = "Jarvis"
+        app_name = "ATLAS"
         since = crash_log_path.stat().st_mtime if crash_log_path.exists() else 0.0
 
         candidates = []
@@ -750,7 +750,7 @@ def show_crash_report_dialog(crash_content: str) -> None:
         from PyQt6.QtCore import Qt
         import webbrowser
         import urllib.parse
-        from jarvis import get_version
+        from atlas import get_version
 
         class CrashReportDialog(QDialog):
             def __init__(self, crash_info: str):
@@ -758,7 +758,7 @@ def show_crash_report_dialog(crash_content: str) -> None:
                 self.crash_info = crash_info
                 self.setWindowTitle("🐛 ATLAS Crash Report")
                 self.setMinimumSize(600, 450)
-                self.setStyleSheet(JARVIS_THEME_STYLESHEET)
+                self.setStyleSheet(ATLAS_THEME_STYLESHEET)
                 self._setup_ui()
 
             def _setup_ui(self):
@@ -930,7 +930,7 @@ class UnsupportedModelDialog(QDialog):
         self.open_wizard = False
         self.setWindowTitle("Model recommendations")
         self.setMinimumWidth(500)
-        self.setStyleSheet(JARVIS_THEME_STYLESHEET)
+        self.setStyleSheet(ATLAS_THEME_STYLESHEET)
         layout = QVBoxLayout(self)
         layout.setSpacing(16)
         layout.setContentsMargins(24, 24, 24, 24)
@@ -991,14 +991,14 @@ def show_unsupported_model_dialog(models: dict[str, str], settings: Settings) ->
 def get_lock_file_path() -> Path:
     """Get the path to the single-instance lock file."""
     if sys.platform == "darwin":
-        lock_dir = Path.home() / "Library" / "Application Support" / "Jarvis"
+        lock_dir = Path.home() / "Library" / "Application Support" / "ATLAS"
     elif sys.platform == "win32":
-        lock_dir = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Jarvis"
+        lock_dir = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "ATLAS"
     else:
-        lock_dir = Path.home() / ".jarvis"
+        lock_dir = Path.home() / ".atlas"
 
     lock_dir.mkdir(parents=True, exist_ok=True)
-    return lock_dir / "jarvis_desktop.lock"
+    return lock_dir / "atlas_desktop.lock"
 
 
 def get_existing_instance_pid() -> Optional[int]:
@@ -1022,9 +1022,9 @@ def kill_existing_instance(pid: int) -> bool:
     """
     try:
         process = psutil.Process(pid)
-        # Verify it's actually a Jarvis process (safety check)
+        # Verify it's actually a ATLAS process (safety check)
         proc_name = process.name().lower()
-        if "jarvis" not in proc_name and "python" not in proc_name:
+        if "atlas" not in proc_name and "python" not in proc_name:
             debug_log(f"PID {pid} doesn't look like ATLAS (name: {proc_name}), not killing", "desktop")
             return False
 
@@ -1070,8 +1070,8 @@ def show_instance_conflict_dialog() -> bool:
     msg.setDefaultButton(kill_btn)
 
     # Apply theme
-    from desktop_app.themes import JARVIS_THEME_STYLESHEET
-    msg.setStyleSheet(JARVIS_THEME_STYLESHEET)
+    from desktop_app.themes import ATLAS_THEME_STYLESHEET
+    msg.setStyleSheet(ATLAS_THEME_STYLESHEET)
 
     msg.exec()
 
@@ -1155,8 +1155,8 @@ class LogSignals(QObject):
 
     def dispatch_output(self, line: str) -> None:
         """Separate task protocol frames from user-facing activity lines."""
-        from jarvis.tasks import TASK_EVENT_PREFIX
-        from jarvis.tools.confirmation_ipc import REQUEST_PREFIX, CANCEL_PREFIX, REPLY_PREFIX
+        from atlas.tasks import TASK_EVENT_PREFIX
+        from atlas.tools.confirmation_ipc import REQUEST_PREFIX, CANCEL_PREFIX, REPLY_PREFIX
         if line.startswith((REQUEST_PREFIX, CANCEL_PREFIX, REPLY_PREFIX)):
             self.confirmation_frame.emit(line, None)
         elif line.startswith(TASK_EVENT_PREFIX):
@@ -1174,7 +1174,7 @@ class LogViewerWindow(QMainWindow):
         self.setGeometry(100, 100, 900, 650)
 
         # Apply theme
-        self.setStyleSheet(JARVIS_THEME_STYLESHEET)
+        self.setStyleSheet(ATLAS_THEME_STYLESHEET)
 
         # Create central widget and layout
         central_widget = QWidget()
@@ -1391,9 +1391,9 @@ class LogViewerWindow(QMainWindow):
     def _report_issue(self) -> None:
         """Review a described, redacted report before opening GitHub."""
         import platform
-        from jarvis import get_version
-        from jarvis.config import load_settings
-        from jarvis.utils.redact import scrub_secrets
+        from atlas import get_version
+        from atlas.config import load_settings
+        from atlas.utils.redact import scrub_secrets
         from desktop_app.issue_report import IssueReportDialog
 
         try:
@@ -1433,7 +1433,7 @@ class MemoryViewerWindow(QMainWindow):
         self.setGeometry(150, 150, 1200, 900)
 
         # Apply theme
-        self.setStyleSheet(JARVIS_THEME_STYLESHEET)
+        self.setStyleSheet(ATLAS_THEME_STYLESHEET)
 
         self.server_process: Optional[subprocess.Popen] = None
         self.server_thread: Optional[threading.Thread] = None
@@ -1746,12 +1746,12 @@ class DaemonThread(KeepAliveWorker):
 
             try:
                 # Import and run the daemon
-                from jarvis.daemon import main as daemon_main
+                from atlas.daemon import main as daemon_main
                 self.log_signals.new_log.emit("🚀 ATLAS daemon started\n")
                 self.log_signals.new_log.emit("📋 Initializing daemon components...\n")
 
-                from jarvis.tools.confirmation import ConfirmationRelay, set_provider
-                from jarvis.tools.confirmation_ipc import request_frame, cancel_frame
+                from atlas.tools.confirmation import ConfirmationRelay, set_provider
+                from atlas.tools.confirmation_ipc import request_frame, cancel_frame
                 relay = ConfirmationRelay(
                     emit=lambda req: self.log_signals.confirmation_frame.emit(request_frame(req), self),
                     on_expire=lambda req: self.log_signals.confirmation_frame.emit(cancel_frame(req), self),
@@ -1764,7 +1764,7 @@ class DaemonThread(KeepAliveWorker):
                     set_provider(None)
                     self.confirmation_relay = None
 
-                from jarvis.daemon import is_stop_requested
+                from atlas.daemon import is_stop_requested
                 if is_stop_requested():
                     self.log_signals.new_log.emit("✅ Daemon stopped gracefully\n")
                 else:
@@ -1885,7 +1885,7 @@ class ATLASSystemTray:
 
         # Create dictation history window (hidden by default)
         from desktop_app.dictation_history import DictationHistoryWindow
-        from jarvis.dictation.history import DictationHistory
+        from atlas.dictation.history import DictationHistory
         self._dictation_history = DictationHistory()
         self.dictation_history_window = DictationHistoryWindow(history=self._dictation_history)
 
@@ -1951,10 +1951,10 @@ class ATLASSystemTray:
             for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
                 try:
                     cmdline = proc.info.get('cmdline', [])
-                    if cmdline and 'jarvis.main' in ' '.join(cmdline):
+                    if cmdline and 'atlas.main' in ' '.join(cmdline):
                         # This is a ATLAS daemon process
                         if proc.pid != current_pid:
-                            debug_log(f"killing orphaned jarvis process: {proc.pid}", "desktop")
+                            debug_log(f"killing orphaned atlas process: {proc.pid}", "desktop")
                             proc.terminate()
                             try:
                                 proc.wait(timeout=2)
@@ -2255,7 +2255,7 @@ class ATLASSystemTray:
                 msg.setWindowTitle("Updates")
                 msg.setText("Auto-update is only available in the bundled desktop app.")
                 msg.setInformativeText("You're running from source. Use git pull to update.")
-                msg.setStyleSheet(JARVIS_THEME_STYLESHEET)
+                msg.setStyleSheet(ATLAS_THEME_STYLESHEET)
                 msg.exec()
             return
 
@@ -2348,7 +2348,7 @@ class ATLASSystemTray:
     def submit_task(self, prompt: str, *, request_id: str):
         """Submit a prompt to the in-process or subprocess daemon."""
         if self.is_bundled:
-            from jarvis.daemon import submit_task
+            from atlas.daemon import submit_task
             return submit_task(prompt)
         if self.daemon_process is None or self.daemon_process.stdin is None:
             raise RuntimeError("Start ATLAS before submitting a task")
@@ -2362,7 +2362,7 @@ class ATLASSystemTray:
     def cancel_task(self, task_id: str):
         """Cancel a prompt in the in-process or subprocess daemon."""
         if self.is_bundled:
-            from jarvis.daemon import cancel_task
+            from atlas.daemon import cancel_task
             return cancel_task(task_id)
         if self.daemon_process is None or self.daemon_process.stdin is None:
             raise RuntimeError("Start ATLAS before cancelling a task")
@@ -2481,7 +2481,7 @@ class ATLASSystemTray:
         Retries up to *retries_left* times (5 s apart) if the engine isn't ready.
         """
         try:
-            from jarvis.daemon import get_dictation_engine
+            from atlas.daemon import get_dictation_engine
             engine = get_dictation_engine()
             if engine is None:
                 if retries_left > 0:
@@ -2597,8 +2597,8 @@ class ATLASSystemTray:
     def _set_face_asleep(self) -> None:
         """Reset the face to asleep so it doesn't look ready while the daemon is down."""
         try:
-            from jarvis.activity import JarvisState, get_jarvis_state
-            get_jarvis_state().set_state(JarvisState.ASLEEP)
+            from atlas.activity import AtlasState, get_atlas_state
+            get_atlas_state().set_state(AtlasState.ASLEEP)
         except Exception:
             pass
 
@@ -2664,7 +2664,7 @@ class ATLASSystemTray:
     def toggle_voice_pause(self) -> None:
         import json
         import uuid
-        from jarvis.daemon import VOICE_PAUSE_IPC_PREFIX, set_voice_listening_paused
+        from atlas.daemon import VOICE_PAUSE_IPC_PREFIX, set_voice_listening_paused
         self._sync_voice_pause_controls()
         if not self.voice_pause_action.isEnabled():
             return
@@ -2693,7 +2693,7 @@ class ATLASSystemTray:
 
     def _on_voice_pause_status(self, owner, line: str) -> None:
         import json
-        from jarvis.daemon import VOICE_STATUS_IPC_PREFIX
+        from atlas.daemon import VOICE_STATUS_IPC_PREFIX
         if (self.is_bundled or owner is not self.daemon_process
                 or not self.is_listening or self._daemon_stop_expected):
             return
@@ -2805,12 +2805,12 @@ class ATLASSystemTray:
                     env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env['PYTHONPATH']}"
                 else:
                     env["PYTHONPATH"] = str(src_path)
-                env["JARVIS_TASK_IPC"] = "1"
+                env["ATLAS_TASK_IPC"] = "1"
                 # Signal the daemon that we own its stdin (chat query-in IPC)
                 # so it starts the stdin monitor. Without this the daemon would
                 # treat a non-TTY stdin as "no monitor" on non-Windows, and a
                 # stray /dev/null wouldn't kill it.
-                env["JARVIS_STDIN_IPC"] = "1"
+                env["ATLAS_STDIN_IPC"] = "1"
 
                 # Use creationflags to prevent console window popup on Windows
                 # CREATE_NEW_PROCESS_GROUP is needed for CTRL_BREAK_EVENT to work
@@ -2819,7 +2819,7 @@ class ATLASSystemTray:
                     creationflags = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
 
                 self.daemon_process = subprocess.Popen(
-                    [python_exe, "-m", "jarvis.main"],
+                    [python_exe, "-m", "atlas.main"],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     stdin=subprocess.PIPE,
@@ -2835,7 +2835,7 @@ class ATLASSystemTray:
                 # directly, so it writes a __CHAT_QUERY__: line to stdin.
                 # The reply comes back as __CHAT__: events on stdout, parsed
                 # in _read_daemon_logs and routed to the chat window's signals.
-                from jarvis.daemon import CHAT_CANCEL_IPC_PREFIX, CHAT_QUERY_IPC_PREFIX
+                from atlas.daemon import CHAT_CANCEL_IPC_PREFIX, CHAT_QUERY_IPC_PREFIX
                 _proc = self.daemon_process
 
                 def _submit_chat_subprocess(text: str) -> None:
@@ -2877,7 +2877,7 @@ class ATLASSystemTray:
                     transcript, and a dead daemon has no memory to rewind.
                     """
                     import json as _json
-                    from jarvis.daemon import CHAT_REWIND_IPC_PREFIX
+                    from atlas.daemon import CHAT_REWIND_IPC_PREFIX
                     if kind != "rewind":
                         debug_log(f"unknown chat control command: {kind}", "desktop")
                         return
@@ -2960,9 +2960,9 @@ class ATLASSystemTray:
         if not self.daemon_process or not self.daemon_process.stdout:
             return
 
-        from jarvis.daemon import CHAT_IPC_PREFIX, VOICE_STATUS_IPC_PREFIX
-        from jarvis.tasks import TASK_EVENT_PREFIX
-        from jarvis.tools.confirmation_ipc import REQUEST_PREFIX, CANCEL_PREFIX, REPLY_PREFIX
+        from atlas.daemon import CHAT_IPC_PREFIX, VOICE_STATUS_IPC_PREFIX
+        from atlas.tasks import TASK_EVENT_PREFIX
+        from atlas.tools.confirmation_ipc import REQUEST_PREFIX, CANCEL_PREFIX, REPLY_PREFIX
         process = self.daemon_process
 
         try:
@@ -3008,7 +3008,7 @@ class ATLASSystemTray:
 
     def _on_confirmation_frame(self, line: str, source) -> None:
         """Handle confirmation protocol exclusively on the GUI thread."""
-        from jarvis.tools.confirmation_ipc import (
+        from atlas.tools.confirmation_ipc import (
             REQUEST_PREFIX, CANCEL_PREFIX, parse_request_frame,
             parse_cancel_frame, reply_line,
         )
@@ -3146,7 +3146,7 @@ class ATLASSystemTray:
                         diary_dialog.signals.completed.emit(success)
 
                     # Set callbacks in daemon before requesting stop
-                    from jarvis.daemon import set_diary_update_callbacks, request_stop
+                    from atlas.daemon import set_diary_update_callbacks, request_stop
                     set_diary_update_callbacks(
                         on_token=on_token,
                         on_status=on_status,
@@ -3193,7 +3193,7 @@ class ATLASSystemTray:
                 else:
                     # No dialog - simple wait
                     # Note: We avoid QThread.terminate() as it can corrupt state
-                    from jarvis.daemon import request_stop
+                    from atlas.daemon import request_stop
                     request_stop()
 
                     if not worker.wait(shutdown_wait_timeout_sec * 1000):
@@ -3421,8 +3421,8 @@ class ATLASSystemTray:
 
 
 # Public Python compatibility: older imports and integrations still use
-# JarvisSystemTray. Keep the symbol while presenting ATLAS to the user.
-JarvisSystemTray = ATLASSystemTray
+# AtlasSystemTray. Keep the symbol while presenting ATLAS to the user.
+AtlasSystemTray = ATLASSystemTray
 
 
 def _ollama_runtime_flags(cfg) -> tuple[bool, bool]:
@@ -3453,7 +3453,7 @@ def _check_openai_compat_reachable(cfg, timeout_sec: float = 4.0) -> bool:
     listing. Used at startup to warn the user early if their local server
     isn't running, since (unlike Ollama) ATLAS cannot start it for them."""
     try:
-        from jarvis.llm import get_llm_backend
+        from atlas.llm import get_llm_backend
         return bool(get_llm_backend(cfg).list_models(timeout_sec=timeout_sec))
     except Exception:
         return False
@@ -3569,7 +3569,7 @@ def _smoke_test_main() -> int:
         # (e.g. a faster_whisper / ctranslate2 native lib) surfaces as a
         # clean "Daemon initialisation failed" instead of an uncaught
         # traceback with a mysterious exit code 1.
-        from jarvis.daemon import main as daemon_main
+        from atlas.daemon import main as daemon_main
         daemon_main(smoke_test=True)
     except Exception as exc:
         print(f"❌ Daemon initialisation failed: {exc}", flush=True)
@@ -3840,7 +3840,7 @@ def main() -> int:
         # block. When chat runs on Ollama we verify the chat model; when only
         # embeddings run on Ollama we just make sure the server is up.
         try:
-            from jarvis.config import load_settings as _load_provider_settings
+            from atlas.config import load_settings as _load_provider_settings
             _provider_cfg = _load_provider_settings()
             _ollama_needed, _chat_on_ollama = _ollama_runtime_flags(_provider_cfg)
         except Exception:
@@ -3955,7 +3955,7 @@ def main() -> int:
                         ollama_launch_method = "serve"
 
                     ollama_runtime_ownership = OllamaRuntimeOwnership(
-                        started_by_jarvis=True,
+                        started_by_atlas=True,
                         launch_method=ollama_launch_method,
                         process=ollama_process,
                     )
@@ -4072,7 +4072,7 @@ def main() -> int:
         # Runs on Windows (DXGI) and any platform with nvidia-smi.
         if _chat_on_ollama:
             try:
-                from jarvis.utils.vram import detect_total_vram_mb, format_vram_warning
+                from atlas.utils.vram import detect_total_vram_mb, format_vram_warning
                 _vram_mb = detect_total_vram_mb()
                 if _vram_mb is not None:
                     _chat_model = getattr(_provider_cfg, "llm_chat_model", "") if _provider_cfg else ""

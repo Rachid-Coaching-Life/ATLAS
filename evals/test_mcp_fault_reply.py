@@ -8,8 +8,8 @@ if sys.version_info < (3, 11):
 import pytest
 from evals.helpers import voice_config, judge_pass_fail
 from evals.tool_routing import requires_judge_llm
-from jarvis.reply import engine
-from jarvis.tools import registry
+from atlas.reply import engine
+from atlas.tools import registry
 
 pytestmark = [pytest.mark.eval, requires_judge_llm]
 

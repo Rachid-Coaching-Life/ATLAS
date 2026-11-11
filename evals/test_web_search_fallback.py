@@ -19,8 +19,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from jarvis.tools.base import ToolContext
-from jarvis.tools.builtin.web_search import WebSearchTool
+from atlas.tools.base import ToolContext
+from atlas.tools.builtin.web_search import WebSearchTool
 
 
 def _make_ctx(cfg_overrides=None):
@@ -42,9 +42,9 @@ def _make_ctx(cfg_overrides=None):
 class TestFallbackChainRescuesBotChallenge:
     """DDG bot-challenge + Wikipedia fallback = honest rescue, not confabulation."""
 
-    @patch("jarvis.tools.builtin.web_search._wikipedia_summary")
-    @patch("jarvis.tools.builtin.web_search.download_search_html")
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search._wikipedia_summary")
+    @patch("atlas.tools.builtin.web_search.download_search_html")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_wikipedia_rescues_when_ddg_blocks(self, mock_get, mock_html, mock_wiki):
         # DDG instant API empty, /lite/ returns the bot-challenge structural markers.
         instant = Mock(status_code=200)
@@ -77,9 +77,9 @@ class TestFallbackChainRescuesBotChallenge:
         assert "Possessor" in result.reply_text
         assert "en.wikipedia.org" in result.reply_text
 
-    @patch("jarvis.tools.builtin.web_search._wikipedia_summary")
-    @patch("jarvis.tools.builtin.web_search.download_search_html")
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search._wikipedia_summary")
+    @patch("atlas.tools.builtin.web_search.download_search_html")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_honest_block_when_all_providers_fail(self, mock_get, mock_html, mock_wiki):
         """No Brave key, Wikipedia miss → honest-block envelope, no confabulation."""
         instant = Mock(status_code=200)

@@ -36,13 +36,13 @@ pytestmark = pytest.mark.unit
     ],
 )
 def test_repeated_introduction_guard_is_narrow(query, reply, expected):
-    from jarvis.reply.engine import _remove_unrequested_atlas_introduction
+    from atlas.reply.engine import _remove_unrequested_atlas_introduction
 
     assert _remove_unrequested_atlas_introduction(reply, query) == expected
 
 
 def test_startup_presentation_is_spoken_once_after_voice_ready():
-    from jarvis.listening.listener import VoiceListener
+    from atlas.listening.listener import VoiceListener
 
     calls = []
     class FakeTTS:

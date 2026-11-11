@@ -3,8 +3,8 @@ from unittest.mock import patch
 
 import pytest
 
-from jarvis.memory.graph import GraphMemoryStore, BRANCH_USER, BRANCH_WORLD
-from jarvis.memory import graph_ops as ops
+from atlas.memory.graph import GraphMemoryStore, BRANCH_USER, BRANCH_WORLD
+from atlas.memory import graph_ops as ops
 
 pytestmark = pytest.mark.unit
 

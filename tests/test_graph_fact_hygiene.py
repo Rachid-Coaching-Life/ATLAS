@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from jarvis.memory import graph_ops
-from jarvis.memory.graph_ops import extract_graph_memories
+from atlas.memory import graph_ops
+from atlas.memory.graph_ops import extract_graph_memories
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 
@@ -27,7 +27,7 @@ def review_response(labels):
 def test_matching_branch_also_requires_a_durable_source_verdict(mock_config, branch, verdict):
     candidate = (branch.lower(), 'Source candidate')
     response = json.dumps({'0': {'verdict': verdict, 'kind': branch}})
-    with patch('jarvis.memory.graph_ops.call_llm_direct', return_value=response):
+    with patch('atlas.memory.graph_ops.call_llm_direct', return_value=response):
         assert graph_ops._review_graph_facts(
             [candidate], mock_config, 'local-model', mock_config.llm_chat_timeout_sec,
             False, 'Owned source summary',
@@ -63,7 +63,7 @@ def test_independent_classification_rejects_misrouted_facts_without_rewriting_th
         return review_response({'0': 'DIRECTIVES', '1': 'USER', '2': 'USER',
                            '3': 'DIRECTIVES', '4': 'ASSISTANT_SELF', '5': 'REQUEST_HISTORY'})
 
-    with patch('jarvis.memory.graph_ops.call_llm_direct', side_effect=infer):
+    with patch('atlas.memory.graph_ops.call_llm_direct', side_effect=infer):
         assert extract_graph_memories('Source summary', mock_config, 'local-model') == [
             ('user', candidates[2]['fact']), ('directives', candidates[3]['fact']),
         ]
@@ -83,7 +83,7 @@ def test_fact_retains_the_reference_source_used_to_extract_it(mock_config, sourc
         review = json.loads(content)
         return review_response({'0': 'USER' if review['summary'] == source else 'UNSUPPORTED'})
 
-    with patch('jarvis.memory.graph_ops.call_llm_direct', side_effect=infer):
+    with patch('atlas.memory.graph_ops.call_llm_direct', side_effect=infer):
         assert extract_graph_memories(summary, mock_config, 'local-model', date_utc=source_day) == [
             ('user', fact),
         ]
@@ -101,14 +101,14 @@ def test_malformed_fact_cannot_become_personal_memory(mock_config, invalid_fact)
         review = json.loads(kwargs['user_content'])
         return review_response({str(item['id']): 'USER' for item in review['candidates']})
 
-    with patch('jarvis.memory.graph_ops.call_llm_direct', side_effect=infer):
+    with patch('atlas.memory.graph_ops.call_llm_direct', side_effect=infer):
         assert extract_graph_memories('The user prefers concise replies', mock_config, 'local-model') == [
             ('user', supported),
         ]
 
 
 def test_transient_and_interaction_candidates_are_not_returned(mock_config):
-    with patch('jarvis.memory.graph_ops.call_llm_direct', side_effect=[
+    with patch('atlas.memory.graph_ops.call_llm_direct', side_effect=[
         json.dumps(CANDIDATES), review_response({'0': 'TRANSIENT', '1': 'USER', '2': 'INTERACTION', '3': 'DIRECTIVES'}),
     ]):
         assert extract_graph_memories('Mixed summary', mock_config, 'local-model') == [
@@ -139,12 +139,12 @@ def invalid_reviews():
 
 @pytest.mark.parametrize('verdict', invalid_reviews())
 def test_incomplete_or_invalid_review_does_not_store_unreviewed_facts(mock_config, verdict):
-    with patch('jarvis.memory.graph_ops.call_llm_direct', side_effect=[json.dumps(CANDIDATES), verdict]):
+    with patch('atlas.memory.graph_ops.call_llm_direct', side_effect=[json.dumps(CANDIDATES), verdict]):
         assert extract_graph_memories('Mixed summary', mock_config, 'local-model') == []
 
 
 def test_review_failure_does_not_escape_or_store_candidates(mock_config):
-    with patch('jarvis.memory.graph_ops.call_llm_direct', side_effect=[
+    with patch('atlas.memory.graph_ops.call_llm_direct', side_effect=[
         json.dumps(CANDIDATES), RuntimeError('Unavailable local model'),
     ]):
         assert extract_graph_memories('Mixed summary', mock_config, 'local-model') == []
@@ -155,7 +155,7 @@ def test_durable_facts_keep_their_original_branch_text_and_date(mock_config):
         {'branch': 'DIRECTIVES', 'fact': '[2026-10-03] Réponds brièvement'},
         {'branch': 'WORLD', 'fact': '[2026-10-03] Trenches Boxing Club offers evening classes'},
     ]
-    with patch('jarvis.memory.graph_ops.call_llm_direct', side_effect=[
+    with patch('atlas.memory.graph_ops.call_llm_direct', side_effect=[
         json.dumps(candidates), review_response({'0': 'DIRECTIVES', '1': 'WORLD'}),
     ]):
         assert extract_graph_memories('Summary', mock_config, 'local-model', date_utc='2026-10-03') == [
@@ -165,7 +165,7 @@ def test_durable_facts_keep_their_original_branch_text_and_date(mock_config):
 
 
 def test_unordered_verdicts_preserve_durable_facts_in_original_order(mock_config):
-    with patch('jarvis.memory.graph_ops.call_llm_direct', side_effect=[
+    with patch('atlas.memory.graph_ops.call_llm_direct', side_effect=[
         json.dumps(CANDIDATES), review_response({'3': 'DIRECTIVES', '1': 'USER', '0': 'TRANSIENT', '2': 'INTERACTION'}),
     ]):
         assert extract_graph_memories('Mixed summary', mock_config, 'local-model') == [
@@ -206,7 +206,7 @@ def test_review_uses_only_the_remaining_extraction_budget(mock_config, clock, el
         assert kwargs['timeout_sec'] == pytest.approx(budget - clock[0])
         return review_response({'0': 'TRANSIENT', '1': 'USER', '2': 'INTERACTION', '3': 'DIRECTIVES'})
 
-    with patch('jarvis.memory.graph_ops.call_llm_direct', side_effect=backend):
+    with patch('atlas.memory.graph_ops.call_llm_direct', side_effect=backend):
         result = extract_graph_memories('Summary', mock_config, 'local-model', timeout_sec=budget)
 
     assert result == ([
@@ -218,7 +218,7 @@ def test_review_uses_only_the_remaining_extraction_budget(mock_config, clock, el
 
 
 def test_nonpositive_budget_does_not_start_extraction(mock_config):
-    with patch('jarvis.memory.graph_ops.call_llm_direct', side_effect=AssertionError('Unexpected inference')):
+    with patch('atlas.memory.graph_ops.call_llm_direct', side_effect=AssertionError('Unexpected inference')):
         assert extract_graph_memories('Summary', mock_config, 'local-model', timeout_sec=0) == []
 
 
@@ -231,7 +231,7 @@ def test_source_relationship_review_preserves_only_supported_candidates(mock_con
             return json.dumps(candidates)
         source = json.loads(kwargs['user_content'])['summary']
         return review_response({'0': 'UNSUPPORTED', '1': 'USER'}) if source == summary else ''
-    with patch('jarvis.memory.graph_ops.call_llm_direct', side_effect=infer):
+    with patch('atlas.memory.graph_ops.call_llm_direct', side_effect=infer):
         assert extract_graph_memories(summary, mock_config, 'local-model') == [
             ('user', 'The user is vegetarian'),
         ]

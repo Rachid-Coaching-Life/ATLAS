@@ -7,7 +7,7 @@ if sys.version_info < (3, 11):
 from types import SimpleNamespace
 
 import pytest
-from jarvis.tools import registry
+from atlas.tools import registry
 
 pytestmark = pytest.mark.unit
 

@@ -5,8 +5,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6.QtWidgets import QApplication
 
 from desktop_app.app import ATLASSystemTray, LogSignals
-from jarvis.tools.confirmation import ConfirmationRequest, Risk
-from jarvis.tools.confirmation_ipc import request_frame, cancel_frame, reply_line
+from atlas.tools.confirmation import ConfirmationRequest, Risk
+from atlas.tools.confirmation_ipc import request_frame, cancel_frame, reply_line
 
 
 class FakeProcess:

@@ -4,7 +4,7 @@ from PyQt6.QtCore import Qt, QPoint, QPointF
 from PyQt6.QtGui import QContextMenuEvent, QMouseEvent
 from PyQt6.QtWidgets import QMenu
 from desktop_app.face_widget import Expression
-from jarvis.activity import JarvisState
+from atlas.activity import AtlasState
 
 pytestmark = pytest.mark.unit
 
@@ -12,9 +12,9 @@ pytestmark = pytest.mark.unit
 @pytest.fixture
 def face(qapp, monkeypatch, tmp_path):
     from desktop_app import face_widget
-    from jarvis import activity
-    monkeypatch.setattr(activity, '_get_jarvis_state_file', lambda: str(tmp_path / 'state'))
-    monkeypatch.setattr(activity, '_jarvis_state_instance', None)
+    from atlas import activity
+    monkeypatch.setattr(activity, '_get_atlas_state_file', lambda: str(tmp_path / 'state'))
+    monkeypatch.setattr(activity, '_atlas_state_instance', None)
     # This suite asserts the original transparent *geometric* silhouette.
     # Production keeps the ATLAS PNG portrait; explicitly select the
     # fallback rather than re-recording legacy golden image fixtures.
@@ -82,25 +82,25 @@ def test_empty_corners_do_not_occupy_the_native_input_region(face):
 
 
 def test_resting_presence_is_quieter_than_active_states(face):
-    from jarvis.activity import JarvisState
+    from atlas.activity import AtlasState
     manager = face.face._state_manager
-    manager.set_state(JarvisState.ASLEEP)
+    manager.set_state(AtlasState.ASLEEP)
     face.face._animate()
     asleep = face.windowOpacity()
-    manager.set_state(JarvisState.IDLE)
+    manager.set_state(AtlasState.IDLE)
     face.face._animate()
     idle = face.windowOpacity()
-    for state in (JarvisState.LISTENING, JarvisState.THINKING,
-                  JarvisState.SPEAKING, JarvisState.DICTATING,
-                  JarvisState.DICTATION_PROCESSING):
+    for state in (AtlasState.LISTENING, AtlasState.THINKING,
+                  AtlasState.SPEAKING, AtlasState.DICTATING,
+                  AtlasState.DICTATION_PROCESSING):
         manager.set_state(state)
         face.face._animate()
         assert 0 < asleep < idle < face.windowOpacity() <= 1
 
 
 def test_tray_show_does_not_request_focus(face):
-    from desktop_app.app import JarvisSystemTray
-    tray = object.__new__(JarvisSystemTray)
+    from desktop_app.app import AtlasSystemTray
+    tray = object.__new__(AtlasSystemTray)
     tray.face_window = face
     face.hide()
     # Reject an explicit activation request while exercising the real tray action.
@@ -111,15 +111,15 @@ def test_tray_show_does_not_request_focus(face):
 
 def test_subprocess_state_file_updates_presence_without_a_qt_signal(face):
     from pathlib import Path
-    from jarvis.activity import JarvisState
+    from atlas.activity import AtlasState
     before = face.windowOpacity()
-    Path(face.face._state_manager._state_file).write_text(JarvisState.LISTENING.value)
+    Path(face.face._state_manager._state_file).write_text(AtlasState.LISTENING.value)
     face.face._animate()
     assert face.windowOpacity() > before
     assert face.face._listening_started_at is not None
 
 
-@pytest.mark.parametrize('state', list(JarvisState))
+@pytest.mark.parametrize('state', list(AtlasState))
 @pytest.mark.parametrize('expression', list(Expression))
 @pytest.mark.parametrize('blink_factor', [0.0, 1.0])
 @pytest.mark.parametrize('scale', [1, 2])
@@ -129,9 +129,9 @@ def test_eye_surroundings_stay_transparent(face, state, expression,
     from PyQt6.QtGui import QImage, QPainter
 
     widget = face.face
-    widget._jarvis_state = state
+    widget._atlas_state = state
     widget._expression = expression
-    widget._activation_level = 0.0 if state == JarvisState.ASLEEP else 1.0
+    widget._activation_level = 0.0 if state == AtlasState.ASLEEP else 1.0
     size = 20
     centre = size * 2
     image = QImage(centre * 2 * scale, centre * 2 * scale,
@@ -150,7 +150,7 @@ def test_eye_surroundings_stay_transparent(face, state, expression,
     margin_x = round((centre + size * 1.2) * scale)
     assert all(image.pixelColor(margin_x, y).alpha() == 0
                for y in range(image.height()))
-    if expression == Expression.NEUTRAL and blink_factor == 0.0 and state != JarvisState.ASLEEP:
+    if expression == Expression.NEUTRAL and blink_factor == 0.0 and state != AtlasState.ASLEEP:
         # Desktop content is visible between the pupil and the eye outline.
         gap_x = round((centre + size * 0.5) * scale)
         assert image.pixelColor(gap_x, round((centre - size * 0.2) * scale)).alpha() == 0
@@ -162,10 +162,10 @@ def test_eye_surroundings_stay_transparent(face, state, expression,
 def face_tray(face, monkeypatch):
     """Build the real tray menu without starting a daemon or external windows."""
     from unittest.mock import Mock
-    from desktop_app.app import JarvisSystemTray
+    from desktop_app.app import AtlasSystemTray
     from PyQt6.QtGui import QAction
 
-    tray = object.__new__(JarvisSystemTray)
+    tray = object.__new__(AtlasSystemTray)
     tray.face_window = face
     tray.tray_icon = Mock()
     for name in ('show_log_viewer', 'show_memory_viewer', 'show_dictation_history',

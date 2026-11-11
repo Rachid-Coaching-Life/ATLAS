@@ -8,9 +8,9 @@ pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 
 @pytest.fixture
 def settings_factory(tmp_path, monkeypatch):
-    from jarvis.config import load_settings
+    from atlas.config import load_settings
     path = tmp_path / 'configuration.json'
-    monkeypatch.setenv('JARVIS_CONFIG_PATH', str(path))
+    monkeypatch.setenv('ATLAS_CONFIG_PATH', str(path))
     def load(**values):
         path.write_text(json.dumps({'_config_version': 3, **values}))
         return load_settings()
@@ -40,7 +40,7 @@ def test_default_selections_are_recommended(settings_factory):
 
 
 def test_chat_recommendation_does_not_qualify_a_fast_model(settings_factory):
-    from jarvis.config import SUPPORTED_CHAT_MODELS, SUPPORTED_FAST_MODEL_IDS
+    from atlas.config import SUPPORTED_CHAT_MODELS, SUPPORTED_FAST_MODEL_IDS
     from desktop_app.app import check_model_support
     model = next(model for model in SUPPORTED_CHAT_MODELS if model not in SUPPORTED_FAST_MODEL_IDS)
     assert check_model_support(settings_factory(fast_model=model)) == {'Fast': model}
@@ -48,7 +48,7 @@ def test_chat_recommendation_does_not_qualify_a_fast_model(settings_factory):
 
 def test_local_embeddings_are_checked_with_external_chat(settings_factory):
     from desktop_app.app import check_model_support
-    from jarvis.config import DEFAULT_CHAT_MODEL, SUPPORTED_CHAT_MODELS
+    from atlas.config import DEFAULT_CHAT_MODEL, SUPPORTED_CHAT_MODELS
     assert check_model_support(settings_factory(
         llm_provider='openai_compatible', llm_chat_model=SUPPORTED_CHAT_MODELS[DEFAULT_CHAT_MODEL]['openai_id'],
         embedding_provider='ollama', ollama_embed_model='synthetic-embedding',
@@ -64,14 +64,14 @@ def test_external_unlisted_roles_receive_advice(settings_factory):
 
 
 def test_an_unlisted_family_variant_is_not_qualified(settings_factory):
-    from jarvis.config import DEFAULT_CHAT_MODEL
+    from atlas.config import DEFAULT_CHAT_MODEL
     from desktop_app.app import check_model_support
     model = DEFAULT_CHAT_MODEL.split(':')[0] + ':synthetic-unlisted-variant'
     assert check_model_support(settings_factory(ollama_chat_model=model)) == {'Chat': model}
 
 
 def test_embedding_latest_alias_preserves_default_identity(settings_factory):
-    from jarvis.config import get_default_config
+    from atlas.config import get_default_config
     from desktop_app.app import check_model_support
     model = get_default_config()['ollama_embed_model'] + ':latest'
     assert check_model_support(settings_factory(ollama_embed_model=model)) == {}
@@ -80,7 +80,7 @@ def test_embedding_latest_alias_preserves_default_identity(settings_factory):
 @pytest.mark.parametrize('provider', ['ollama', 'openai_compatible'])
 @pytest.mark.parametrize('role,key', [('Chat', 'llm_chat_model'), ('Fast', 'fast_model'), ('Embedding', 'embedding_model')])
 def test_every_role_recommendation_is_accepted(settings_factory, provider, role, key):
-    from jarvis.config import get_model_recommendations
+    from atlas.config import get_model_recommendations
     from desktop_app.app import check_model_support
     config_key = {'Chat': 'ollama_chat_model', 'Embedding': 'ollama_embed_model'}.get(role, key) if provider == 'ollama' else key
     for model in get_model_recommendations(provider)[role]:
@@ -97,7 +97,7 @@ def test_advice_lists_roles_and_preserves_settings(qapp, settings_factory, butto
     from PyQt6.QtCore import Qt
     from PyQt6.QtWidgets import QLabel, QPushButton
     from desktop_app.app import UnsupportedModelDialog, check_model_support
-    from jarvis.config import get_config_path
+    from atlas.config import get_config_path
     settings = settings_factory(llm_provider=provider, llm_chat_model='<b>custom-chat</b>',
                                 ollama_chat_model='<b>custom-chat</b>', fast_model='custom-fast',
                                 embedding_model='custom-embedding', ollama_embed_model='custom-embedding')
@@ -124,7 +124,7 @@ def test_advice_lists_roles_and_preserves_settings(qapp, settings_factory, butto
 
 
 def test_external_default_chat_family_is_also_fast_recommended(settings_factory):
-    from jarvis.config import DEFAULT_CHAT_MODEL, SUPPORTED_CHAT_MODELS, SUPPORTED_OPENAI_EMBEDDING_MODEL_IDS
+    from atlas.config import DEFAULT_CHAT_MODEL, SUPPORTED_CHAT_MODELS, SUPPORTED_OPENAI_EMBEDDING_MODEL_IDS
     from desktop_app.app import check_model_support
     assert check_model_support(settings_factory(
         llm_provider='openai_compatible', llm_chat_model=SUPPORTED_CHAT_MODELS[DEFAULT_CHAT_MODEL]['openai_id'],
@@ -133,7 +133,7 @@ def test_external_default_chat_family_is_also_fast_recommended(settings_factory)
 
 
 def test_external_chat_recommendation_is_not_a_fast_recommendation(settings_factory):
-    from jarvis.config import SUPPORTED_CHAT_MODELS, SUPPORTED_FAST_MODEL_IDS
+    from atlas.config import SUPPORTED_CHAT_MODELS, SUPPORTED_FAST_MODEL_IDS
     from desktop_app.app import check_model_support
     model = next(info['openai_id'] for key, info in SUPPORTED_CHAT_MODELS.items() if key not in SUPPORTED_FAST_MODEL_IDS)
     assert check_model_support(settings_factory(
@@ -151,7 +151,7 @@ def test_external_embeddings_are_checked_with_ollama_chat(settings_factory):
 
 def test_an_external_server_alias_is_not_model_provenance(settings_factory):
     from desktop_app.app import check_model_support
-    from jarvis.config import get_model_recommendations
+    from atlas.config import get_model_recommendations
     assert check_model_support(settings_factory(
         llm_provider='openai_compatible', llm_chat_model='my-gemma-server-alias',
         fast_model=get_model_recommendations('openai_compatible')['Fast'][0], embedding_provider='ollama',

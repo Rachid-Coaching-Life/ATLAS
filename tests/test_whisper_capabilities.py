@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis.listening import whisper_capabilities
+from atlas.listening import whisper_capabilities
 
 pytestmark = pytest.mark.unit
 

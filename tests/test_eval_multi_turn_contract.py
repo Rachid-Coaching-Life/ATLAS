@@ -24,7 +24,7 @@ ENTRIES = [
 
 @pytest.fixture
 def cases(monkeypatch):
-    monkeypatch.setattr('jarvis.llm.http.get', lambda *args, **kwargs: nullcontext(SimpleNamespace(status_code=404)))
+    monkeypatch.setattr('atlas.llm.http.get', lambda *args, **kwargs: nullcontext(SimpleNamespace(status_code=404)))
     path = Path(__file__).resolve().parents[1] / 'evals' / 'test_multi_turn_context.py'
     if not path.exists():
         path = Path.cwd() / 'evals' / 'test_multi_turn_context.py'
@@ -51,8 +51,8 @@ def synthetic_turn(engine, cfg, text, answer):
 @pytest.mark.parametrize('entry', ENTRIES)
 @pytest.mark.parametrize('provider', ['ollama', 'openai_compatible'])
 def test_selected_multi_turn_backend_receives_each_turn(monkeypatch, cases, entry, provider):
-    from jarvis.llm import get_llm_backend
-    from jarvis.reply import engine
+    from atlas.llm import get_llm_backend
+    from atlas.reply import engine
     base = 'http://127.0.0.1:11439'
     model = 'selected-conversation-model'
     monkeypatch.setenv('EVAL_JUDGE_PROVIDER', provider)
@@ -66,7 +66,7 @@ def test_selected_multi_turn_backend_receives_each_turn(monkeypatch, cases, entr
         response.json.return_value = {'message': {'content': cases['MOCK_WEATHER_RESPONSE']},
                                      'choices': [{'message': {'content': cases['MOCK_WEATHER_RESPONSE']}}]}
         return response
-    monkeypatch.setattr('jarvis.llm.http.post', post)
+    monkeypatch.setattr('atlas.llm.http.post', post)
     def reply(*, cfg, text, **kwargs):
         answer = get_llm_backend(cfg).direct(cfg.llm_chat_model, 'Synthetic wire probe.', text)
         return synthetic_turn(engine, cfg, text, answer)
@@ -79,7 +79,7 @@ def test_selected_multi_turn_backend_receives_each_turn(monkeypatch, cases, entr
 @pytest.mark.parametrize('entry', ENTRIES)
 @pytest.mark.parametrize('answer', [None, '', '   ', 'Sorry, I had trouble understanding that request.'])
 def test_tool_calls_do_not_hide_missing_or_fallback_answers(monkeypatch, cases, entry, answer):
-    from jarvis.reply import engine
+    from atlas.reply import engine
     monkeypatch.setattr(engine, 'run_reply_engine', lambda *, cfg, text, **kwargs:
                         synthetic_turn(engine, cfg, text, answer))
     with pytest.raises((AssertionError, pytest.fail.Exception)):
@@ -88,7 +88,7 @@ def test_tool_calls_do_not_hide_missing_or_fallback_answers(monkeypatch, cases, 
 
 @pytest.mark.parametrize('answer', ['Sure, bring one if you want.', 'Bring an umbrella if it rains.'])
 def test_umbrella_advice_requires_a_previous_weather_fact(monkeypatch, cases, answer):
-    from jarvis.reply import engine
+    from atlas.reply import engine
     monkeypatch.setattr(engine, 'run_reply_engine', lambda *, cfg, text, **kwargs:
                         synthetic_turn(engine, cfg, text, answer))
     with pytest.raises(AssertionError):
@@ -98,7 +98,7 @@ def test_umbrella_advice_requires_a_previous_weather_fact(monkeypatch, cases, an
 @pytest.mark.parametrize('entry', ENTRIES)
 @pytest.mark.parametrize('answer', [None, '', '   ', 'Sorry, I had trouble understanding that request.'])
 def test_a_good_first_turn_does_not_hide_a_failed_follow_up(monkeypatch, cases, entry, answer):
-    from jarvis.reply import engine
+    from atlas.reply import engine
     answers = iter([cases['MOCK_WEATHER_RESPONSE'], answer, answer])
     monkeypatch.setattr(engine, 'run_reply_engine', lambda *, cfg, text, **kwargs:
                         synthetic_turn(engine, cfg, text, next(answers)))
@@ -107,8 +107,8 @@ def test_a_good_first_turn_does_not_hide_a_failed_follow_up(monkeypatch, cases, 
 
 
 def test_default_model_is_bound_to_the_canonical_field(monkeypatch, cases):
-    from jarvis.llm import get_llm_backend
-    from jarvis.reply import engine
+    from atlas.llm import get_llm_backend
+    from atlas.reply import engine
     monkeypatch.delenv('EVAL_JUDGE_MODEL', raising=False)
     monkeypatch.setenv('EVAL_JUDGE_PROVIDER', 'ollama')
     monkeypatch.setenv('EVAL_JUDGE_BASE_URL', 'http://127.0.0.1:11439')
@@ -120,7 +120,7 @@ def test_default_model_is_bound_to_the_canonical_field(monkeypatch, cases):
         response.__enter__.return_value = response
         response.json.return_value = {'message': {'content': cases['MOCK_WEATHER_RESPONSE']}}
         return response
-    monkeypatch.setattr('jarvis.llm.http.post', post)
+    monkeypatch.setattr('atlas.llm.http.post', post)
     def reply(*, cfg, text, **kwargs):
         answer = get_llm_backend(cfg).direct(cfg.llm_chat_model, 'Synthetic wire probe.', text)
         return synthetic_turn(engine, cfg, text, answer)
@@ -138,7 +138,7 @@ def test_default_model_is_bound_to_the_canonical_field(monkeypatch, cases):
     {'query': 'Harry Styles songs'},
 ])
 def test_pronoun_eval_requires_the_entity_in_the_search_query(monkeypatch, cases, bad_arguments):
-    from jarvis.reply import engine
+    from atlas.reply import engine
 
     def reply(*, cfg, text, **kwargs):
         args = bad_arguments if 'famous songs' in text.lower() else {'search_query': text}

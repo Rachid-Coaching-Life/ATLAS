@@ -15,8 +15,8 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from jarvis.listening.state_manager import StateManager, ListeningState
-from jarvis.listening.intent_judge import IntentJudgment
+from atlas.listening.state_manager import StateManager, ListeningState
+from atlas.listening.intent_judge import IntentJudgment
 
 
 # ---------------------------------------------------------------------------
@@ -48,11 +48,11 @@ def _create_listener(**kwargs):
     mock_cfg.voice_debug = False
     mock_cfg.voice_min_energy = 0.0045
     mock_cfg.tune_enabled = False
-    mock_cfg.wake_word = "jarvis"
+    mock_cfg.wake_word = "atlas"
     mock_cfg.wake_aliases = []
     mock_cfg.wake_fuzzy_ratio = 0.78
     mock_cfg.stop_commands = ["stop", "quiet"]
-    from jarvis.config import get_default_config
+    from atlas.config import get_default_config
     mock_cfg.stop_command_fuzzy_ratio = get_default_config()["stop_command_fuzzy_ratio"]
     mock_cfg.tts_rate = 200
     mock_cfg.transcript_buffer_duration_sec = 120.0
@@ -66,11 +66,11 @@ def _create_listener(**kwargs):
     mock_tts.is_speaking.return_value = kwargs.get("tts_speaking", False)
     mock_dialogue_memory = MagicMock()
 
-    with patch("jarvis.listening.listener.webrtcvad", None), \
-         patch("jarvis.listening.listener.sd", None), \
-         patch("jarvis.listening.listener.np", None), \
-         patch("jarvis.listening.listener.create_intent_judge", return_value=None):
-        from jarvis.listening.listener import VoiceListener
+    with patch("atlas.listening.listener.webrtcvad", None), \
+         patch("atlas.listening.listener.sd", None), \
+         patch("atlas.listening.listener.np", None), \
+         patch("atlas.listening.listener.create_intent_judge", return_value=None):
+        from atlas.listening.listener import VoiceListener
         listener = VoiceListener(mock_db, mock_cfg, mock_tts, mock_dialogue_memory)
 
     return listener, mock_tts
@@ -930,7 +930,7 @@ class TestEarlyBeepFeedback:
 
         # No intent judge installed — beep should still start from the
         # early detection path, then fallback wake word check processes query.
-        _process_transcript(listener, "jarvis what time is it", utterance_energy=0.01)
+        _process_transcript(listener, "atlas what time is it", utterance_energy=0.01)
 
         assert _accepted_query(listener) != ""
         assert _is_beeping(listener)
@@ -985,7 +985,7 @@ class TestEarlyBeepFeedback:
         _install_intent_judge(listener, _make_judgment(
             directed=False,  confidence="high",
             reasoning="narrative mention"))
-        _process_transcript(listener, "jarvis is a cool name", utterance_energy=0.01)
+        _process_transcript(listener, "atlas is a cool name", utterance_energy=0.01)
         assert _accepted_query(listener) == ""
         assert not _is_beeping(listener)
         listener.state_manager.stop()
@@ -997,7 +997,7 @@ class TestEarlyBeepFeedback:
             echo_tolerance=0.02, hot_window_seconds=3.0, tts_speaking=True)
         listener.cfg.tune_enabled = True
 
-        _process_transcript(listener, "jarvis what time is it", utterance_energy=0.01)
+        _process_transcript(listener, "atlas what time is it", utterance_energy=0.01)
 
         # Should not beep during TTS (stop command path handles TTS interrupts)
         assert not _is_beeping(listener)
@@ -1042,7 +1042,7 @@ class TestEchoRejectionInHotWindow:
     def test_echo_rejected_before_intent_judge_can_accept(self, _print):
         """Echo is caught early even when intent judge would say directed.
 
-        The mic picks up Jarvis's TTS output and Whisper transcribes it.
+        The mic picks up ATLAS's TTS output and Whisper transcribes it.
         The early fuzzy check catches it before the intent judge runs.
         """
         listener, _ = _create_listener(echo_tolerance=0.02, hot_window_seconds=3.0)
@@ -1127,7 +1127,7 @@ class TestHotWindowBoundary:
 
             query = "what time is it"
             _install_intent_judge(listener, _make_judgment(directed=True))
-            transcript = f"jarvis {query}" if wake_word else query
+            transcript = f"atlas {query}" if wake_word else query
             _process_transcript(listener, transcript, utterance_energy=0.01)
 
             assert _accepted_query(listener) == (transcript if wake_word else "")
@@ -1365,7 +1365,7 @@ class TestSpeechIgnoredOutsideHotWindow:
         # Third utterance with wake word — THIS should work
         _install_intent_judge(listener, _make_judgment(
             directed=True))
-        _process_transcript(listener, "jarvis will it rain today", utterance_energy=0.01)
+        _process_transcript(listener, "atlas will it rain today", utterance_energy=0.01)
         assert "rain" in _accepted_query(listener)
         listener.state_manager.stop()
 
@@ -1407,8 +1407,8 @@ class TestStaleWakeTimestampAcrossUtterances:
     utterance without a wake word must not be accepted just because the
     previous utterance had one.
 
-    Real-world bug: user said "Jarvis, remember..." (rejected by judge),
-    then said "Hey Google, TV off." The judge saw the previous "Jarvis"
+    Real-world bug: user said "ATLAS, remember..." (rejected by judge),
+    then said "Hey Google, TV off." The judge saw the previous "ATLAS"
     in its buffer and returned directed=true with query="tv off". The
     verification guard `_wake_timestamp is not None` short-circuited true
     because it was never cleared, so the unrelated "Hey Google" command
@@ -1428,14 +1428,14 @@ class TestStaleWakeTimestampAcrossUtterances:
 
         now = time.time()
         _process_transcript(listener,
-            "i am talking to jarvis, not you",
+            "i am talking to atlas, not you",
             utterance_energy=0.01,
             utterance_start_time=now,
             utterance_end_time=now + 2.0,
         )
         assert _accepted_query(listener) == "", "Confident mention rejection must be respected"
         # Second utterance: no wake word, judge hallucinates directed=true
-        # (e.g. because the earlier "jarvis" is still in its context buffer)
+        # (e.g. because the earlier "atlas" is still in its context buffer)
         _install_intent_judge(listener, _make_judgment(
             directed=True,  confidence="high",
             reasoning="synthesised from buffer"))
@@ -1496,7 +1496,7 @@ class TestIntentJudgeGating:
                 directed=True))
 
         _process_transcript(listener,
-            "jarvis what time is it", utterance_energy=0.01,
+            "atlas what time is it", utterance_energy=0.01,
         )
 
         assert mock_judge.judge.call_count == 1

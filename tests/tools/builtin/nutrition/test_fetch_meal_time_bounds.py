@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis.tools.builtin.nutrition.fetch_meals import FetchMealsTool
+from atlas.tools.builtin.nutrition.fetch_meals import FetchMealsTool
 
 pytestmark = pytest.mark.unit
 

@@ -5,10 +5,10 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from jarvis.tools.base import ToolContext
-from jarvis.tools.builtin.time_tool import TimeTool
-from jarvis.tools.registry import BUILTIN_TOOLS
-from jarvis.tools.types import ToolExecutionResult
+from atlas.tools.base import ToolContext
+from atlas.tools.builtin.time_tool import TimeTool
+from atlas.tools.registry import BUILTIN_TOOLS
+from atlas.tools.types import ToolExecutionResult
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 
@@ -37,7 +37,7 @@ class TestTimeTool:
         assert "getTime" in BUILTIN_TOOLS
         assert isinstance(BUILTIN_TOOLS["getTime"], TimeTool)
 
-    @patch("jarvis.tools.builtin.time_tool.format_time_context",
+    @patch("atlas.tools.builtin.time_tool.format_time_context",
            return_value="Tuesday, July 01, 2025 at 13:00 EEST")
     @patch("requests.get")
     def test_run_with_city_success(self, mock_get, mock_fmt):
@@ -65,7 +65,7 @@ class TestTimeTool:
         # name, never a guess.
         mock_fmt.assert_called_once_with("Europe/Athens")
 
-    @patch("jarvis.tools.builtin.time_tool.format_time_context",
+    @patch("atlas.tools.builtin.time_tool.format_time_context",
            return_value="Tuesday, July 01, 2025 at 13:00 EEST")
     @patch("requests.get")
     def test_run_with_iana_zone_direct(self, mock_get, mock_fmt):
@@ -129,9 +129,9 @@ class TestTimeTool:
         assert result.success is False
         assert "timezone" in result.reply_text.lower()
 
-    @patch("jarvis.tools.builtin.time_tool.format_time_context",
+    @patch("atlas.tools.builtin.time_tool.format_time_context",
            return_value="Tuesday, July 01, 2025 at 13:00 EEST")
-    @patch("jarvis.tools.builtin.time_tool.get_location_context_with_timezone",
+    @patch("atlas.tools.builtin.time_tool.get_location_context_with_timezone",
            return_value=("some location context", "Europe/Istanbul"))
     def test_run_no_location_uses_geoip_zone(self, mock_loc, mock_fmt):
         """No location → prefer the user's GeoIP zone when one is known."""
@@ -140,9 +140,9 @@ class TestTimeTool:
         assert result.success is True
         mock_fmt.assert_called_once_with("Europe/Istanbul")
 
-    @patch("jarvis.tools.builtin.time_tool.format_time_context",
+    @patch("atlas.tools.builtin.time_tool.format_time_context",
            return_value="Tuesday, July 01, 2025 at 13:00 EEST")
-    @patch("jarvis.tools.builtin.time_tool.get_location_context_with_timezone",
+    @patch("atlas.tools.builtin.time_tool.get_location_context_with_timezone",
            return_value=("some location context", None))
     def test_run_no_location_without_zone_falls_back_to_os(self, mock_loc, mock_fmt):
         """No location and no GeoIP zone → the OS local zone handles it."""

@@ -11,7 +11,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 
 @pytest.fixture
 def tray(monkeypatch, qapp):
-    tray = app_mod.JarvisSystemTray.__new__(app_mod.JarvisSystemTray)
+    tray = app_mod.AtlasSystemTray.__new__(app_mod.AtlasSystemTray)
     tray.is_bundled = True
     tray.is_listening = True
     tray.daemon_thread = MagicMock()
@@ -33,8 +33,8 @@ def tray(monkeypatch, qapp):
     clock = MagicMock(wraps=time)
     clock.sleep.return_value = None
     monkeypatch.setattr(app_mod, "time", clock)
-    monkeypatch.setattr("jarvis.daemon.request_stop", lambda: None)
-    monkeypatch.setattr("jarvis.daemon.set_diary_update_callbacks", lambda **kwargs: None)
+    monkeypatch.setattr("atlas.daemon.request_stop", lambda: None)
+    monkeypatch.setattr("atlas.daemon.set_diary_update_callbacks", lambda **kwargs: None)
     return tray
 
 

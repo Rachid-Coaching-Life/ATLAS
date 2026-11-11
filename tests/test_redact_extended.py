@@ -3,7 +3,7 @@
 import pytest
 from urllib.parse import urlsplit
 
-from jarvis.utils.redact import redact, scrub_secrets
+from atlas.utils.redact import redact, scrub_secrets
 
 
 @pytest.mark.unit

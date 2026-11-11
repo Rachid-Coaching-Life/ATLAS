@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from jarvis.config import get_config_path, get_default_config, load_settings
-from jarvis.listening.listener import VoiceListener
+from atlas.config import get_config_path, get_default_config, load_settings
+from atlas.listening.listener import VoiceListener
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 
@@ -92,9 +92,9 @@ def test_saved_fuzzy_threshold_preserves_echo_control_priority(ratio, keeps_play
 @pytest.mark.parametrize('enabled', [False, True])
 def test_saved_intent_thinking_switch_reaches_the_local_request(monkeypatch, enabled, provider):
     from contextlib import nullcontext
-    from jarvis.llm import http
-    from jarvis.listening.intent_judge import create_intent_judge
-    from jarvis.listening.transcript_buffer import TranscriptSegment
+    from atlas.llm import http
+    from atlas.listening.intent_judge import create_intent_judge
+    from atlas.listening.transcript_buffer import TranscriptSegment
 
     cfg = settings(llm_provider=provider, llm_base_url='http://127.0.0.1:1',
                    ollama_base_url='http://127.0.0.1:1', intent_judge_thinking_enabled=enabled,
@@ -108,7 +108,7 @@ def test_saved_intent_thinking_switch_reaches_the_local_request(monkeypatch, ena
         else:
             assert url == cfg.llm_base_url + '/chat/completions'
             assert 'think' not in payload
-        assert 'What is the weather, Jarvis?' in payload['messages'][-1]['content']
+        assert 'What is the weather, ATLAS?' in payload['messages'][-1]['content']
         response = MagicMock()
         content = json.dumps({'directed': True, 'stop': False, 'confidence': 'high',
                               'reasoning': 'A question.'})
@@ -120,6 +120,6 @@ def test_saved_intent_thinking_switch_reaches_the_local_request(monkeypatch, ena
 
     monkeypatch.setattr(http, 'post', post)
     judge = create_intent_judge(cfg)
-    result = judge.judge([TranscriptSegment('What is the weather, Jarvis?', 1, 2)],
-                         current_text='What is the weather, Jarvis?')
+    result = judge.judge([TranscriptSegment('What is the weather, ATLAS?', 1, 2)],
+                         current_text='What is the weather, ATLAS?')
     assert result is not None and result.directed and not result.stop

@@ -6,9 +6,9 @@ import tempfile
 import os
 from pathlib import Path
 
-from jarvis.tools.builtin.local_files import LocalFilesTool
-from jarvis.tools.base import ToolContext
-from jarvis.tools.types import ToolExecutionResult
+from atlas.tools.builtin.local_files import LocalFilesTool
+from atlas.tools.base import ToolContext
+from atlas.tools.types import ToolExecutionResult
 
 
 class TestLocalFilesTool:

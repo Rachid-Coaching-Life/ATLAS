@@ -9,7 +9,7 @@ prior tool output instead of re-fetching.
 import time
 import pytest
 
-from jarvis.memory.conversation import DialogueMemory
+from atlas.memory.conversation import DialogueMemory
 
 
 @pytest.mark.unit

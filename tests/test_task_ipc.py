@@ -4,7 +4,7 @@ import pytest
 
 from types import SimpleNamespace
 
-from jarvis import daemon
+from atlas import daemon
 
 pytestmark = pytest.mark.unit
 

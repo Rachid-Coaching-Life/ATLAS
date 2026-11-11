@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from PyQt6.QtWidgets import QApplication
-from jarvis.dictation.dictation_engine import _paste_cgevent
+from atlas.dictation.dictation_engine import _paste_cgevent
 
 app = QApplication([])
 cg = ctypes.cdll.LoadLibrary('/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics')

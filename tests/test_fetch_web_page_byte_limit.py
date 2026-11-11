@@ -4,8 +4,8 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
 import pytest
-from jarvis.tools.base import ToolContext
-from jarvis.tools.builtin import fetch_web_page
+from atlas.tools.base import ToolContext
+from atlas.tools.builtin import fetch_web_page
 pytestmark = pytest.mark.unit
 
 @pytest.fixture

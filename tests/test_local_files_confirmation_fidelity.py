@@ -6,10 +6,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis.tools import confirmation, local_paths
-from jarvis.tools.base import ToolContext
-from jarvis.tools.builtin import local_files
-from jarvis.tools.builtin.local_files import LocalFilesTool
+from atlas.tools import confirmation, local_paths
+from atlas.tools.base import ToolContext
+from atlas.tools.builtin import local_files
+from atlas.tools.builtin.local_files import LocalFilesTool
 
 pytestmark = pytest.mark.unit
 
