@@ -37,7 +37,9 @@ jobs:
   release:
     needs: [build-desktop]
     runs-on: ubuntu-latest
-    if: success()
+    # A validation-only build must never fetch or promote a release branch.
+    # The ATLAS integration branches cannot promote main through this workflow.
+    if: ${{ !inputs.validate_only && github.ref == 'refs/heads/develop' && success() }}
     timeout-minutes: 5
 
     permissions:
