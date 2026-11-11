@@ -109,7 +109,7 @@ def protected_reason(rel: str, workflows: bool = False, website: bool = False):
         return "licence or third-party notice"
     if "/licenses/" in "/" + rel.lower() or "/licences/" in "/" + rel.lower():
         return "licence or third-party notice"
-    if upper.startswith(("CHANGELOG", "RELEASE_NOTES", "HISTORY")):
+    if rel.count("/") == 0 and upper.startswith(("CHANGELOG", "RELEASE_NOTES", "HISTORY")):
         return "historical record"
     if rel.startswith("docs/atlas-migration/"):
         return "migration reports"
