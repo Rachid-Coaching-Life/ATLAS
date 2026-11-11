@@ -105,11 +105,14 @@ def protected_reason(rel: str, workflows: bool = False, website: bool = False):
         return "migration templates (name the former name by design)"
     name = rel.rsplit("/", 1)[-1]
     upper = name.upper()
-    if upper.startswith(("LICENSE", "LICENCE", "COPYING", "NOTICE", "THIRD_PARTY", "THIRD-PARTY")):
+    # Name-based protections are for documents. A Python module such as
+    # history.py or notice.py is code and must follow the package rename.
+    is_code = Path(name).suffix.lower() in (".py", ".pyi")
+    if not is_code and upper.startswith(("LICENSE", "LICENCE", "COPYING", "NOTICE", "THIRD_PARTY", "THIRD-PARTY")):
         return "licence or third-party notice"
     if "/licenses/" in "/" + rel.lower() or "/licences/" in "/" + rel.lower():
         return "licence or third-party notice"
-    if upper.startswith(("CHANGELOG", "RELEASE_NOTES", "HISTORY")):
+    if not is_code and upper.startswith(("CHANGELOG", "RELEASE_NOTES", "HISTORY")):
         return "historical record"
     if rel.startswith("docs/atlas-migration/"):
         return "migration reports"

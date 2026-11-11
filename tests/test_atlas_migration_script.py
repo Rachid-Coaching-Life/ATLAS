@@ -116,6 +116,30 @@ def test_inventory_changes_nothing(repo):
     assert git(repo, "status", "--porcelain") == before
 
 
+def test_active_history_module_does_not_block_package_rename(repo):
+    history = repo / "src/jarvis/dictation/history.py"
+    history.parent.mkdir(parents=True, exist_ok=True)
+    history.write_text("def read_history():\n    return 'ok'\n", encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "add active history module")
+    migrate(repo)
+    assert (repo / "src/atlas/dictation/history.py").exists()
+    assert not (repo / "src/jarvis/dictation/history.py").exists()
+
+
+def test_code_modules_named_like_documents_do_not_block_the_rename(repo):
+    for name in ("notice.py", "license_info.py", "changelog.py", "release_notes.py", "third_party.py"):
+        module = repo / "src/jarvis" / name
+        module.write_text("VALUE = 1" + NL, encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "modules named like documents")
+    migrate(repo)
+    for name in ("notice.py", "license_info.py", "changelog.py", "release_notes.py", "third_party.py"):
+        assert (repo / "src/atlas" / name).is_file()
+    assert not (repo / "src/jarvis").exists()
+    assert (repo / "LICENSE").read_text() == FILES["LICENSE"]
+
+
 def test_package_files_and_paths_are_renamed_with_git(repo):
     migrate(repo)
     assert (repo / "src/atlas/config.py").is_file() and not (repo / "src/jarvis").exists()
