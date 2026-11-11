@@ -5,9 +5,9 @@ from unittest.mock import patch
 import pytest
 
 from evals.helpers import JUDGE_BASE_URL, JUDGE_MODEL, MockConfig, is_judge_llm_available
-from jarvis.llm import get_llm_backend
-from jarvis.tools.registry import BUILTIN_TOOLS
-from jarvis.tools.selection import select_tools, ToolSelectionStrategy
+from atlas.llm import get_llm_backend
+from atlas.tools.registry import BUILTIN_TOOLS
+from atlas.tools.selection import select_tools, ToolSelectionStrategy
 
 requires_judge_llm = pytest.mark.skipif(
     not is_judge_llm_available(), reason="🧰 Selected routing model is unavailable",

@@ -14,7 +14,7 @@ def _cfg():
 
 
 def _answer(monkeypatch, candidates):
-    from jarvis.reply import personal_context
+    from atlas.reply import personal_context
     def direct(model, system, user, **kwargs):
         if system == personal_context._LOCATION_REVIEW_PROMPT:
             claims = json.loads(user)['candidates']
@@ -30,11 +30,11 @@ def _candidate(value='London', source='diary:1', kind='home'):
 
 def _seed(db, text='The user lives in London.', age=1):
     day = (datetime.now(timezone.utc) - timedelta(days=age)).date().isoformat()
-    db.upsert_conversation_summary(day, text, 'personal', 'jarvis')
+    db.upsert_conversation_summary(day, text, 'personal', 'atlas')
 
 
 def test_diary_home_supplies_missing_city(db, monkeypatch):
-    from jarvis.reply.personal_context import resolve_missing_context
+    from atlas.reply.personal_context import resolve_missing_context
     _seed(db)
     _answer(monkeypatch, [_candidate()])
     result = resolve_missing_context('location', db, _cfg(), 'weather tomorrow', [])
@@ -45,7 +45,7 @@ def test_diary_home_supplies_missing_city(db, monkeypatch):
 
 @pytest.mark.parametrize('age', [181, 365])
 def test_stale_home_requests_clarification(db, monkeypatch, age):
-    from jarvis.reply.personal_context import resolve_missing_context
+    from atlas.reply.personal_context import resolve_missing_context
     _seed(db, age=age)
     _answer(monkeypatch, [_candidate()])
     assert resolve_missing_context('location', db, _cfg(), 'weather', []) is None
@@ -56,14 +56,14 @@ def test_stale_home_requests_clarification(db, monkeypatch, age):
     _candidate(kind='unknown'), _candidate(kind='current'),
 ])
 def test_unbacked_or_transient_memory_cannot_supply_city(db, monkeypatch, candidate):
-    from jarvis.reply.personal_context import resolve_missing_context
+    from atlas.reply.personal_context import resolve_missing_context
     _seed(db)
     _answer(monkeypatch, [candidate])
     assert resolve_missing_context('location', db, _cfg(), 'weather', []) is None
 
 
 def test_conflicting_residences_request_clarification(db, monkeypatch):
-    from jarvis.reply.personal_context import resolve_missing_context
+    from atlas.reply.personal_context import resolve_missing_context
     text = 'The user lives in London. The user lives in Paris.'
     _seed(db, text)
     _answer(monkeypatch, [_candidate(), _candidate('Paris')])
@@ -71,7 +71,7 @@ def test_conflicting_residences_request_clarification(db, monkeypatch):
 
 
 def test_recent_user_location_overrides_remembered_home(db, monkeypatch):
-    from jarvis.reply.personal_context import resolve_missing_context
+    from atlas.reply.personal_context import resolve_missing_context
     _seed(db)
     _answer(monkeypatch, [_candidate(), _candidate('Paris', 'dialogue:0', 'current')])
     result = resolve_missing_context('location', db, _cfg(), 'weather',
@@ -80,14 +80,14 @@ def test_recent_user_location_overrides_remembered_home(db, monkeypatch):
 
 
 def test_assistant_location_is_not_user_evidence(db, monkeypatch):
-    from jarvis.reply.personal_context import resolve_missing_context
+    from atlas.reply.personal_context import resolve_missing_context
     _answer(monkeypatch, [_candidate('Paris', 'dialogue:0', 'current')])
     assert resolve_missing_context('location', db, _cfg(), 'weather',
                                   [{'role': 'assistant', 'content': "I'm in Paris."}]) is None
 
 
 def test_current_query_wins_over_previous_user_message(db, monkeypatch):
-    from jarvis.reply.personal_context import resolve_missing_context
+    from atlas.reply.personal_context import resolve_missing_context
     _answer(monkeypatch, [_candidate('Paris', 'dialogue:0', 'current'),
                          _candidate('London', 'query', 'current')])
     result = resolve_missing_context('location', db, _cfg(), "I'm in London.",
@@ -96,8 +96,8 @@ def test_current_query_wins_over_previous_user_message(db, monkeypatch):
 
 
 def test_context_retry_preserves_source_in_tool_result(db, monkeypatch):
-    from jarvis.reply.personal_context import ContextualToolRunner
-    from jarvis.tools.types import ToolExecutionResult
+    from atlas.reply.personal_context import ContextualToolRunner
+    from atlas.tools.types import ToolExecutionResult
     _seed(db)
     _answer(monkeypatch, [_candidate()])
     def run(**kwargs):
@@ -111,17 +111,17 @@ def test_context_retry_preserves_source_in_tool_result(db, monkeypatch):
 
 
 def test_explicit_arguments_never_trigger_context_replacement(db):
-    from jarvis.reply.personal_context import ContextualToolRunner
-    from jarvis.tools.types import ToolExecutionResult
+    from atlas.reply.personal_context import ContextualToolRunner
+    from atlas.tools.types import ToolExecutionResult
     runner = ContextualToolRunner(lambda **kw: ToolExecutionResult(True, kw['tool_args']['location']),
                                   db, _cfg(), 'weather', [])
     assert runner(tool_name='getWeather', tool_args={'location': 'Tokyo'}).reply_text == 'Tokyo'
 
 
 def test_graph_user_branch_supplies_home(tmp_path, monkeypatch):
-    from jarvis.memory.db import Database
-    from jarvis.memory.graph import GraphMemoryStore
-    from jarvis.reply.personal_context import resolve_missing_context
+    from atlas.memory.db import Database
+    from atlas.memory.graph import GraphMemoryStore
+    from atlas.reply.personal_context import resolve_missing_context
     path = str(tmp_path / 'context.db')
     store = GraphMemoryStore(path)
     node = store.create_node('Home', 'User residence', data='The user lives in London.', parent_id='user')
@@ -137,9 +137,9 @@ def test_graph_user_branch_supplies_home(tmp_path, monkeypatch):
 
 
 def test_memory_sources_each_retain_budget(tmp_path, monkeypatch):
-    from jarvis.memory.db import Database
-    from jarvis.memory.graph import GraphMemoryStore
-    from jarvis.reply import personal_context
+    from atlas.memory.db import Database
+    from atlas.memory.graph import GraphMemoryStore
+    from atlas.reply import personal_context
     path = str(tmp_path / 'context.db')
     store = GraphMemoryStore(path)
     store.create_node('Home', 'Residence', data='The user lives in London.', parent_id='user')
@@ -157,7 +157,7 @@ def test_memory_sources_each_retain_budget(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize('answer', ['not JSON', '{}', 'null', '[1]', '[{}]'])
 def test_invalid_model_output_preserves_clarification(db, monkeypatch, answer):
-    from jarvis.reply import personal_context
+    from atlas.reply import personal_context
     _seed(db)
     monkeypatch.setattr(personal_context, 'get_llm_backend', lambda cfg:
                         SimpleNamespace(direct=lambda *a, **k: answer))
@@ -165,7 +165,7 @@ def test_invalid_model_output_preserves_clarification(db, monkeypatch, answer):
 
 
 def test_unknown_travel_blocks_home_default(db, monkeypatch):
-    from jarvis.reply.personal_context import resolve_missing_context
+    from atlas.reply.personal_context import resolve_missing_context
     _seed(db)
     _answer(monkeypatch, [_candidate(), _candidate('', 'dialogue:0', 'away')])
     assert resolve_missing_context('location', db, _cfg(), 'weather',
@@ -173,8 +173,8 @@ def test_unknown_travel_blocks_home_default(db, monkeypatch):
 
 
 def test_context_failure_does_not_fail_tool_execution(db, monkeypatch):
-    from jarvis.reply import personal_context
-    from jarvis.tools.types import ToolExecutionResult
+    from atlas.reply import personal_context
+    from atlas.tools.types import ToolExecutionResult
     monkeypatch.setattr(personal_context, 'resolve_missing_context', lambda *a: 1 / 0)
     runner = personal_context.ContextualToolRunner(
         lambda **kw: ToolExecutionResult(False, 'Which city?', missing_context='location'),
@@ -184,8 +184,8 @@ def test_context_failure_does_not_fail_tool_execution(db, monkeypatch):
 
 @pytest.mark.parametrize('small', [True, False])
 def test_both_engine_execution_paths_resolve_missing_context(db, mock_config, dialogue_memory, monkeypatch, small):
-    from jarvis.reply import engine, personal_context
-    from jarvis.tools.types import ToolExecutionResult
+    from atlas.reply import engine, personal_context
+    from atlas.tools.types import ToolExecutionResult
     _seed(db)
     _answer(monkeypatch, [_candidate()])
     mock_config.llm_chat_model = 'gemma4:e4b' if small else 'gpt-oss:20b'
@@ -215,8 +215,8 @@ def test_both_engine_execution_paths_resolve_missing_context(db, mock_config, di
 
 
 def test_shared_retry_protocol_is_not_weather_specific(db, monkeypatch):
-    from jarvis.reply import personal_context
-    from jarvis.tools.types import ToolExecutionResult
+    from atlas.reply import personal_context
+    from atlas.tools.types import ToolExecutionResult
     monkeypatch.setattr(personal_context, 'resolve_missing_context', lambda *a:
                         personal_context.ContextValue('vegetarian', 'preference', 'Saved dietary preference'))
     def run(**kw):
@@ -229,7 +229,7 @@ def test_shared_retry_protocol_is_not_weather_specific(db, monkeypatch):
 
 
 def test_latest_user_message_survives_dialogue_budget(db, monkeypatch):
-    from jarvis.reply.personal_context import resolve_missing_context
+    from atlas.reply.personal_context import resolve_missing_context
     _seed(db)
     _answer(monkeypatch, [_candidate(), _candidate('Paris', 'dialogue:2', 'current')])
     result = resolve_missing_context('location', db, _cfg(), 'weather', [
@@ -242,8 +242,8 @@ def test_latest_user_message_survives_dialogue_budget(db, monkeypatch):
 
 @pytest.mark.parametrize('args', [['unexpected'], 'malformed', 1])
 def test_invalid_argument_shape_preserves_tool_error(db, args):
-    from jarvis.reply.personal_context import ContextualToolRunner
-    from jarvis.tools.types import ToolExecutionResult
+    from atlas.reply.personal_context import ContextualToolRunner
+    from atlas.tools.types import ToolExecutionResult
     runner = ContextualToolRunner(
         lambda **kw: ToolExecutionResult(False, 'Invalid arguments', missing_context='location'),
         db, _cfg(), 'weather', [])
@@ -252,8 +252,8 @@ def test_invalid_argument_shape_preserves_tool_error(db, args):
 
 @pytest.mark.parametrize('value', [False, 0, []])
 def test_shared_protocol_preserves_explicit_non_string_values(db, monkeypatch, value):
-    from jarvis.reply import personal_context
-    from jarvis.tools.types import ToolExecutionResult
+    from atlas.reply import personal_context
+    from atlas.tools.types import ToolExecutionResult
     monkeypatch.setattr(personal_context, 'resolve_missing_context', lambda *a:
                         personal_context.ContextValue('replacement', 'preference', 'Saved default'))
     def run(**kw):
@@ -264,7 +264,7 @@ def test_shared_protocol_preserves_explicit_non_string_values(db, monkeypatch, v
 
 
 def test_ineligible_task_candidate_does_not_discard_grounded_home(db, monkeypatch):
-    from jarvis.reply.personal_context import resolve_missing_context
+    from atlas.reply.personal_context import resolve_missing_context
     _seed(db, 'The user lives in London. They requested a weather forecast for London.')
     _answer(monkeypatch, [_candidate(), _candidate(kind='requested')])
     result = resolve_missing_context('location', db, _cfg(), 'weather tomorrow', [])

@@ -18,9 +18,9 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from desktop_app.themes import JARVIS_THEME_STYLESHEET
-from jarvis.tasks import DEFAULT_TASK_HISTORY, TASK_EVENT_PREFIX, TaskStatus
-from jarvis.utils.redact import redact
+from desktop_app.themes import ATLAS_THEME_STYLESHEET
+from atlas.tasks import DEFAULT_TASK_HISTORY, TASK_EVENT_PREFIX, TaskStatus
+from atlas.utils.redact import redact
 
 SUBMISSION_TIMEOUT_MS = 10000
 
@@ -50,7 +50,7 @@ class TaskCentreWindow(QDialog):
         super().__init__(parent)
         self.setWindowTitle("🧭 ATLAS — Centre des tâches")
         self.setMinimumSize(720, 520)
-        self.setStyleSheet(JARVIS_THEME_STYLESHEET)
+        self.setStyleSheet(ATLAS_THEME_STYLESHEET)
         self._submit_callback = submit_callback
         self._cancel_callback = cancel_callback
         if isinstance(max_history, bool) or not isinstance(max_history, int) or max_history < 1:

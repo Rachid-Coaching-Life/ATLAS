@@ -24,7 +24,7 @@ def package(tmp_path, monkeypatch):
     marker.write_bytes(b'original')
     installed = tmp_path / 'installed'
     installed.mkdir()
-    (installed / 'Jarvis').write_bytes(b'installed original')
+    (installed / 'ATLAS').write_bytes(b'installed original')
     launched = Mock()
     monkeypatch.setattr(updater, 'get_app_path', lambda: installed)
     monkeypatch.setattr(updater.tempfile, 'mkdtemp', lambda: str(staging))
@@ -48,35 +48,35 @@ def write_archive(package, kind):
 
     with tarfile.open(package.archive, 'w:gz') as tf:
         if kind == 'root_file':
-            regular(tf, 'Jarvis', b'not a directory')
+            regular(tf, 'ATLAS', b'not a directory')
             return
         if kind == 'root_symlink':
-            regular(tf, 'Payload/Jarvis', b'owned launcher', 0o755)
-            link(tf, 'Jarvis', 'Payload')
+            regular(tf, 'Payload/ATLAS', b'owned launcher', 0o755)
+            link(tf, 'ATLAS', 'Payload')
             return
         if kind == 'missing_root':
             regular(tf, 'readme.txt', b'owned fixture')
             return
-        regular(tf, 'Jarvis/Jarvis', b'owned launcher', 0o755)
+        regular(tf, 'ATLAS/ATLAS', b'owned launcher', 0o755)
         if kind in ('parent', 'nested_parent', 'absolute'):
             target = {'parent': '../outside/marker.bin',
-                      'nested_parent': 'Jarvis/../../outside/marker.bin',
+                      'nested_parent': 'ATLAS/../../outside/marker.bin',
                       'absolute': str(package.marker)}[kind]
             regular(tf, target, b'changed')
         elif kind in ('symlink', 'absolute_symlink'):
-            link(tf, 'Jarvis/link', package.outside if kind.startswith('absolute') else '../../outside')
-            regular(tf, 'Jarvis/link/marker.bin', b'changed')
+            link(tf, 'ATLAS/link', package.outside if kind.startswith('absolute') else '../../outside')
+            regular(tf, 'ATLAS/link/marker.bin', b'changed')
         elif kind in ('hardlink', 'absolute_hardlink'):
-            link(tf, 'Jarvis/link.bin', package.marker if kind.startswith('absolute') else '../outside/marker.bin', hard=True)
-            regular(tf, 'Jarvis/link.bin', b'changed')
+            link(tf, 'ATLAS/link.bin', package.marker if kind.startswith('absolute') else '../outside/marker.bin', hard=True)
+            regular(tf, 'ATLAS/link.bin', b'changed')
         elif kind == 'fifo':
-            member = tarfile.TarInfo('Jarvis/pipe')
+            member = tarfile.TarInfo('ATLAS/pipe')
             member.type = tarfile.FIFOTYPE
             tf.addfile(member)
         elif kind == 'valid':
-            regular(tf, 'Jarvis/assets.bin', b'owned asset')
-            link(tf, 'Jarvis/assets-link.bin', 'assets.bin')
-            link(tf, 'Jarvis/assets-hard.bin', 'Jarvis/assets.bin', hard=True)
+            regular(tf, 'ATLAS/assets.bin', b'owned asset')
+            link(tf, 'ATLAS/assets-link.bin', 'assets.bin')
+            link(tf, 'ATLAS/assets-hard.bin', 'ATLAS/assets.bin', hard=True)
 
 
 @pytest.mark.parametrize('kind', ['parent', 'nested_parent', 'symlink', 'absolute_symlink',
@@ -89,7 +89,7 @@ def test_unsafe_or_malformed_update_is_not_installed(package, kind):
     assert result is False
     package.launched.assert_not_called()
     assert not package.staging.exists(), 'Rejected staging content was retained'
-    assert (package.installed / 'Jarvis').read_bytes() == b'installed original'
+    assert (package.installed / 'ATLAS').read_bytes() == b'installed original'
 
 
 def test_absolute_member_cannot_overwrite_an_outside_file(package):
@@ -101,12 +101,12 @@ def test_absolute_member_cannot_overwrite_an_outside_file(package):
 def test_valid_bundle_retains_executable_and_contained_links(package):
     write_archive(package, 'valid')
     assert updater.install_update_linux(package.archive) is True
-    root = package.staging / 'Jarvis'
-    assert (root / 'Jarvis').read_bytes() == b'owned launcher'
-    assert (root / 'Jarvis').stat().st_mode & stat.S_IXUSR
+    root = package.staging / 'ATLAS'
+    assert (root / 'ATLAS').read_bytes() == b'owned launcher'
+    assert (root / 'ATLAS').stat().st_mode & stat.S_IXUSR
     assert (root / 'assets-link.bin').is_symlink()
     assert (root / 'assets-link.bin').read_bytes() == b'owned asset'
     assert (root / 'assets-hard.bin').samefile(root / 'assets.bin')
     assert (package.staging / 'update.sh').is_file()
     assert package.launched.call_args.args[0] == [str(package.staging / 'update.sh')]
-    assert (package.installed / 'Jarvis').read_bytes() == b'installed original'
+    assert (package.installed / 'ATLAS').read_bytes() == b'installed original'

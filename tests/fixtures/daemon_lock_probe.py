@@ -6,8 +6,8 @@ import subprocess
 import sys
 import tempfile
 
-# Load the stdlib-only module without importing Jarvis's configuration deps.
-source = Path(__file__).resolve().parents[2] / "src" / "jarvis" / "daemon_lock.py"
+# Load the stdlib-only module without importing ATLAS's configuration deps.
+source = Path(__file__).resolve().parents[2] / "src" / "atlas" / "daemon_lock.py"
 spec = importlib.util.spec_from_file_location("daemon_lock", source)
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)

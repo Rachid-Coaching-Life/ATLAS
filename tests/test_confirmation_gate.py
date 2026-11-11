@@ -9,9 +9,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis.tools import confirmation
-from jarvis.tools.base import Tool
-from jarvis.tools.confirmation import Decision, Risk
+from atlas.tools import confirmation
+from atlas.tools.base import Tool
+from atlas.tools.confirmation import Decision, Risk
 
 
 @pytest.fixture(autouse=True)
@@ -41,7 +41,7 @@ class Recorder(Tool):
         return {"type": "object", "properties": {}}
 
     def run(self, args, context):
-        from jarvis.tools.types import ToolExecutionResult
+        from atlas.tools.types import ToolExecutionResult
         self.ran += 1
         return ToolExecutionResult(success=True, reply_text="ok")
 
@@ -275,7 +275,7 @@ def test_new_relay_after_restart_has_no_pending_requests():
 # ---------------------------------------------------------------- integration
 
 def _run(name, args):
-    from jarvis.tools.registry import run_tool_with_retries
+    from atlas.tools.registry import run_tool_with_retries
     return run_tool_with_retries(
         db=None, cfg=SimpleNamespace(voice_debug=False, mcps={}), tool_name=name,
         tool_args=args, system_prompt="", original_prompt="", redacted_text="",
@@ -285,8 +285,8 @@ def _run(name, args):
 
 @pytest.fixture
 def home(tmp_path, monkeypatch):
-    pytest.importorskip("jarvis.tools.registry")
-    local_files = pytest.importorskip("jarvis.tools.builtin.local_files")
+    pytest.importorskip("atlas.tools.registry")
+    local_files = pytest.importorskip("atlas.tools.builtin.local_files")
     expanduser = local_files.os.path.expanduser
     monkeypatch.setattr(
         local_files.os.path, "expanduser",

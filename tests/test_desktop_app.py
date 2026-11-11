@@ -99,7 +99,7 @@ class TestOllamaRuntimeFlags:
 
 
 class TestOpenAICompatStartupCheck:
-    """At startup Jarvis can't launch a third-party LLM server, so it must
+    """At startup ATLAS can't launch a third-party LLM server, so it must
     check reachability and warn the user early rather than failing silently
     on the first request."""
 
@@ -153,7 +153,7 @@ class TestOpenAICompatStartupCheck:
             def list_models(self, timeout_sec=4.0):
                 return ["m-chat"]
 
-        with patch("jarvis.llm.get_llm_backend", return_value=_Backend()):
+        with patch("atlas.llm.get_llm_backend", return_value=_Backend()):
             assert _check_openai_compat_reachable(cfg) is True
 
     def test_unreachable_when_listing_empty_or_raises(self):
@@ -165,10 +165,10 @@ class TestOpenAICompatStartupCheck:
             def list_models(self, timeout_sec=4.0):
                 return []
 
-        with patch("jarvis.llm.get_llm_backend", return_value=_Empty()):
+        with patch("atlas.llm.get_llm_backend", return_value=_Empty()):
             assert _check_openai_compat_reachable(cfg) is False
 
-        with patch("jarvis.llm.get_llm_backend", side_effect=RuntimeError("boom")):
+        with patch("atlas.llm.get_llm_backend", side_effect=RuntimeError("boom")):
             assert _check_openai_compat_reachable(cfg) is False
 
     def test_unreachable_message_names_url_not_key(self):
@@ -183,7 +183,7 @@ class TestOpenAICompatStartupCheck:
 
 
 class TestOllamaRuntimeOwnership:
-    """Jarvis only stops Ollama when this desktop session launched it."""
+    """ATLAS only stops Ollama when this desktop session launched it."""
 
     class FakeProcess:
         def __init__(self):
@@ -204,7 +204,7 @@ class TestOllamaRuntimeOwnership:
         def kill(self):
             self.killed = True
 
-    def test_stop_owned_runtime_noops_when_not_started_by_jarvis(self):
+    def test_stop_owned_runtime_noops_when_not_started_by_atlas(self):
         from desktop_app.app import (
             OllamaRuntimeOwnership,
             _stop_owned_ollama_runtime,
@@ -212,7 +212,7 @@ class TestOllamaRuntimeOwnership:
 
         process = self.FakeProcess()
         ownership = OllamaRuntimeOwnership(
-            started_by_jarvis=False,
+            started_by_atlas=False,
             launch_method="serve",
             process=process,
         )
@@ -231,7 +231,7 @@ class TestOllamaRuntimeOwnership:
 
         process = self.FakeProcess()
         ownership = OllamaRuntimeOwnership(
-            started_by_jarvis=True,
+            started_by_atlas=True,
             launch_method="serve",
             process=process,
         )
@@ -257,7 +257,7 @@ class TestOllamaRuntimeOwnership:
             return MagicMock(returncode=0)
 
         ownership = OllamaRuntimeOwnership(
-            started_by_jarvis=True,
+            started_by_atlas=True,
             launch_method="macos_app",
             process=None,
         )
@@ -273,14 +273,14 @@ class TestOllamaRuntimeOwnership:
         assert commands == [["osascript", "-e", 'tell application "Ollama" to quit']]
 
     def test_cleanup_on_exit_stops_owned_ollama_runtime(self):
-        from desktop_app.app import JarvisSystemTray, OllamaRuntimeOwnership
+        from desktop_app.app import AtlasSystemTray, OllamaRuntimeOwnership
 
         stopped = []
-        tray = JarvisSystemTray.__new__(JarvisSystemTray)
+        tray = AtlasSystemTray.__new__(AtlasSystemTray)
         tray.is_listening = False
         tray.daemon_process = None
         tray._ollama_runtime_ownership = OllamaRuntimeOwnership(
-            started_by_jarvis=True,
+            started_by_atlas=True,
             launch_method="serve",
         )
         tray.memory_viewer = MagicMock()
@@ -295,7 +295,7 @@ class TestOllamaRuntimeOwnership:
 
 
 class TestRuntimeStatusSnapshot:
-    """The tray runtime status reports Jarvis, Ollama, and config state."""
+    """The tray runtime status reports ATLAS, Ollama, and config state."""
 
     def _settings(self, **overrides):
         values = {
@@ -325,7 +325,7 @@ class TestRuntimeStatusSnapshot:
             daemon_process=process,
             daemon_thread=None,
             ollama_runtime_ownership=OllamaRuntimeOwnership(
-                started_by_jarvis=True,
+                started_by_atlas=True,
                 launch_method="serve",
             ),
             settings_loader=lambda: self._settings(),
@@ -338,7 +338,7 @@ class TestRuntimeStatusSnapshot:
         assert snapshot.ollama_needed is True
         assert snapshot.ollama_running is True
         assert snapshot.ollama_version == "0.9.1"
-        assert snapshot.ollama_owner == "Jarvis"
+        assert snapshot.ollama_owner == "ATLAS"
         assert snapshot.low_power_mode is False
         assert snapshot.mcp_count == 2
 
@@ -391,7 +391,7 @@ class TestRuntimeStatusSnapshot:
                 ollama_needed=True,
                 ollama_running=True,
                 ollama_version="0.9.1",
-                ollama_owner="Jarvis",
+                ollama_owner="ATLAS",
                 ollama_launch_method="serve",
                 low_power_mode=True,
                 llm_provider="ollama",
@@ -452,7 +452,7 @@ class TestGetCrashPaths:
         from desktop_app import get_crash_paths
 
         crash_log, crash_marker, previous_crash = get_crash_paths()
-        assert crash_log.name == "jarvis_desktop_crash.log"
+        assert crash_log.name == "atlas_desktop_crash.log"
         assert crash_marker.name == ".crash_marker"
         assert previous_crash.name == "previous_crash.log"
 
@@ -465,7 +465,7 @@ class TestGetCrashPaths:
 
     @patch("sys.platform", "darwin")
     def test_macos_uses_library_logs(self):
-        """On macOS, should use ~/Library/Logs/Jarvis."""
+        """On macOS, should use ~/Library/Logs/ATLAS."""
         # Note: This is tricky because the function reads sys.platform at runtime
         from desktop_app import get_crash_paths
 
@@ -609,7 +609,7 @@ class TestLogViewerReportIssue:
 
         # Simulate realistic log: header + separator + init + separator + operational logs
         init_block = (
-            "🚀 Jarvis Log Viewer Ready\n"
+            "🚀 ATLAS Log Viewer Ready\n"
             f"{_LOG_SEPARATOR}\n"
             "\n"
             "✓ Daemon started\n"
@@ -635,7 +635,7 @@ class TestLogViewerReportIssue:
         assert "... (truncated) ..." in result
 
         # Verify init section is preserved (up to last separator)
-        assert "Jarvis Log Viewer Ready" in result
+        assert "ATLAS Log Viewer Ready" in result
         assert "Using chat model" in result
         assert "Voice listener thread started" in result
 
@@ -691,13 +691,13 @@ class TestLogViewerReportIssue:
 
         # Simulate realistic crash log: init section + separator + faulthandler dump
         init_block = (
-            "=== Jarvis Desktop App Crash Log ===\n"
+            "=== ATLAS Desktop App Crash Log ===\n"
             "Timestamp: 2026-04-13\n"
             "Platform: win32\n"
             "==================================================\n"
-            "\nStarting Jarvis Desktop App...\n"
+            "\nStarting ATLAS Desktop App...\n"
             "Creating QApplication...\n"
-            "🚀 Jarvis daemon started\n"
+            "🚀 ATLAS daemon started\n"
             f"{_LOG_SEPARATOR}\n"
         )
         # Faulthandler dump: Fatal error + current thread + many other threads + extension modules
@@ -727,7 +727,7 @@ class TestLogViewerReportIssue:
         assert "Fatal Python error: Segmentation fault" in result
         assert "critical_function" in result
         # Init section should be preserved
-        assert "Jarvis Desktop App Crash Log" in result
+        assert "ATLAS Desktop App Crash Log" in result
         # Extension modules should be summarised, not fully listed
         assert "mod_119.sub_119" not in result
 
@@ -800,7 +800,7 @@ class TestLogViewerReportIssue:
 
     def test_redaction_handles_multiple_sensitive_patterns(self):
         """Redaction should handle multiple types of sensitive data."""
-        from jarvis.utils.redact import redact
+        from atlas.utils.redact import redact
 
         log_content = (
             "Config loaded:\n"
@@ -872,7 +872,7 @@ class TestDiaryIPCProtocol:
 
         # Common log patterns that should NOT be intercepted
         normal_logs = [
-            "Starting Jarvis daemon...",
+            "Starting ATLAS daemon...",
             "✓ Daemon started",
             "📝 Updating diary...",
             "🔄 Daemon shutting down...",
@@ -946,7 +946,7 @@ class TestSingleInstanceLock:
         """get_existing_instance_pid() should return the PID stored in the lock file."""
         from desktop_app.app import get_existing_instance_pid
 
-        lock_file = tmp_path / "jarvis_desktop.lock"
+        lock_file = tmp_path / "atlas_desktop.lock"
         lock_file.write_bytes(b"12345")
 
         with patch("desktop_app.app.get_lock_file_path", return_value=lock_file):
@@ -958,7 +958,7 @@ class TestSingleInstanceLock:
         """get_existing_instance_pid() should return None for an empty lock file."""
         from desktop_app.app import get_existing_instance_pid
 
-        lock_file = tmp_path / "jarvis_desktop.lock"
+        lock_file = tmp_path / "atlas_desktop.lock"
         lock_file.write_bytes(b"")
 
         with patch("desktop_app.app.get_lock_file_path", return_value=lock_file):
@@ -970,7 +970,7 @@ class TestSingleInstanceLock:
         """get_existing_instance_pid() should return None when the lock file is absent."""
         from desktop_app.app import get_existing_instance_pid
 
-        lock_file = tmp_path / "jarvis_desktop.lock"
+        lock_file = tmp_path / "atlas_desktop.lock"
 
         with patch("desktop_app.app.get_lock_file_path", return_value=lock_file):
             pid = get_existing_instance_pid()
@@ -986,7 +986,7 @@ class TestSingleInstanceLock:
         """
         from desktop_app.app import get_existing_instance_pid
 
-        lock_file = tmp_path / "jarvis_desktop.lock"
+        lock_file = tmp_path / "atlas_desktop.lock"
         existing_pid = 99999
         lock_file.write_bytes(str(existing_pid).encode())
 
@@ -1018,7 +1018,7 @@ class TestSingleInstanceLock:
         """acquire_single_instance_lock() should write the current process PID."""
         import desktop_app.app as app_module
 
-        lock_file = tmp_path / "jarvis_desktop.lock"
+        lock_file = tmp_path / "atlas_desktop.lock"
         original_handle = app_module._lock_file_handle
 
         try:
@@ -1047,7 +1047,7 @@ class TestSingleInstanceLock:
         import desktop_app.app as app_module
         import subprocess
 
-        lock_file = tmp_path / "jarvis_desktop.lock"
+        lock_file = tmp_path / "atlas_desktop.lock"
         original_handle = app_module._lock_file_handle
 
         try:
@@ -1164,15 +1164,15 @@ class TestCudaRecoveryAction:
 
         Windows argv parsing collapses 2n backslashes before a `"` into n
         backslashes plus a string terminator, so a path like
-        `C:\\Program Files\\Jarvis\\` quoted naively becomes
-        `"C:\\Program Files\\Jarvis\\"` which CommandLineToArgvW reads as
-        `C:\\Program Files\\Jarvis"` — quote eaten, next arg fused on. The
+        `C:\\Program Files\\ATLAS\\` quoted naively becomes
+        `"C:\\Program Files\\ATLAS\\"` which CommandLineToArgvW reads as
+        `C:\\Program Files\\ATLAS"` — quote eaten, next arg fused on. The
         canonical fix is to double trailing backslashes.
         """
         from desktop_app.cuda_recovery import _quote_arg
 
         # Trailing backslash + space gets doubled inside the quotes.
-        result = _quote_arg(r"C:\Program Files\Jarvis\\")
+        result = _quote_arg(r"C:\Program Files\ATLAS\\")
         assert result.endswith('\\\\\\\\"'), (
             f"trailing backslashes must be doubled before the closing quote; got {result!r}"
         )
@@ -1287,10 +1287,10 @@ class TestDaemonSmokeTest:
     @pytest.fixture
     def runtime(self, monkeypatch):
         import threading
-        import jarvis.daemon as daemon
-        import jarvis.memory.graph as graph
-        import jarvis.dictation.dictation_engine as dictation
-        import jarvis.tools.external.mcp_runtime as mcp
+        import atlas.daemon as daemon
+        import atlas.memory.graph as graph
+        import atlas.dictation.dictation_engine as dictation
+        import atlas.tools.external.mcp_runtime as mcp
         from tests.conftest import MockConfig
 
         cfg = MockConfig(db_path=":memory:")
@@ -1305,7 +1305,7 @@ class TestDaemonSmokeTest:
         graph_store.has_unclassified_root_content.return_value = False
         threads = MagicMock(wraps=threading)
         threads.Thread = MagicMock()
-        monkeypatch.setenv("JARVIS_STDIN_IPC", "1")
+        monkeypatch.setenv("ATLAS_STDIN_IPC", "1")
         for name, value in {
             "load_settings": MagicMock(return_value=cfg),
             "Database": MagicMock(return_value=database),
@@ -1388,7 +1388,7 @@ class TestDaemonSmokeTest:
     def test_tasks_drain_before_the_final_diary_and_tts_shutdown(self, runtime, monkeypatch):
         import time
         from types import SimpleNamespace
-        from jarvis import tasks
+        from atlas import tasks
 
         daemon, database, listener, dictation = runtime
         state = {'active': True, 'tts_stopped': False}
@@ -1428,7 +1428,7 @@ class TestDesktopSmokeTest:
     @pytest.fixture
     def runtime(self, monkeypatch):
         import desktop_app.app as app
-        import jarvis.daemon as daemon
+        import atlas.daemon as daemon
         from PyQt6 import QtWidgets
 
         qt = MagicMock()
@@ -1438,7 +1438,7 @@ class TestDesktopSmokeTest:
         monkeypatch.setattr(daemon, "main", daemon_main)
         # Stream replacements belong to this entry point, not the test process.
         monkeypatch.setattr(app, "sys", SimpleNamespace(
-            platform=sys.platform, argv=["Jarvis"], frozen=False,
+            platform=sys.platform, argv=["ATLAS"], frozen=False,
             stdout=sys.stdout, stderr=sys.stderr,
             __stdout__=sys.__stdout__, __stderr__=sys.__stderr__,
         ))
@@ -1473,7 +1473,7 @@ class TestDesktopSmokeTest:
 
     def test_main_routes_smoke_test_flag(self, runtime, monkeypatch):
         app, _qt, _daemon_main = runtime
-        app.sys.argv = ["Jarvis", "--smoke-test"]
+        app.sys.argv = ["ATLAS", "--smoke-test"]
         smoke = MagicMock(return_value=42)
         monkeypatch.setattr(app, "_smoke_test_main", smoke)
         assert app.main() == smoke.return_value
@@ -1494,7 +1494,7 @@ class TestRuntimeStatusDialog:
             ollama_needed=True,
             ollama_running=True,
             ollama_version="0.9.1",
-            ollama_owner="Jarvis",
+            ollama_owner="ATLAS",
             ollama_launch_method="serve",
             low_power_mode=True,
             llm_provider="ollama",
@@ -1516,7 +1516,7 @@ class TestRuntimeStatusDialog:
         assert by_key["PID"] == "12345"
         assert by_key["Low Power Mode"] == "On"
         assert by_key["Running"] == "Yes (0.9.1)"
-        assert by_key["Owner"] == "Jarvis"
+        assert by_key["Owner"] == "ATLAS"
         assert by_key["Chat"] == "gemma4:e2b"
         assert by_key["Embeddings"] == "ollama / nomic-embed-text"
         assert by_key["Configured servers"] == "2"
@@ -1561,23 +1561,23 @@ class TestTrayMenuLayout:
     """The tray menu groups assistant power, voice capture and status controls."""
 
     def _tray_menu(self, qapp):
-        from desktop_app.app import JarvisSystemTray
+        from desktop_app.app import AtlasSystemTray
         from PyQt6.QtWidgets import QSystemTrayIcon
 
-        tray = JarvisSystemTray.__new__(JarvisSystemTray)
+        tray = AtlasSystemTray.__new__(AtlasSystemTray)
         tray.tray_icon = QSystemTrayIcon()
         tray.create_menu()
         return tray.menu
 
     def test_dictation_menu_action_opens_saved_history(self, qapp, tmp_path, monkeypatch):
-        from desktop_app.app import JarvisSystemTray
+        from desktop_app.app import AtlasSystemTray
         from desktop_app.dictation_history import DictationHistoryWindow
-        from jarvis.dictation.history import DictationHistory
+        from atlas.dictation.history import DictationHistory
         from PyQt6.QtWidgets import QLabel, QSystemTrayIcon
 
         history = DictationHistory(path=tmp_path / "history.json")
         entry = history.add("A saved dictation, café")
-        tray = JarvisSystemTray.__new__(JarvisSystemTray)
+        tray = AtlasSystemTray.__new__(AtlasSystemTray)
         tray.tray_icon = QSystemTrayIcon()
         tray.dictation_history_window = DictationHistoryWindow(history)
         monkeypatch.setattr(tray, "_maybe_add_cuda_recovery_action", lambda: None)
@@ -1665,7 +1665,7 @@ class TestListeningWindowVisibility:
     def _tray_for_start(self, monkeypatch):
         import desktop_app.app as app_mod
 
-        tray = app_mod.JarvisSystemTray.__new__(app_mod.JarvisSystemTray)
+        tray = app_mod.AtlasSystemTray.__new__(app_mod.AtlasSystemTray)
         tray.is_bundled = False
         tray.daemon_process = None
         tray.daemon_thread = None
@@ -1725,7 +1725,7 @@ class TestListeningWindowVisibility:
     def _tray_for_stop_bundled(self, monkeypatch):
         import desktop_app.app as app_mod
 
-        tray = app_mod.JarvisSystemTray.__new__(app_mod.JarvisSystemTray)
+        tray = app_mod.AtlasSystemTray.__new__(app_mod.AtlasSystemTray)
         tray.is_bundled = True
         tray.is_listening = True
         tray.daemon_process = None
@@ -1746,8 +1746,8 @@ class TestListeningWindowVisibility:
 
         fake_dialog = MagicMock()
         monkeypatch.setattr(app_mod, "DiaryUpdateDialog", MagicMock(return_value=fake_dialog))
-        monkeypatch.setattr("jarvis.daemon.set_diary_update_callbacks", MagicMock())
-        monkeypatch.setattr("jarvis.daemon.request_stop", MagicMock())
+        monkeypatch.setattr("atlas.daemon.set_diary_update_callbacks", MagicMock())
+        monkeypatch.setattr("atlas.daemon.request_stop", MagicMock())
         return tray, fake_dialog
 
     def test_stop_daemon_bundled_does_not_hide_windows(self, qapp, monkeypatch):
@@ -1763,7 +1763,7 @@ class TestListeningWindowVisibility:
     def _tray_for_stop_subprocess(self, monkeypatch):
         import desktop_app.app as app_mod
 
-        tray = app_mod.JarvisSystemTray.__new__(app_mod.JarvisSystemTray)
+        tray = app_mod.AtlasSystemTray.__new__(app_mod.AtlasSystemTray)
         tray.is_bundled = False
         tray.is_listening = True
         tray.daemon_thread = None
@@ -1800,45 +1800,45 @@ class TestListeningWindowVisibility:
         assert tray.toggle_action.text() == "▶️ Turn On"
 
     def _patch_face_state(self, monkeypatch):
-        """Monkeypatch get_jarvis_state with a mock state manager.
+        """Monkeypatch get_atlas_state with a mock state manager.
 
         The face reset goes through the module-level singleton factory
         (not the tray's face_window widget), so tests assert on the state
         manager that factory returns.
         """
-        from jarvis import activity
-        from jarvis.activity import JarvisState
+        from atlas import activity
+        from atlas.activity import AtlasState
 
         fake_state = MagicMock()
         monkeypatch.setattr(
             activity,
-            "get_jarvis_state",
+            "get_atlas_state",
             MagicMock(return_value=fake_state),
         )
-        return fake_state, JarvisState
+        return fake_state, AtlasState
 
     def test_stop_daemon_bundled_puts_face_asleep(self, qapp, monkeypatch):
         """Stopping via the tray toggle puts the face back to sleep (bundled)."""
         tray, fake_dialog = self._tray_for_stop_bundled(monkeypatch)
-        fake_state, JarvisState = self._patch_face_state(monkeypatch)
+        fake_state, AtlasState = self._patch_face_state(monkeypatch)
         tray.stop_daemon(show_diary_dialog=True)
         assert tray.is_listening is False
-        fake_state.set_state.assert_called_once_with(JarvisState.ASLEEP)
+        fake_state.set_state.assert_called_once_with(AtlasState.ASLEEP)
 
     def test_stop_daemon_subprocess_puts_face_asleep(self, qapp, monkeypatch):
         """Stopping via the tray toggle puts the face back to sleep (subprocess)."""
         tray, fake_dialog = self._tray_for_stop_subprocess(monkeypatch)
-        fake_state, JarvisState = self._patch_face_state(monkeypatch)
+        fake_state, AtlasState = self._patch_face_state(monkeypatch)
         tray.stop_daemon(show_diary_dialog=True)
         assert tray.is_listening is False
-        fake_state.set_state.assert_called_once_with(JarvisState.ASLEEP)
+        fake_state.set_state.assert_called_once_with(AtlasState.ASLEEP)
 
     def test_check_daemon_status_subprocess_crash_puts_face_asleep(self, qapp, monkeypatch):
         """An unexpected subprocess exit also puts the face back to sleep."""
         import desktop_app.app as app_mod
         from PyQt6.QtGui import QAction
 
-        tray = app_mod.JarvisSystemTray.__new__(app_mod.JarvisSystemTray)
+        tray = app_mod.AtlasSystemTray.__new__(app_mod.AtlasSystemTray)
         tray.is_bundled = False
         tray.is_listening = True
         tray.daemon_thread = None
@@ -1857,11 +1857,11 @@ class TestListeningWindowVisibility:
         tray._daemon_stop_expected = False
         tray._initialise_voice_pause_controls()
 
-        fake_state, JarvisState = self._patch_face_state(monkeypatch)
+        fake_state, AtlasState = self._patch_face_state(monkeypatch)
         tray.check_daemon_status()
         assert tray.is_listening is False
         assert tray.toggle_action.text() == "▶️ Turn On"
-        fake_state.set_state.assert_called_once_with(JarvisState.ASLEEP)
+        fake_state.set_state.assert_called_once_with(AtlasState.ASLEEP)
 
     def test_stop_daemon_subprocess_does_not_hide_windows(self, qapp, monkeypatch):
         tray, fake_dialog = self._tray_for_stop_subprocess(monkeypatch)
@@ -1877,7 +1877,7 @@ class TestListeningWindowVisibility:
         """The projected face opens alone; full logs remain in the tray."""
         import desktop_app.app as app_mod
 
-        tray = app_mod.JarvisSystemTray.__new__(app_mod.JarvisSystemTray)
+        tray = app_mod.AtlasSystemTray.__new__(app_mod.AtlasSystemTray)
         tray.log_viewer = MagicMock()
         tray.face_window = MagicMock()
 

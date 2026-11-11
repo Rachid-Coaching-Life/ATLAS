@@ -5,9 +5,9 @@ import time
 
 import pytest
 
-from jarvis.tools import confirmation
-from jarvis.tools import confirmation_ipc as ipc
-from jarvis.tools.confirmation import ConfirmationRelay, ConfirmationRequest, Decision, Risk
+from atlas.tools import confirmation
+from atlas.tools import confirmation_ipc as ipc
+from atlas.tools.confirmation import ConfirmationRelay, ConfirmationRequest, Decision, Risk
 
 pytestmark = pytest.mark.unit
 

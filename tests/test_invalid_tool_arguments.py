@@ -3,8 +3,8 @@ from unittest.mock import patch
 
 import pytest
 
-from jarvis.reply import engine
-from jarvis.tools.types import ToolExecutionResult
+from atlas.reply import engine
+from atlas.tools.types import ToolExecutionResult
 
 pytestmark = pytest.mark.unit
 
@@ -96,7 +96,7 @@ def test_invalid_model_call_cannot_advance_to_dependent_plan_action(mock_config,
 def test_invalid_native_arguments_retain_valid_provider_wire_shape(arguments):
     import json
     from unittest.mock import MagicMock
-    from jarvis.llm.openai_compatible import OpenAICompatibleBackend
+    from atlas.llm.openai_compatible import OpenAICompatibleBackend
     received = []
     def post(url, **kwargs):
         received.append(kwargs['json'])
@@ -110,7 +110,7 @@ def test_invalid_native_arguments_retain_valid_provider_wire_shape(arguments):
             'function': {'name': 'getWeather', 'arguments': arguments}}]},
         {'role': 'tool', 'tool_call_id': 'c1', 'content': 'Invalid arguments, tool not executed.'},
     ]
-    with patch('jarvis.llm.http.post', side_effect=post):
+    with patch('atlas.llm.http.post', side_effect=post):
         result = OpenAICompatibleBackend('http://127.0.0.1:1234/v1').chat('fixture-model', messages)
     encoded = received[0]['messages'][0]['tool_calls'][0]['function']['arguments']
     assert isinstance(encoded, str), 'Provider history requires JSON strings, even for failed calls'
@@ -127,7 +127,7 @@ def test_ambiguous_multi_call_envelope_cannot_mix_names_and_arguments():
 
 def test_text_protocol_examples_use_consistent_argument_objects():
     import json
-    from jarvis.tools.registry import generate_tools_description
+    from atlas.tools.registry import generate_tools_description
     prompts = [generate_tools_description(['webSearch']), engine._text_tool_call_guidance(['webSearch'])]
     for prompt in prompts:
         call_line = next(line for line in prompt.splitlines() if line.startswith('tool_calls: '))
@@ -137,7 +137,7 @@ def test_text_protocol_examples_use_consistent_argument_objects():
 
 def test_text_search_example_matches_the_actual_tool_schema():
     import json
-    from jarvis.tools.registry import BUILTIN_TOOLS
+    from atlas.tools.registry import BUILTIN_TOOLS
     guidance = engine._text_tool_call_guidance(['webSearch'])
     call = json.loads(next(line for line in guidance.splitlines() if line.startswith('tool_calls: ')).removeprefix('tool_calls: '))[0]['function']
     schema = BUILTIN_TOOLS[call['name']].inputSchema

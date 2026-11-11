@@ -3,8 +3,8 @@ import json
 
 import pytest
 
-from jarvis.memory.graph import GraphMemoryStore
-from jarvis.memory import graph_ops
+from atlas.memory.graph import GraphMemoryStore
+from atlas.memory import graph_ops
 
 pytestmark = pytest.mark.unit
 

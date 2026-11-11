@@ -1,14 +1,14 @@
 # Desktop App Specification
 
-[Configuration file selection](../jarvis/config.spec.md) is shared with the daemon. Desktop configuration reads, writes and directory navigation use the selected file.
+[Configuration file selection](../atlas/config.spec.md) is shared with the daemon. Desktop configuration reads, writes and directory navigation use the selected file.
 
-This document outlines the architecture and behavior of the Jarvis Desktop App - a cross-platform PyQt6 system tray application that provides a graphical interface for the Jarvis voice assistant.
+This document outlines the architecture and behavior of the ATLAS Desktop App - a cross-platform PyQt6 system tray application that provides a graphical interface for the ATLAS voice assistant.
 
 ## Overview
 
-The desktop app is a **separate package** from the core `jarvis` module. It depends on `jarvis` for assistant functionality but `jarvis` has no knowledge of or dependency on the desktop app. This separation allows:
+The desktop app is a **separate package** from the core `atlas` module. It depends on `atlas` for assistant functionality but `atlas` has no knowledge of or dependency on the desktop app. This separation allows:
 
-- Running Jarvis headless (CLI/daemon only)
+- Running ATLAS headless (CLI/daemon only)
 - Building alternative UIs (web, mobile) without modifying core logic
 - Keeping PyQt6 dependencies isolated from the core package
 
@@ -25,7 +25,7 @@ selects a supported candidate and rejects an unsupported existing environment.
 ```
 src/desktop_app/
 ├── __init__.py          # Package exports, main() entry point
-├── app.py               # JarvisSystemTray, windows, startup flow
+├── app.py               # AtlasSystemTray, windows, startup flow
 ├── splash_screen.py     # Animated startup splash
 ├── setup_wizard.py      # First-run setup wizard
 ├── settings_window.py   # Auto-generated settings UI from config metadata
@@ -81,7 +81,7 @@ flowchart TD
 1. **Splash Screen**: Shows immediately to provide visual feedback while loading. It stays hidden throughout the unreachable-server warning and any setup wizard opened from that warning, then resumes when startup continues (whether the wizard is accepted or cancelled).
 2. **Provider-aware Ollama gating** (`_ollama_runtime_flags` in `app.py`): The Ollama server-start and model-verification steps run only when a local provider actually uses Ollama. A pure OpenAI-compatible setup (chat and embeddings both remote) skips them entirely. `get_required_models()` is provider-aware, so model verification pulls exactly the models that run locally: chat + intent-judge when chat is on Ollama, and the embedding model when embeddings are on Ollama. When chat is on Ollama, a missing model opens the setup wizard; when only embeddings are local (remote chat), a missing embedding model surfaces a clear non-blocking instruction (memory search falls back to keyword matching until it is pulled). The recommendation check reports all unlisted model selections together, independently for Chat, Fast and Embedding roles using settings reloaded after startup setup steps and the central role catalogues. Chat and Fast follow the chat provider, while Embedding follows its effective provider independently. Ollama recommendations use pull IDs, with untagged and `:latest` IDs treated as equivalent. OpenAI-compatible recommendations use exact publisher model IDs from the same central model-family metadata. Unknown aliases and variants receive advice rather than inheriting a family recommendation. Model names do not certify weights, performance or runtime compatibility; advice for external servers explains aliases and directs users to Connect & load models in setup for capability checks. No network request is made by the recommendation check. The advice offers Open Setup Wizard and Continue Anyway, never changes settings automatically, and renders model names as plain text. Its scroll viewport retains the description’s minimum usable size, with both action buttons outside the viewport and reachable in a constrained window. `should_show_setup_wizard()` returns False for an OpenAI-compatible chat provider.
 3. **Ollama Auto-Start**: When Ollama is in use and not running, automatically starts it (up to 15s wait). If the wait times out, the setup wizard opens so the user can diagnose connectivity; cancelling the wizard exits the app. The desktop app records ownership only for an Ollama runtime it launches in this session. On app exit, it stops that owned runtime and leaves any pre-existing user-managed Ollama process running.
-3a. **OpenAI-compatible reachability check** (`_check_openai_compat_reachable` in `app.py`): Jarvis cannot start a third-party server the way it starts Ollama, so on a pure OpenAI-compatible setup it checks the server answers `GET /v1/models` and, if not, shows a one-off warning naming the address (never the API key) and pointing to Settings, then continues. The user only otherwise discovers a down server when their first request fails.
+3a. **OpenAI-compatible reachability check** (`_check_openai_compat_reachable` in `app.py`): ATLAS cannot start a third-party server the way it starts Ollama, so on a pure OpenAI-compatible setup it checks the server answers `GET /v1/models` and, if not, shows a one-off warning naming the address (never the API key) and pointing to Settings, then continues. The user only otherwise discovers a down server when their first request fails.
 4. **Single Instance Lock**: Prevents multiple copies from running simultaneously. If another instance is detected, shows a dialog offering to close the existing instance and start fresh.
 5. **Crash Detection**: Detects previous crashes and offers to submit bug reports
 
@@ -106,19 +106,19 @@ successful run without releasable changes reports that no release is needed.
 
 ## Main Components
 
-### JarvisSystemTray
+### AtlasSystemTray
 
 The central controller that manages:
 
 - **System tray icon** with context menu
-- **Daemon lifecycle** (start/stop the Jarvis voice assistant)
+- **Daemon lifecycle** (start/stop the ATLAS voice assistant)
 - **Voice pause**: Pause Voice Listening / Resume Voice Listening controls
   assistant capture without stopping the daemon, models, MCP sessions, text
   chat or intentional dictation. Turn Off shuts down the assistant. The
   assistant power action reads Turn On while stopped and Turn Off while running.
 - **Window management** (log viewer, memory viewer, face window)
 - **Update checking** on startup and on-demand
-- **Runtime diagnostics** (`🩺 Runtime Status`): shows whether the assistant is listening, the daemon mode/PID, whether Low Power Mode is active, whether Ollama is needed/running, whether Jarvis owns the current Ollama runtime, active chat/embedding models, and configured MCP server count. The dialog is informational and never starts or stops services.
+- **Runtime diagnostics** (`🩺 Runtime Status`): shows whether the assistant is listening, the daemon mode/PID, whether Low Power Mode is active, whether Ollama is needed/running, whether ATLAS owns the current Ollama runtime, active chat/embedding models, and configured MCP server count. The dialog is informational and never starts or stops services.
 
 ### Windows
 
@@ -163,7 +163,7 @@ overlay. Refraction and depth are visually simulated through transparent
 Qt gradients/facets; no new 3-D or windowing dependency is introduced.
 The geometric composition and palette may evolve independently from the
 unchanged ATLAS face artwork, its widget size, screen position and mouth. The panel reflects real
-shared `JarvisState` values (asleep, idle, listening, thinking, speaking,
+shared `AtlasState` values (asleep, idle, listening, thinking, speaking,
 dictating); the already-existing desktop `LogSignals.new_log` channel feeds
 the latest spoken or typed request and the publicly emitted ATLAS reply on the
 GUI thread. The output labels are plain text, not interpreted as HTML.
@@ -195,7 +195,7 @@ or texture layers and reliable timed phoneme output. Desktop performance
 and screen-layout correctness must be validated on Windows before marking
 this phase complete.
 
-[Shared assistant activity](../jarvis/activity.spec.md) owns the activity enum
+[Shared assistant activity](../atlas/activity.spec.md) owns the activity enum
 and file-backed state manager.
 It uses only the standard library, so core speech, listening, dictation and
 reply paths publish state without importing the desktop or Qt. The face
@@ -275,7 +275,7 @@ faces use a lower refresh rate, with a 250 ms state check when fully asleep.
 `scripts/capture_face_preview.py` renders the actual widget on light and dark
 backgrounds using isolated in-memory state and a fixed clock.
 
-**Face state follows the daemon lifecycle**: the face animates from states written by the daemon (`JarvisStateManager`, file-backed for cross-process use). Whenever the daemon goes down — the tray's Turn Off / Turn On control, an unexpected exit, or the setup wizard pausing it — the tray resets the face to `ASLEEP` so it never looks awake while no daemon is running. Starting the daemon lets the daemon's own state writes take over again.
+**Face state follows the daemon lifecycle**: the face animates from states written by the daemon (`AtlasStateManager`, file-backed for cross-process use). Whenever the daemon goes down — the tray's Turn Off / Turn On control, an unexpected exit, or the setup wizard pausing it — the tray resets the face to `ASLEEP` so it never looks awake while no daemon is running. Starting the daemon lets the daemon's own state writes take over again.
 
 ### Face context menu
 
@@ -300,13 +300,13 @@ The desktop installs a guard on Qt Cocoa tray activation callbacks after creatin
 
 ### Tray Menu: GPU Library Recovery (Windows)
 
-`cuda_recovery.py` exposes the `🎮 Reinstall GPU libraries` action. The tray adds it only when running on Windows, an NVIDIA driver is detected (`%SystemRoot%\System32\nvcuda.dll` exists), and the bundled `install_cuda.ps1` script is on disk. Clicking it confirms with the user, then re-runs `install_cuda.ps1` via `ShellExecuteW` with the `runas` verb so UAC elevates the process before it writes into `Program Files\Jarvis\cuda`. This is the only user-facing recovery path when the original Inno Setup install of cuBLAS/cuDNN fails — the installer's own task fires once per install and the script's marker file used to make subsequent reinstalls skip the CUDA step. The runtime probe in `jarvis.listening.listener._print_cuda_unavailable_hint` points users at this action by name when it falls back to CPU.
+`cuda_recovery.py` exposes the `🎮 Reinstall GPU libraries` action. The tray adds it only when running on Windows, an NVIDIA driver is detected (`%SystemRoot%\System32\nvcuda.dll` exists), and the bundled `install_cuda.ps1` script is on disk. Clicking it confirms with the user, then re-runs `install_cuda.ps1` via `ShellExecuteW` with the `runas` verb so UAC elevates the process before it writes into `Program Files\ATLAS\cuda`. This is the only user-facing recovery path when the original Inno Setup install of cuBLAS/cuDNN fails — the installer's own task fires once per install and the script's marker file used to make subsequent reinstalls skip the CUDA step. The runtime probe in `atlas.listening.listener._print_cuda_unavailable_hint` points users at this action by name when it falls back to CPU.
 
 The Inno Setup script also runs a `VerifyCudaInstall` hook after the CUDA download task completes. The hook checks for the `.cuda_installed` marker (which `install_cuda.ps1` only writes after every expected DLL is present and SHA-verified) and surfaces a `MsgBox` pointing at `{app}\cuda\install.log` and the tray recovery action when the marker is missing. This is what makes a hidden install failure visible to the user instead of letting the installer report success on a half-installed CUDA tree.
 
 ### DictationHistoryWindow Behaviour
 
-- **Backing store**: File-backed via `DictationHistory` (`src/jarvis/dictation/history.py`); entries are newest-first with `id`, `text`, `timestamp`, `duration`. Disk is the source of truth — the window must not assume its in-memory instance is authoritative. Adding or deleting an entry reads the current disk contents before applying that change. Deleting a cached entry preserves external additions and deletions, and returns false if the requested ID is already absent.
+- **Backing store**: File-backed via `DictationHistory` (`src/atlas/dictation/history.py`); entries are newest-first with `id`, `text`, `timestamp`, `duration`. Disk is the source of truth — the window must not assume its in-memory instance is authoritative. Adding or deleting an entry reads the current disk contents before applying that change. Deleting a cached entry preserves external additions and deletions, and returns false if the requested ID is already absent.
 - **Unavailable history**: Mutations require a readable JSON list. Read errors, invalid JSON and an unknown top-level shape raise `HistoryUpdateError` before any replacement, preserving saved bytes and the cached snapshot. A missing file or a valid empty list can accept a new entry. Initial unavailable history is presented as empty without rewriting it; failed refreshes retain the last valid cached view. Failed writes restore the snapshot read for that transaction, without relying on another read after the failure.
 - **Literal dictation text**: Cards display saved text as plain text, including markup and image-like tags. Saved input cannot request rich-text formatting or image resources; copy actions retain the original text.
 - **Record validity**: History reads and publication require object entries with non-empty text IDs and UTF-8 encodable text. Timestamp and duration metadata, when present, are finite numbers rather than booleans; timestamps must be representable by the local datetime renderer. Missing legacy metadata retains the renderer's zero defaults, and extra fields remain literal. Invalid records reject the complete update rather than being filtered, repaired or coerced; cached valid entries and saved bytes remain intact.
@@ -339,7 +339,7 @@ Animated loading screen shown during startup with:
 
 ## Daemon Integration
 
-The desktop app runs the Jarvis daemon in a **QThread** (bundled mode) or **subprocess** (development mode).
+The desktop app runs the ATLAS daemon in a **QThread** (bundled mode) or **subprocess** (development mode).
 
 ```
 ┌─────────────────────────────────────────┐
@@ -355,7 +355,7 @@ The desktop app runs the Jarvis daemon in a **QThread** (bundled mode) or **subp
 │                   ▼                      │
 │  ┌─────────────────────────────────┐    │
 │  │      DaemonThread (QThread)      │    │
-│  │  - Runs jarvis.daemon.main()     │    │
+│  │  - Runs atlas.daemon.main()     │    │
 │  │  - Captures stdout/stderr        │    │
 │  │  - Emits logs to LogViewer       │    │
 │  └─────────────────────────────────┘    │
@@ -386,7 +386,7 @@ it must run on the main thread.
 
 Starting is blocked while an owned thread or subprocess is alive, or while
 Stop is processing Qt events. The core daemon also holds a per-user OS lock
-across initialisation and cleanup (see `src/jarvis/daemon_lock.spec.md`).
+across initialisation and cleanup (see `src/atlas/daemon_lock.spec.md`).
 
 A bundled shutdown that exhausts its wait retains the worker handle and
 blocks replacement until that worker finishes. Its completion callback is
@@ -492,7 +492,7 @@ COLORS = {
 }
 ```
 
-Components use `JARVIS_THEME_STYLESHEET` for consistent styling across all dialogs and windows.
+Components use `ATLAS_THEME_STYLESHEET` for consistent styling across all dialogs and windows.
 
 ## Update System
 
@@ -509,13 +509,13 @@ Updates are only available in bundled mode (PyInstaller builds).
 
 | Platform | Strategy |
 |----------|----------|
-| **macOS** | Extracts the update zip with `ditto -x -k` (Python's `zipfile` drops the symlinks Qt/Qt WebEngine frameworks rely on, producing a bundle macOS refuses to launch with "Jarvis.app can't be opened"; the release workflow creates the zip with the matching `ditto -c -k --keepParent`). Falls back to `zipfile.extractall` only when `/usr/bin/ditto` is missing — i.e. unit tests on Linux CI; production macOS always ships ditto, so the fallback never runs in the field. Then creates a shell script that waits for the current process (by PID via `kill -0`) to exit, moves the old `.app` aside to `Jarvis.app.backup` (one-generation rollback), moves the new bundle in, strips `com.apple.quarantine` so Gatekeeper doesn't re-prompt on unsigned builds, re-registers the swapped bundle with `lsregister -f` (LaunchServices caches the old inode across the `mv` and a bare `open` silently no-ops otherwise), relaunches with `open -n`, and falls back to execing the bundle's inner binary via `nohup` if `open` fails. Script output is captured to `~/Library/Logs/Jarvis/updater.log` (size-capped) so detached failures leave a diagnostic trail. The executable name is read from the new bundle's `CFBundleExecutable`, not hardcoded. No Finder/AppleScript automation. Pattern mirrors Squirrel.Mac's `ShipIt` helper. |
+| **macOS** | Extracts the update zip with `ditto -x -k` (Python's `zipfile` drops the symlinks Qt/Qt WebEngine frameworks rely on, producing a bundle macOS refuses to launch with "ATLAS.app can't be opened"; the release workflow creates the zip with the matching `ditto -c -k --keepParent`). Falls back to `zipfile.extractall` only when `/usr/bin/ditto` is missing — i.e. unit tests on Linux CI; production macOS always ships ditto, so the fallback never runs in the field. Then creates a shell script that waits for the current process (by PID via `kill -0`) to exit, moves the old `.app` aside to `ATLAS.app.backup` (one-generation rollback), moves the new bundle in, strips `com.apple.quarantine` so Gatekeeper doesn't re-prompt on unsigned builds, re-registers the swapped bundle with `lsregister -f` (LaunchServices caches the old inode across the `mv` and a bare `open` silently no-ops otherwise), relaunches with `open -n`, and falls back to execing the bundle's inner binary via `nohup` if `open` fails. Script output is captured to `~/Library/Logs/ATLAS/updater.log` (size-capped) so detached failures leave a diagnostic trail. The executable name is read from the new bundle's `CFBundleExecutable`, not hardcoded. No Finder/AppleScript automation. Pattern mirrors Squirrel.Mac's `ShipIt` helper. |
 | **Windows** | Creates a batch script that waits for the current process (by PID via `tasklist`) to exit, then runs the Inno Setup installer with `/SILENT` so the installer's own progress window provides visual feedback during install, then relaunches the upgraded exe. Rollback is handled by Inno Setup's own in-session rollback + retained uninstaller data. |
-| **Linux** | Creates a shell script that waits for the current process (by PID via `kill -0`) to exit, moves the old directory to `Jarvis.backup` for rollback, moves the new directory in, and relaunches |
+| **Linux** | Creates a shell script that waits for the current process (by PID via `kill -0`) to exit, moves the old directory to `ATLAS.backup` for rollback, moves the new directory in, and relaunches |
 
 Linux tar extraction explicitly uses the standard library's `data` filter,
 confining entries and link targets to staging and refusing special files.
-The payload root must be a real `Jarvis` directory. Rejected or failed staging
+The payload root must be a real `ATLAS` directory. Rejected or failed staging
 is removed without launching the installation script; contained library links
 and executable permissions remain usable.
 
@@ -588,7 +588,7 @@ A Flask-based web interface for browsing conversation history:
 stack faulthandler cannot capture — it only dumps Python frames, which for
 the abort family (#584/#575/#576) shows nothing but the main thread parked
 in `app.exec()`. On macOS the OS still writes a full report with native
-frames to `~/Library/Logs/DiagnosticReports/Jarvis-*.ips`. On the next
+frames to `~/Library/Logs/DiagnosticReports/ATLAS-*.ips`. On the next
 launch, `collect_macos_crash_report()` finds the newest readable report with
 a valid thread payload newer than the previous crash log, skipping incomplete
 or unusable files, and appends its exception type, termination
@@ -608,7 +608,7 @@ content and the report-issue body, so these aborts become diagnosable.
 |---------|-------|---------|-------|
 | Tray icon | Native menu bar | System tray | System tray |
 | Ollama start | `open -a Ollama` | `ollama serve` (hidden) | `ollama serve` |
-| Crash logs | `~/Library/Logs/Jarvis` | `%LOCALAPPDATA%\Jarvis` | `~/.jarvis` |
+| Crash logs | `~/Library/Logs/ATLAS` | `%LOCALAPPDATA%\ATLAS` | `~/.atlas` |
 | Memory viewer | System browser* | Embedded WebEngine | Embedded WebEngine |
 
 *macOS bundled apps use system browser due to QtWebEngine sandbox issues.
@@ -617,10 +617,10 @@ content and the report-issue body, so these aborts become diagnosable.
 
 | File | macOS | Windows | Linux |
 |------|-------|---------|-------|
-| Config | `~/.config/jarvis/` | `%APPDATA%\jarvis\` | `~/.config/jarvis/` |
-| Database | `~/.local/share/jarvis/` | `%LOCALAPPDATA%\jarvis\` | `~/.local/share/jarvis/` |
-| Crash logs | `~/Library/Logs/Jarvis/` | `%LOCALAPPDATA%\Jarvis\` | `~/.jarvis/` |
-| Instance lock | `~/Library/Application Support/Jarvis/` | `%LOCALAPPDATA%\Jarvis\` | `~/.jarvis/` |
+| Config | `~/.config/atlas/` | `%APPDATA%\atlas\` | `~/.config/atlas/` |
+| Database | `~/.local/share/atlas/` | `%LOCALAPPDATA%\atlas\` | `~/.local/share/atlas/` |
+| Crash logs | `~/Library/Logs/ATLAS/` | `%LOCALAPPDATA%\ATLAS\` | `~/.atlas/` |
+| Instance lock | `~/Library/Application Support/ATLAS/` | `%LOCALAPPDATA%\ATLAS\` | `~/.atlas/` |
 
 ## Speech packaging
 

@@ -1,14 +1,14 @@
 ---
 name: maintenance-loop
 description: >
-  Run or resume the Jarvis reliability and maintenance loop across open issues
+  Run or resume the ATLAS reliability and maintenance loop across open issues
   and pull requests. Prioritise core product quality, general fixes and
   simplification, then validate, privately review and merge authorised work.
 ---
 
-# Jarvis maintenance loop
+# ATLAS maintenance loop
 
-The primary goal is a high-quality, reliable, coherent Jarvis product. Reaching
+The primary goal is a high-quality, reliable, coherent ATLAS product. Reaching
 zero open issues and pull requests is secondary. Resolve genuine problems,
 consolidate duplicates and identify unsuitable or superseded work without
 closing valid defects, hiding blockers, weakening assertions or merging

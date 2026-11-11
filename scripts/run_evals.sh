@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run Jarvis evaluation suite
+# Run ATLAS evaluation suite
 #
 # Usage:
 #   ./scripts/run_evals.sh              # Run all evals with both models (live + judge enabled)
@@ -28,7 +28,7 @@ MODEL_LARGE="gpt-oss:20b"
 
 echo ""
 echo "┌────────────────────────────────────────────────────────────┐"
-echo "│                  🧪 Jarvis Evaluation Suite                │"
+echo "│                  🧪 ATLAS Evaluation Suite                │"
 echo "└────────────────────────────────────────────────────────────┘"
 echo ""
 

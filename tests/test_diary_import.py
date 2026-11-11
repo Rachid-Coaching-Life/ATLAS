@@ -12,7 +12,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from jarvis.memory.db import Database
+from atlas.memory.db import Database
 
 pytestmark = pytest.mark.usefixtures("no_network")
 
@@ -27,10 +27,10 @@ def db_with_summaries(tmp_path):
 
     # Insert some summaries in non-chronological order to test ordering
     summaries = [
-        ("2025-03-15", "User discussed work projects and deadlines.", "work,planning", "jarvis"),
-        ("2025-01-10", "User talked about favourite coffee shops.", "food,coffee", "jarvis"),
-        ("2025-06-22", "User mentioned upcoming holiday plans.", "travel,holiday", "jarvis"),
-        ("2025-02-01", "User shared fitness routine details.", "health,fitness", "jarvis"),
+        ("2025-03-15", "User discussed work projects and deadlines.", "work,planning", "atlas"),
+        ("2025-01-10", "User talked about favourite coffee shops.", "food,coffee", "atlas"),
+        ("2025-06-22", "User mentioned upcoming holiday plans.", "travel,holiday", "atlas"),
+        ("2025-02-01", "User shared fitness routine details.", "health,fitness", "atlas"),
     ]
 
     for date_utc, summary, topics, source_app in summaries:
@@ -103,9 +103,9 @@ class TestImportDiaryEndpoint:
     def setup_app(self, tmp_path, monkeypatch, mock_config):
         """Set up Flask test client with a temporary database."""
         from desktop_app import memory_viewer
-        from jarvis import config
-        from jarvis.memory import graph_ops
-        from jarvis.memory.graph import GraphMemoryStore
+        from atlas import config
+        from atlas.memory import graph_ops
+        from atlas.memory.graph import GraphMemoryStore
 
         self.db_path = str(tmp_path / "test.db")
 
@@ -114,12 +114,12 @@ class TestImportDiaryEndpoint:
         self.db.conn.execute(
             """INSERT INTO conversation_summaries (date_utc, ts_utc, summary, topics, source_app)
                VALUES (?, ?, ?, ?, ?)""",
-            ("2025-03-15", "2025-03-15T12:00:00Z", "User likes dark roast coffee.", "food", "jarvis"),
+            ("2025-03-15", "2025-03-15T12:00:00Z", "User likes dark roast coffee.", "food", "atlas"),
         )
         self.db.conn.execute(
             """INSERT INTO conversation_summaries (date_utc, ts_utc, summary, topics, source_app)
                VALUES (?, ?, ?, ?, ?)""",
-            ("2025-03-16", "2025-03-16T12:00:00Z", "User works at Acme Corp.", "work", "jarvis"),
+            ("2025-03-16", "2025-03-16T12:00:00Z", "User works at Acme Corp.", "work", "atlas"),
         )
         self.db.conn.commit()
 

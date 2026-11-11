@@ -3,7 +3,7 @@
 import pytest
 
 from desktop_app.app import _should_emit_as_log, LogSignals
-from jarvis.tools.confirmation_ipc import (
+from atlas.tools.confirmation_ipc import (
     REQUEST_PREFIX, CANCEL_PREFIX, REPLY_PREFIX,
 )
 

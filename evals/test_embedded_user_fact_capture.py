@@ -21,10 +21,10 @@ pytestmark = [pytest.mark.eval, requires_judge_llm]
      'Bristol tomorrow will be overcast, between 11 and 21 degrees.', 'Bristol', True),
 ])
 def test_embedded_residence_reaches_diary_and_graph(graph_store, user, answer, city, streaming):
-    from jarvis.memory.conversation import generate_conversation_summary
-    from jarvis.memory.db import Database
-    from jarvis.memory.graph_ops import update_graph_from_dialogue
-    from jarvis.reply.personal_context import resolve_missing_context
+    from atlas.memory.conversation import generate_conversation_summary
+    from atlas.memory.db import Database
+    from atlas.memory.graph_ops import update_graph_from_dialogue
+    from atlas.reply.personal_context import resolve_missing_context
     cfg = voice_config()
     cfg.db_path = graph_store.db_path
     day = datetime.now(timezone.utc).date().isoformat()
@@ -35,7 +35,7 @@ def test_embedded_residence_reaches_diary_and_graph(graph_store, user, answer, c
     )
     assert summary and topics, 'Incomplete diary inference is a failure'
     with closing(Database(graph_store.db_path)) as db:
-        db.upsert_conversation_summary(day, summary, topics, 'jarvis')
+        db.upsert_conversation_summary(day, summary, topics, 'atlas')
         cfg.memory_enrichment_source = 'diary'
         diary = resolve_missing_context('location', db, cfg, 'weather tomorrow', [])
         assert diary and diary.value == city, summary
@@ -45,7 +45,7 @@ def test_embedded_residence_reaches_diary_and_graph(graph_store, user, answer, c
             ['User: What is two plus two?', 'Assistant: Four.'], summary, cfg, timeout_sec=30,
         )
         assert updated and updated_topics
-        db.upsert_conversation_summary(day, updated, updated_topics, 'jarvis')
+        db.upsert_conversation_summary(day, updated, updated_topics, 'atlas')
         retained = resolve_missing_context('location', db, cfg, 'weather tomorrow', [])
         assert retained and retained.value == city, updated
 
@@ -62,8 +62,8 @@ def test_embedded_residence_reaches_diary_and_graph(graph_store, user, answer, c
     ('Translate this sentence: I am vegetarian.', False),
 ])
 def test_preference_embedded_in_request_reaches_user_graph(graph_store, user, expected):
-    from jarvis.memory.conversation import generate_conversation_summary
-    from jarvis.memory.graph_ops import build_warm_profile, update_graph_from_dialogue
+    from atlas.memory.conversation import generate_conversation_summary
+    from atlas.memory.graph_ops import build_warm_profile, update_graph_from_dialogue
     cfg = voice_config()
     cfg.db_path = graph_store.db_path
     summary, topics = generate_conversation_summary(
@@ -87,10 +87,10 @@ def test_preference_embedded_in_request_reaches_user_graph(graph_store, user, ex
     'Şu cümleyi çevir: Bristol şehrinde yaşıyorum.',
 ])
 def test_task_destinations_visits_and_other_people_do_not_become_user_home(graph_store, user):
-    from jarvis.memory.conversation import generate_conversation_summary
-    from jarvis.memory.db import Database
-    from jarvis.memory.graph_ops import update_graph_from_dialogue
-    from jarvis.reply.personal_context import resolve_missing_context
+    from atlas.memory.conversation import generate_conversation_summary
+    from atlas.memory.db import Database
+    from atlas.memory.graph_ops import update_graph_from_dialogue
+    from atlas.reply.personal_context import resolve_missing_context
     cfg = voice_config()
     cfg.db_path = graph_store.db_path
     day = datetime.now(timezone.utc).date().isoformat()
@@ -100,7 +100,7 @@ def test_task_destinations_visits_and_other_people_do_not_become_user_home(graph
     )
     assert summary and topics
     with closing(Database(graph_store.db_path)) as db:
-        db.upsert_conversation_summary(day, summary, topics, 'jarvis')
+        db.upsert_conversation_summary(day, summary, topics, 'atlas')
         cfg.memory_enrichment_source = 'diary'
         assert resolve_missing_context('location', db, cfg, 'weather tomorrow', []) is None, summary
         update_graph_from_dialogue(graph_store, summary, cfg, cfg.llm_chat_model,

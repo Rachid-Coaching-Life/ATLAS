@@ -11,10 +11,10 @@ pytestmark = pytest.mark.unit
 def test_discovered_mcp_name_executes_as_a_text_call(
     mock_config, db, dialogue_memory, monkeypatch, call_format
 ):
-    from jarvis.reply import engine
-    from jarvis.tools import registry
-    from jarvis.tools.registry import ToolSpec
-    from jarvis.tools.types import ToolExecutionResult
+    from atlas.reply import engine
+    from atlas.tools import registry
+    from atlas.tools.registry import ToolSpec
+    from atlas.tools.types import ToolExecutionResult
 
     registered_name = "local-browser__navigate_page"
     target = "https://example.org"

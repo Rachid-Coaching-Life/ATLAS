@@ -6,15 +6,15 @@ import time
 import numpy as np
 import pytest
 
-from jarvis.dictation import dictation_engine
-from jarvis.dictation.history import DictationHistory
+from atlas.dictation import dictation_engine
+from atlas.dictation.history import DictationHistory
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 
 
 @pytest.mark.parametrize('failure', ['corrupt', 'read', 'write'])
 def test_history_failure_reports_safely_and_can_recover(monkeypatch, tmp_path, capsys, failure):
-    monkeypatch.setenv('JARVIS_VOICE_DEBUG', '0')
+    monkeypatch.setenv('ATLAS_VOICE_DEBUG', '0')
     monkeypatch.setattr(dictation_engine, 'pynput_keyboard', None)
     monkeypatch.setattr(dictation_engine, 'parse_hotkey', lambda _: (frozenset(), None))
     monkeypatch.setattr(dictation_engine, '_play_beep', lambda *args: None)

@@ -29,7 +29,7 @@ from evals.helpers import (
     JudgeVerdict,
 )
 
-from jarvis.memory.graph_ops import extract_graph_memories
+from atlas.memory.graph_ops import extract_graph_memories
 
 
 # =============================================================================
@@ -492,7 +492,7 @@ class TestGraphFactHygieneReview:
 
     @requires_judge_llm
     def test_climate_preferences_and_directives_are_durable(self, mock_config):
-        from jarvis.memory.graph_ops import _review_graph_facts
+        from atlas.memory.graph_ops import _review_graph_facts
         candidates = [
             ('world', 'London has mild winters'),
             ('user', 'The user prefers cool weather'),

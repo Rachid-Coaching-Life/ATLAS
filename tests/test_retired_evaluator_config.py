@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from jarvis.config import get_default_config, load_settings
+from atlas.config import get_default_config, load_settings
 
 pytestmark = pytest.mark.unit
 
@@ -23,7 +23,7 @@ def test_saved_turn_controls_do_not_disrupt_active_settings(tmp_path, monkeypatc
         'fast_model': 'local-test-fast',
     }
     path.write_text(json.dumps(values))
-    monkeypatch.setenv('JARVIS_CONFIG_PATH', str(path))
+    monkeypatch.setenv('ATLAS_CONFIG_PATH', str(path))
 
     settings = load_settings()
 

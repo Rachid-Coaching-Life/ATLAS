@@ -8,9 +8,9 @@ import pytest
 
 from evals.conftest import requires_judge_llm
 from evals.helpers import voice_config
-from jarvis.llm import get_llm_backend
-from jarvis.system_prompt import build_system_prompt
-from jarvis.tools.builtin.weather import WeatherTool
+from atlas.llm import get_llm_backend
+from atlas.system_prompt import build_system_prompt
+from atlas.tools.builtin.weather import WeatherTool
 
 pytestmark = [pytest.mark.eval, requires_judge_llm]
 
@@ -30,9 +30,9 @@ def test_reply_preserves_forecast_calendar(dates, zone):
                   'temperature_2m_min': [13, 12, 11], 'temperature_2m_max': [17, 18, 19]},
     }
     context = SimpleNamespace(cfg=cfg, user_print=lambda text: None)
-    with patch('jarvis.tools.builtin.weather.get_location_info', return_value={
+    with patch('atlas.tools.builtin.weather.get_location_info', return_value={
         'latitude': 51.5, 'longitude': -0.1, 'city': 'Example city',
-    }), patch('jarvis.tools.builtin.weather.requests.get', return_value=response):
+    }), patch('atlas.tools.builtin.weather.requests.get', return_value=response):
         weather = WeatherTool().run({}, context)
     assert weather.success
     answer = get_llm_backend(cfg).direct(

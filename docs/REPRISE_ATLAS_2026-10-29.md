@@ -10,7 +10,7 @@
 ## 1. Décisions de l'utilisateur à respecter
 
 1. **Construire ATLAS, et non maintenir le produit d'origine.** L'objectif est la nouvelle application ATLAS. Ne pas proposer des évolutions pour l'ancien produit à la place des travaux demandés.
-2. **Aucune identité Jarvis dans le code ATLAS final.** Éliminer méthodiquement l'ancien nom des modules, classes, scripts, variables d'environnement, messages, menus, documentation et métadonnées quand ces éléments appartiennent effectivement à ATLAS. Cette consigne constitue un travail **encore à faire**, et non une correction déjà réalisée. Les noms `jarvis`, `JarvisState`, `JarvisSystemTray` et `JARVIS_VOICE_DEBUG` sont encore observables dans l'architecture existante. Ne pas les supprimer par recherche/remplacement aveugle : inventorier les importations, points d'entrée, contrats persistés et tests, puis migrer le nommage sans rompre l'exécution.
+2. **Aucune identité ATLAS dans le code ATLAS final.** Éliminer méthodiquement l'ancien nom des modules, classes, scripts, variables d'environnement, messages, menus, documentation et métadonnées quand ces éléments appartiennent effectivement à ATLAS. Cette consigne constitue un travail **encore à faire**, et non une correction déjà réalisée. Les noms `atlas`, `AtlasState`, `AtlasSystemTray` et `ATLAS_VOICE_DEBUG` sont encore observables dans l'architecture existante. Ne pas les supprimer par recherche/remplacement aveugle : inventorier les importations, points d'entrée, contrats persistés et tests, puis migrer le nommage sans rompre l'exécution.
 3. **Portrait du robot intouchable.** Conserver strictement l'apparence du robot ATLAS, son visage, sa palette, ses dimensions, sa position relative, ses détails mécaniques et son animation labiale. Ne refondre que la fenêtre projetée à gauche et sa connexion visuelle. Les adaptations de disposition exigées sur les petits écrans ne doivent pas déformer le portrait.
 4. **Une véritable interface applicative**, pas une image générée, pas une maquette ni une fenêtre rectangulaire à coins arrondis. Les commandes doivent agir sur les services existants.
 5. **Arrêt du travail le 29 au soir.** Ne pas lancer les tests sur le PC de l'utilisateur ou de nouveaux travaux de refonte ce soir. Reprendre avec une vérification de l'état de la branche puis une exécution contrôlée le lendemain.
@@ -53,7 +53,7 @@ Le comparatif GitHub indique **quatre commits**, couvrant **quatre fichiers** :
 
 ## 5. Points de vigilance techniques
 
-1. **Nommage hérité.** L'application n'est pas encore purgée de `jarvis` ni de toutes les identités d'origine. Dans le dépôt consulté, des importations de `jarvis.activity` et un alias `JarvisSystemTray = ATLASSystemTray` subsistent. Le script Windows `scripts/run_desktop_app.bat` affiche toujours des messages d'origine et utilise `JARVIS_VOICE_DEBUG`. C'est un chantier ATLAS prioritaire à planifier avec tests de non-régression.
+1. **Nommage hérité.** L'application n'est pas encore purgée de `atlas` ni de toutes les identités d'origine. Dans le dépôt consulté, des importations de `atlas.activity` et un alias `AtlasSystemTray = ATLASSystemTray` subsistent. Le script Windows `scripts/run_desktop_app.bat` affiche toujours des messages d'origine et utilise `ATLAS_VOICE_DEBUG`. C'est un chantier ATLAS prioritaire à planifier avec tests de non-régression.
 2. **Clics et gestes.** Le panneau auparavant transparent aux événements de souris accueille désormais deux vrais boutons. Vérifier qu'ils cliquent, que le déplacement global et le menu contextuel fonctionnent toujours, et que les zones découpées laissent passer les clics hors silhouette.
 3. **Véritable état vocal.** La projection doit refléter l'état confirmé, sans annoncer « reprise » avant l'accusé de réception. Tester le démarrage, la pause, la reprise, l'indisponibilité, le délai d'attente et les processus arrêtés.
 4. **Texte et confidentialité.** Les derniers échanges affichés viennent des journaux existants ; ne pas contourner les mécanismes de masquage des données. Tester les messages saisis, les messages parlés, les caractères spéciaux et les réponses multiline. Ne jamais interpréter le texte comme HTML.
@@ -98,7 +98,7 @@ Ce script est **préexistant et n'a pas été exécuté dans cette session**. Il
 
 ### Étape D : identité de code exclusivement ATLAS
 
-Faire un audit ciblé de toutes les occurrences de l'ancien nom (sources, scripts, imports, tests, ressources, manifeste de compilation, documentation, configuration, environnement, chemins persistés et packaging). Identifier les références internes réellement renommables et les données historiques devant éventuellement conserver une migration. Corriger par sous-ensembles testables, sans remplacer aveuglément `jarvis` par `atlas` ni casser les modules, lancements Windows, sauvegardes ou installations existantes. La cible est **une application exclusivement ATLAS**. La priorité de conception est ATLAS, pas la compatibilité cosmétique avec l'ancien produit.
+Faire un audit ciblé de toutes les occurrences de l'ancien nom (sources, scripts, imports, tests, ressources, manifeste de compilation, documentation, configuration, environnement, chemins persistés et packaging). Identifier les références internes réellement renommables et les données historiques devant éventuellement conserver une migration. Corriger par sous-ensembles testables, sans remplacer aveuglément `atlas` par `atlas` ni casser les modules, lancements Windows, sauvegardes ou installations existantes. La cible est **une application exclusivement ATLAS**. La priorité de conception est ATLAS, pas la compatibilité cosmétique avec l'ancien produit.
 
 ### Étape E : décision graphique et prochaine correction
 
@@ -114,7 +114,7 @@ Une fois la version fonctionnelle validée, comparer sa capture réelle à la de
 - [ ] Contours non rectangulaires et pixels de transparence vérifiés visuellement.
 - [ ] Affichage lisible et responsive à plusieurs résolutions, sans blocage de la souris.
 - [ ] Fluidité et consommation de ressources vérifiées.
-- [ ] Nommage ATLAS complet après audit et migration testée, aucune identité Jarvis dans le code final de production.
+- [ ] Nommage ATLAS complet après audit et migration testée, aucune identité ATLAS dans le code final de production.
 - [ ] Toute modification future limitée à `develop-atlas`, avec compte rendu fichiers / changements / justification / tests.
 
 **Point de reprise immédiat :** vérifier la tête de `develop-atlas`, lancer les tests Qt ciblés puis la véritable application sur Windows avant toute nouvelle refonte. Ne pas déclarer les changements validés sans résultats. **Ne rien entreprendre automatiquement durant la nuit.**

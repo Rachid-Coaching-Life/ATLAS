@@ -5,8 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis.memory import conversation, graph_ops
-from jarvis.memory.db import Database
+from atlas.memory import conversation, graph_ops
+from atlas.memory.db import Database
 
 pytestmark = pytest.mark.unit
 
@@ -27,7 +27,7 @@ def test_graph_uses_saved_diary_row_across_midnight(tmp_path, mock_config, dialo
     observed = []
     with closing(Database(str(tmp_path / 'synthetic.db'), sqlite_vss_path=None)) as db:
         if transition == 'midnight-existing':
-            db.upsert_conversation_summary(after.date().isoformat(), 'An unrelated next-day entry.', 'other', 'jarvis')
+            db.upsert_conversation_summary(after.date().isoformat(), 'An unrelated next-day entry.', 'other', 'atlas')
         def generate(*args, **kwargs):
             clock[0] = after
             return summary, 'cafe, opening'
@@ -41,9 +41,9 @@ def test_graph_uses_saved_diary_row_across_midnight(tmp_path, mock_config, dialo
             db, dialogue_memory, mock_config, force=True,
             on_token=(lambda token: None) if streaming else None,
         )
-        saved = db.get_conversation_summary(before.date().isoformat(), 'jarvis')
+        saved = db.get_conversation_summary(before.date().isoformat(), 'atlas')
         assert ident == saved['id'] and saved['summary'] == summary
         assert dialogue_memory.get_pending_chunks() == []
         assert observed == [(summary, saved['date_utc'])]
         if transition == 'midnight-existing':
-            assert db.get_conversation_summary(after.date().isoformat(), 'jarvis')['summary'] == 'An unrelated next-day entry.'
+            assert db.get_conversation_summary(after.date().isoformat(), 'atlas')['summary'] == 'An unrelated next-day entry.'

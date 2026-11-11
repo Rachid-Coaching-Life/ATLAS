@@ -7,7 +7,7 @@ just the environment variables the current implementation is expected to use.
 ## Configuration and runtime IPC
 
 - Create owned temporary storage before importing or running app code. Redirect
-  `JARVIS_CONFIG_PATH` and the UI's actual default configuration resolver or
+  `ATLAS_CONFIG_PATH` and the UI's actual default configuration resolver or
   `XDG_CONFIG_HOME`. Historical branches may ignore one of these. Assert which
   file the UI has selected before clicking Save.
 - Independently guard the real user configuration against direct writes and

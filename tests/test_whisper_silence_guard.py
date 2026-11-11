@@ -5,13 +5,13 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
-from jarvis.listening.listener import VoiceListener
+from atlas.listening.listener import VoiceListener
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 
 
 def listener_with_decoder(monkeypatch, device, decoder, threshold=0.37):
-    monkeypatch.setattr('jarvis.listening.listener.create_intent_judge', lambda cfg: None)
+    monkeypatch.setattr('atlas.listening.listener.create_intent_judge', lambda cfg: None)
     cfg = SimpleNamespace(sample_rate=16000, vad_enabled=False, hot_window_seconds=3,
                           voice_collect_seconds=2, voice_max_collect_seconds=60,
                           tune_enabled=False, whisper_min_confidence=0.3,
@@ -24,7 +24,7 @@ def listener_with_decoder(monkeypatch, device, decoder, threshold=0.37):
 
 
 @pytest.mark.parametrize('device', ['cpu', 'cuda'])
-@pytest.mark.parametrize('spoken', ['', 'Thank you.', 'Merci Jarvis.', 'ありがとう'])
+@pytest.mark.parametrize('spoken', ['', 'Thank you.', 'Merci ATLAS.', 'ありがとう'])
 def test_only_audio_with_speech_reaches_transcripts(monkeypatch, device, spoken):
     observed = []
     def decode(audio, **options):

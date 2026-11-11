@@ -38,7 +38,7 @@ pytestmark = [pytest.mark.eval, requires_judge_llm]
     ('The user said they live in London and requested tomorrow\'s weather.', 'USER', 'The user lives in London', True),
 ])
 def test_review_checks_candidate_relationship_against_source(monkeypatch, summary, branch, fact, supported):
-    from jarvis.memory import graph_ops
+    from atlas.memory import graph_ops
     original = graph_ops.call_llm_direct
     def infer(**kwargs):
         if kwargs['user_content'].startswith('Extract'):

@@ -7,10 +7,10 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from jarvis.listening.listener import VoiceListener
-from jarvis.config import get_default_config
-import jarvis.listening.listener as capture
-import jarvis.utils.audio_capture as audio_capture
+from atlas.listening.listener import VoiceListener
+from atlas.config import get_default_config
+import atlas.listening.listener as capture
+import atlas.utils.audio_capture as audio_capture
 
 pytestmark = pytest.mark.unit
 
@@ -29,7 +29,7 @@ def listener(rate=48000):
     obj._vad_error_logged = False
     obj._vad = None
     obj._should_stop = False
-    from jarvis.listening.state_manager import StateManager
+    from atlas.listening.state_manager import StateManager
     obj.state_manager = StateManager()
     obj._tune_player = None
     obj._feedback_state_owner = None
@@ -518,7 +518,7 @@ def test_transcription_result_during_dictation_is_not_dispatched():
     obj._transcript_buffer = Mock()
     obj._process_transcript = Mock()
     obj._is_repetitive_hallucination = lambda text: False
-    result = SimpleNamespace(text="jarvis do this", language="en", low_confidence_events=(), start_time=10.0, end_time=11.0, energy=0.2, capture_generation=0, captured_during_tts=False, captured_tts_start_time=0)
+    result = SimpleNamespace(text="atlas do this", language="en", low_confidence_events=(), start_time=10.0, end_time=11.0, energy=0.2, capture_generation=0, captured_during_tts=False, captured_tts_start_time=0)
 
     obj._handle_transcription_result(result)
 
@@ -554,7 +554,7 @@ def test_echo_flag_uses_capture_interval_when_tts_starts_during_whisper():
     obj._process_transcript = Mock()
     obj._is_repetitive_hallucination = lambda text: False
 
-    obj._handle_transcription_result(SimpleNamespace(text="jarvis hello", language="en", low_confidence_events=(), start_time=10.0, end_time=11.0, energy=0.2, capture_generation=0, captured_during_tts=False, captured_tts_start_time=0))
+    obj._handle_transcription_result(SimpleNamespace(text="atlas hello", language="en", low_confidence_events=(), start_time=10.0, end_time=11.0, energy=0.2, capture_generation=0, captured_during_tts=False, captured_tts_start_time=0))
 
     assert obj._transcript_buffer.add.call_args.kwargs["is_during_tts"] is False
 
@@ -625,7 +625,7 @@ def test_dictation_session_invalidates_decode_even_after_listener_resumes():
     def transcribe(_audio):
         started.set()
         release.wait(timeout=2)
-        return "jarvis do this", "en", ()
+        return "atlas do this", "en", ()
 
     obj._transcribe_audio = transcribe
     obj._start_transcription_worker()
@@ -652,7 +652,7 @@ def test_delayed_stop_only_interrupts_tts_that_overlapped_capture(
     from unittest.mock import Mock
 
     obj = listener()
-    obj.cfg.wake_word = "jarvis"
+    obj.cfg.wake_word = "atlas"
     obj.cfg.wake_aliases = []
     obj.cfg.tune_enabled = False
     obj.tts = SimpleNamespace(enabled=True, is_speaking=lambda: True, interrupt=Mock(), preparing_request_at=lambda timestamp: None)
@@ -682,7 +682,7 @@ def test_delayed_utterance_does_not_inherit_later_tts_text_for_intent():
     from unittest.mock import Mock
 
     obj = listener()
-    obj.cfg.wake_word = "jarvis"
+    obj.cfg.wake_word = "atlas"
     obj.cfg.wake_aliases = []
     obj.cfg.tune_enabled = False
     obj.tts = SimpleNamespace(enabled=True, is_speaking=lambda: False, preparing_request_at=lambda timestamp: None)
@@ -702,7 +702,7 @@ def test_delayed_utterance_does_not_inherit_later_tts_text_for_intent():
     obj._clear_audio_buffers = Mock()
     obj._wake_timestamp = None
 
-    obj._process_transcript("jarvis weather", 0.2, 10.0, 11.0,
+    obj._process_transcript("atlas weather", 0.2, 10.0, 11.0,
                             captured_during_tts=False, captured_tts_start_time=0, generation=obj._capture_generation, language=None)
 
     assert obj._intent_judge.judge.call_args.kwargs["last_tts_text"] == ""
@@ -767,7 +767,7 @@ def test_listener_reports_missing_default_before_loading_whisper(monkeypatch, ca
 @pytest.fixture(autouse=True)
 def cached_whisper_files(monkeypatch):
     """Model-loading tests use synthetic local files and never access the Hub."""
-    monkeypatch.setattr("jarvis.listening.model_download.prepare_faster_whisper_model",
+    monkeypatch.setattr("atlas.listening.model_download.prepare_faster_whisper_model",
                         lambda name: name)
 
 
@@ -780,7 +780,7 @@ def test_speech_reaches_whisper_at_configured_boundary(
     monkeypatch, frame_ms, tts_speaking, limit_frames, silent_endpoint,
 ):
     from unittest.mock import MagicMock
-    from jarvis.config import load_settings
+    from atlas.config import load_settings
 
     from dataclasses import replace
     cfg = replace(
@@ -797,7 +797,7 @@ def test_speech_reaches_whisper_at_configured_boundary(
     monkeypatch.setattr(VoiceListener, '_decode_faster_whisper', lambda *a: ([], None))
     monkeypatch.setattr(VoiceListener, '_start_llm_warmup', lambda _self: [])
     monkeypatch.setattr(VoiceListener, '_start_transcription_worker', lambda _self: None)
-    monkeypatch.setattr('jarvis.activity.get_jarvis_state', lambda: MagicMock())
+    monkeypatch.setattr('atlas.activity.get_atlas_state', lambda: MagicMock())
     obj = VoiceListener(MagicMock(), cfg, SimpleNamespace(enabled=True, is_speaking=lambda: tts_speaking, set_playback_callbacks=lambda *callbacks: None, preparing_request_at=lambda timestamp: None), None)
     frame_samples = cfg.sample_rate * frame_ms // 1000
     speech_frames = limit_frames - 2 if silent_endpoint else limit_frames * 3

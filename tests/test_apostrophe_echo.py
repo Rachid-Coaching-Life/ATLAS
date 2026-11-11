@@ -1,7 +1,7 @@
 """Typographic punctuation preserves literal echo and real word distinctions."""
 import pytest
 
-from jarvis.listening.echo_detection import EchoDetector
+from atlas.listening.echo_detection import EchoDetector
 from test_hot_window_input import (
     _accepted_query, _create_listener, _install_intent_judge, _make_judgment,
     _process_transcript, _simulate_tts_finish, _wait_for_hot_window_state,

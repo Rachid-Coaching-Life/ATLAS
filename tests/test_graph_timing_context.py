@@ -4,8 +4,8 @@ from unittest.mock import patch
 
 import pytest
 
-from jarvis.memory import graph_ops
-from jarvis.llm.ollama import OllamaBackend
+from atlas.memory import graph_ops
+from atlas.llm.ollama import OllamaBackend
 from tests.performance.timing_recorder import TimingRecorder
 
 pytestmark = pytest.mark.unit

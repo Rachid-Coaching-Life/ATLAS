@@ -5,8 +5,8 @@ from pathlib import Path, PureWindowsPath
 
 import pytest
 
-import jarvis.config as config_module
-from jarvis.config import load_settings
+import atlas.config as config_module
+from atlas.config import load_settings
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 
@@ -14,17 +14,17 @@ pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 def _write_config(tmp_path, monkeypatch, values):
     cfg_path = tmp_path / "config.json"
     cfg_path.write_text(json.dumps(values))
-    monkeypatch.setenv("JARVIS_CONFIG_PATH", str(cfg_path))
+    monkeypatch.setenv("ATLAS_CONFIG_PATH", str(cfg_path))
 
 
 def test_tilde_db_path_is_expanded(tmp_path, monkeypatch):
     """The example-config db_path value must never produce a literal '~' path."""
-    _write_config(tmp_path, monkeypatch, {"db_path": "~/.local/share/jarvis/jarvis.db"})
+    _write_config(tmp_path, monkeypatch, {"db_path": "~/.local/share/atlas/atlas.db"})
 
     cfg = load_settings()
 
     assert "~" not in cfg.db_path
-    assert cfg.db_path == str(Path("~/.local/share/jarvis/jarvis.db").expanduser())
+    assert cfg.db_path == str(Path("~/.local/share/atlas/atlas.db").expanduser())
 
 
 def test_other_path_settings_are_expanded(tmp_path, monkeypatch):
@@ -53,7 +53,7 @@ def test_null_db_path_falls_back_to_default(tmp_path, monkeypatch):
     cfg = load_settings()
 
     assert "null" not in cfg.db_path
-    assert cfg.db_path.endswith("jarvis.db")
+    assert cfg.db_path.endswith("atlas.db")
 
 
 def test_tilde_whisper_model_path_is_expanded(tmp_path, monkeypatch):
@@ -104,7 +104,7 @@ def test_a_local_whisper_model_directory_is_still_a_path(tmp_path, monkeypatch):
 
 def test_absolute_and_unset_paths_are_untouched(tmp_path, monkeypatch):
     """Absolute paths pass through unchanged; unset optional paths stay None."""
-    db = tmp_path / "jarvis.db"
+    db = tmp_path / "atlas.db"
     _write_config(tmp_path, monkeypatch, {"db_path": str(db)})
 
     cfg = load_settings()

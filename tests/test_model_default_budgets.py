@@ -5,9 +5,9 @@ import platform
 import pytest
 
 from desktop_app import setup_wizard
-from jarvis.config import DEFAULT_CHAT_MODEL, DEFAULT_FAST_MODEL
-from jarvis import config
-from jarvis.utils import vram
+from atlas.config import DEFAULT_CHAT_MODEL, DEFAULT_FAST_MODEL
+from atlas import config
+from atlas.utils import vram
 
 pytestmark = pytest.mark.unit
 

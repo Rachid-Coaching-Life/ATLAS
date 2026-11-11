@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from jarvis.dictation import dictation_engine as dictation
+from atlas.dictation import dictation_engine as dictation
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 

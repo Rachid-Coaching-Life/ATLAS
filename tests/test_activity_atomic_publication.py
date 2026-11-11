@@ -5,18 +5,18 @@ from pathlib import Path
 import threading
 
 import pytest
-from jarvis import activity
+from atlas import activity
 
 pytestmark = pytest.mark.unit
 
 
 def test_observer_keeps_the_published_state_during_another_write(monkeypatch, tmp_path):
     path = tmp_path / 'state'
-    monkeypatch.setattr(activity, '_get_jarvis_state_file', lambda: str(path))
-    writer = activity.JarvisStateManager()
-    observer = activity.JarvisStateManager()
-    writer.set_state(activity.JarvisState.LISTENING)
-    assert observer.state is activity.JarvisState.LISTENING
+    monkeypatch.setattr(activity, '_get_atlas_state_file', lambda: str(path))
+    writer = activity.AtlasStateManager()
+    observer = activity.AtlasStateManager()
+    writer.set_state(activity.AtlasState.LISTENING)
+    assert observer.state is activity.AtlasState.LISTENING
     started, release = threading.Event(), threading.Event()
 
     class PausedWrite:
@@ -25,7 +25,7 @@ def test_observer_keeps_the_published_state_during_another_write(monkeypatch, tm
         def __enter__(self): return self
         def __exit__(self, *args): return self.stream.__exit__(*args)
         def write(self, text):
-            if text == activity.JarvisState.THINKING.value:
+            if text == activity.AtlasState.THINKING.value:
                 started.set()
                 assert release.wait(3), 'Owned publication probe was not released'
             return self.stream.write(text)
@@ -40,7 +40,7 @@ def test_observer_keeps_the_published_state_during_another_write(monkeypatch, tm
 
     monkeypatch.setattr(builtins, 'open', wrap(builtins.open))
     monkeypatch.setattr(io, 'open', wrap(io.open))
-    worker = threading.Thread(target=writer.set_state, args=(activity.JarvisState.THINKING,))
+    worker = threading.Thread(target=writer.set_state, args=(activity.AtlasState.THINKING,))
     worker.start()
     try:
         assert started.wait(2), 'Owned write never reached the test boundary'
@@ -49,8 +49,8 @@ def test_observer_keeps_the_published_state_during_another_write(monkeypatch, tm
         release.set()
         worker.join(3)
     assert not worker.is_alive()
-    assert observed is activity.JarvisState.LISTENING
-    assert observer.state is activity.JarvisState.THINKING
+    assert observed is activity.AtlasState.LISTENING
+    assert observer.state is activity.AtlasState.THINKING
 
 
 def test_publishing_state_does_not_follow_a_shared_path_symlink(monkeypatch, tmp_path):
@@ -61,33 +61,33 @@ def test_publishing_state_does_not_follow_a_shared_path_symlink(monkeypatch, tmp
         path.symlink_to(victim)
     except OSError:
         pytest.skip('Symlink creation is unavailable on this platform')
-    monkeypatch.setattr(activity, '_get_jarvis_state_file', lambda: str(path))
-    manager = activity.JarvisStateManager()
-    manager.set_state(activity.JarvisState.LISTENING)
+    monkeypatch.setattr(activity, '_get_atlas_state_file', lambda: str(path))
+    manager = activity.AtlasStateManager()
+    manager.set_state(activity.AtlasState.LISTENING)
     assert victim.read_text() == 'owned unrelated content'
-    assert path.read_text() == activity.JarvisState.LISTENING.value
+    assert path.read_text() == activity.AtlasState.LISTENING.value
 
 
 def test_failed_publication_preserves_the_previous_file_and_cleans_owned_partials(monkeypatch, tmp_path):
     path = tmp_path / 'state'
-    monkeypatch.setattr(activity, '_get_jarvis_state_file', lambda: str(path))
-    manager = activity.JarvisStateManager()
-    manager.set_state(activity.JarvisState.LISTENING)
+    monkeypatch.setattr(activity, '_get_atlas_state_file', lambda: str(path))
+    manager = activity.AtlasStateManager()
+    manager.set_state(activity.AtlasState.LISTENING)
 
     def denied(*args, **kwargs):
         raise PermissionError('Owned synthetic publication rejection')
 
     monkeypatch.setattr(activity.os, 'replace', denied)
-    manager.set_state(activity.JarvisState.THINKING)
-    assert path.read_text() == activity.JarvisState.LISTENING.value
+    manager.set_state(activity.AtlasState.THINKING)
+    assert path.read_text() == activity.AtlasState.LISTENING.value
     assert sorted(p.name for p in tmp_path.iterdir()) == ['state']
 
 
 def test_failed_temporary_write_preserves_the_published_state(monkeypatch, tmp_path):
     path = tmp_path / 'state'
-    monkeypatch.setattr(activity, '_get_jarvis_state_file', lambda: str(path))
-    manager = activity.JarvisStateManager()
-    manager.set_state(activity.JarvisState.LISTENING)
+    monkeypatch.setattr(activity, '_get_atlas_state_file', lambda: str(path))
+    manager = activity.AtlasStateManager()
+    manager.set_state(activity.AtlasState.LISTENING)
     create = activity.tempfile.NamedTemporaryFile
 
     class InterruptedWrite:
@@ -101,43 +101,43 @@ def test_failed_temporary_write_preserves_the_published_state(monkeypatch, tmp_p
             raise OSError('Owned interrupted write')
 
     monkeypatch.setattr(activity.tempfile, 'NamedTemporaryFile', InterruptedWrite)
-    manager.set_state(activity.JarvisState.THINKING)
-    assert path.read_text() == activity.JarvisState.LISTENING.value
+    manager.set_state(activity.AtlasState.THINKING)
+    assert path.read_text() == activity.AtlasState.LISTENING.value
     assert sorted(p.name for p in tmp_path.iterdir()) == ['state']
 
 
 @pytest.mark.parametrize('reject_second', [False, True])
 def test_concurrent_publishers_do_not_replace_or_clean_each_others_pending_state(monkeypatch, tmp_path, reject_second):
     path = tmp_path / 'state'
-    monkeypatch.setattr(activity, '_get_jarvis_state_file', lambda: str(path))
-    first, second = activity.JarvisStateManager(), activity.JarvisStateManager()
-    first.set_state(activity.JarvisState.LISTENING)
+    monkeypatch.setattr(activity, '_get_atlas_state_file', lambda: str(path))
+    first, second = activity.AtlasStateManager(), activity.AtlasStateManager()
+    first.set_state(activity.AtlasState.LISTENING)
     replace = activity.os.replace
     ready, release = threading.Event(), threading.Event()
 
     def publish(source, destination):
         value = Path(source).read_text()
-        if value == activity.JarvisState.THINKING.value:
+        if value == activity.AtlasState.THINKING.value:
             ready.set()
             assert release.wait(10), 'Owned publication probe was not released'
-        elif reject_second and value == activity.JarvisState.SPEAKING.value:
+        elif reject_second and value == activity.AtlasState.SPEAKING.value:
             raise PermissionError('Owned second publication rejection')
         replace(source, destination)
 
     monkeypatch.setattr(activity.os, 'replace', publish)
-    worker = threading.Thread(target=first.set_state, args=(activity.JarvisState.THINKING,))
+    worker = threading.Thread(target=first.set_state, args=(activity.AtlasState.THINKING,))
     worker.start()
     try:
         assert ready.wait(5)
-        assert path.read_text() == activity.JarvisState.LISTENING.value
-        second.set_state(activity.JarvisState.SPEAKING)
-        expected = activity.JarvisState.LISTENING if reject_second else activity.JarvisState.SPEAKING
+        assert path.read_text() == activity.AtlasState.LISTENING.value
+        second.set_state(activity.AtlasState.SPEAKING)
+        expected = activity.AtlasState.LISTENING if reject_second else activity.AtlasState.SPEAKING
         assert path.read_text() == expected.value
     finally:
         release.set()
         worker.join(5)
     assert not worker.is_alive()
-    assert path.read_text() == activity.JarvisState.THINKING.value
+    assert path.read_text() == activity.AtlasState.THINKING.value
     assert sorted(p.name for p in tmp_path.iterdir()) == ['state']
 
 
@@ -145,26 +145,26 @@ def test_concurrent_publishers_do_not_replace_or_clean_each_others_pending_state
 @pytest.mark.parametrize('publisher', ['direct', 'piper', 'chatterbox'])
 def test_one_manager_publishes_concurrent_updates_in_assignment_order(monkeypatch, tmp_path, reject_first, publisher):
     path = tmp_path / 'state'
-    monkeypatch.setattr(activity, '_get_jarvis_state_file', lambda: str(path))
-    manager = activity.JarvisStateManager()
-    manager.set_state(activity.JarvisState.LISTENING)
+    monkeypatch.setattr(activity, '_get_atlas_state_file', lambda: str(path))
+    manager = activity.AtlasStateManager()
+    manager.set_state(activity.AtlasState.LISTENING)
     replace = activity.os.replace
     ready, release = threading.Event(), threading.Event()
     second_started, second_finished = threading.Event(), threading.Event()
 
     def publish(source, destination):
-        if Path(source).read_text() == activity.JarvisState.THINKING.value:
+        if Path(source).read_text() == activity.AtlasState.THINKING.value:
             ready.set()
             assert release.wait(5), 'Owned publication probe was not released'
             if reject_first:
                 raise PermissionError('Owned first publication rejection')
         replace(source, destination)
 
-    monkeypatch.setattr(activity, '_jarvis_state_instance', manager)
+    monkeypatch.setattr(activity, '_atlas_state_instance', manager)
     if publisher == 'direct':
-        update = lambda: manager.set_state(activity.JarvisState.SPEAKING)
+        update = lambda: manager.set_state(activity.AtlasState.SPEAKING)
     else:
-        from jarvis.output.tts import PiperTTS, ChatterboxTTS, SpeechRequest
+        from atlas.output.tts import PiperTTS, ChatterboxTTS, SpeechRequest
         backend = PiperTTS if publisher == 'piper' else ChatterboxTTS
         engine = backend()
         update = lambda: engine._begin_playback(SpeechRequest('Owned speech'), 1.0)
@@ -175,7 +175,7 @@ def test_one_manager_publishes_concurrent_updates_in_assignment_order(monkeypatc
         second_finished.set()
 
     monkeypatch.setattr(activity.os, 'replace', publish)
-    first = threading.Thread(target=manager.set_state, args=(activity.JarvisState.THINKING,))
+    first = threading.Thread(target=manager.set_state, args=(activity.AtlasState.THINKING,))
     second = threading.Thread(target=update_second)
     first.start()
     try:
@@ -192,7 +192,7 @@ def test_one_manager_publishes_concurrent_updates_in_assignment_order(monkeypatc
             second.join(3)
     assert not first.is_alive() and not second.is_alive()
     assert second_finished.is_set()
-    assert manager.state is activity.JarvisState.SPEAKING
+    assert manager.state is activity.AtlasState.SPEAKING
     path.unlink()
-    assert manager.state is activity.JarvisState.SPEAKING
+    assert manager.state is activity.AtlasState.SPEAKING
     assert not list(tmp_path.iterdir())

@@ -13,7 +13,7 @@ import math
 # independently select EVAL_VERIFIER_MODEL on the same local transport.
 # The unset model follows the product chat default; EVAL_JUDGE_MODEL selects
 # another supported tier when comparing quality on constrained hardware.
-from jarvis.config import DEFAULT_CHAT_MODEL
+from atlas.config import DEFAULT_CHAT_MODEL
 
 JUDGE_MODEL = os.environ.get("EVAL_JUDGE_MODEL", DEFAULT_CHAT_MODEL)
 JUDGE_BASE_URL = os.environ.get("EVAL_JUDGE_BASE_URL", "http://localhost:11434")
@@ -104,7 +104,7 @@ def assert_not_fallback_reply(response: Optional[str], context: str = "") -> Non
 # grounded in that result.
 #
 # The digest prompt (``_LOOP_DIGEST_SYSTEM_PROMPT`` in
-# ``src/jarvis/reply/enrichment.py``) instructs the LLM to open with a
+# ``src/atlas/reply/enrichment.py``) instructs the LLM to open with a
 # caveat about not finishing. The phrases below are the canonical English
 # shapes that prompt produces; a drift pin test keeps them aligned with
 # the source prompt.
@@ -173,7 +173,7 @@ def seed_diary_summaries(
             date_utc=date_utc,
             summary=summary,
             topics=None,
-            source_app="jarvis",
+            source_app="atlas",
         )
 
 
@@ -228,7 +228,7 @@ def create_mock_tool_run(
     responses = responses or {}
 
     def mock_tool_run(db, cfg, tool_name, tool_args, **kwargs):
-        from jarvis.tools.types import ToolExecutionResult
+        from atlas.tools.types import ToolExecutionResult
         capture.record(tool_name, tool_args or {})
         reply = responses.get(tool_name, "OK")
         return ToolExecutionResult(success=True, reply_text=reply)
@@ -325,9 +325,9 @@ def isolated_voice_settings():
     from pathlib import Path
     from unittest.mock import patch
     from dataclasses import replace
-    from jarvis.config import load_settings
+    from atlas.config import load_settings
     selected = voice_config()
-    with tempfile.TemporaryDirectory(prefix="jarvis-speech-eval-") as directory:
+    with tempfile.TemporaryDirectory(prefix="atlas-speech-eval-") as directory:
         path = Path(directory) / "config.json"
         path.write_text(json.dumps({
             "llm_provider": selected.llm_provider, "llm_base_url": selected.llm_base_url,
@@ -336,7 +336,7 @@ def isolated_voice_settings():
             "memory_enrichment_source": "diary", "location_enabled": False,
             "tts_enabled": False, "mcps": {},
         }))
-        with patch.dict(os.environ, {"JARVIS_CONFIG_PATH": str(path)}):
+        with patch.dict(os.environ, {"ATLAS_CONFIG_PATH": str(path)}):
             cfg = load_settings()
     return replace(cfg, llm_chat_model=selected.llm_chat_model,
                    ollama_chat_model=selected.llm_chat_model, fast_model=selected.fast_model)
@@ -461,7 +461,7 @@ def is_judge_llm_available() -> bool:
     Supports both Ollama (``/api/tags``) and OpenAI-compatible (``/v1/models``)
     providers. An explicit provider override takes precedence over detection.
     """
-    from jarvis.llm import http
+    from atlas.llm import http
 
     native_base, openai_base = _judge_urls(JUDGE_BASE_URL)
 
@@ -512,7 +512,7 @@ def call_judge_llm(system_prompt: str, user_prompt: str, timeout_sec: float = 12
     endpoints. An explicit provider override takes precedence over detection.
     ``response_schema`` requests constrained JSON; other callers retain free text.
     """
-    from jarvis.llm import http
+    from atlas.llm import http
 
     native_base, openai_base = _judge_urls(JUDGE_BASE_URL)
 

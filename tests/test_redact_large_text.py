@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 import pytest
 
-from jarvis.utils.redact import redact, scrub_secrets
+from atlas.utils.redact import redact, scrub_secrets
 
 pytestmark = pytest.mark.unit
 
@@ -15,7 +15,7 @@ def test_large_text_completes_with_correct_redaction(ending):
     script = """
 import sys
 sys.path.insert(0, sys.argv[1])
-from jarvis.utils.redact import redact, scrub_secrets
+from atlas.utils.redact import redact, scrub_secrets
 text = 'g' * 131072 + sys.argv[2]
 expected = '[REDACTED_EMAIL]' if sys.argv[2] == '@example.test' else text
 assert scrub_secrets(text) == expected

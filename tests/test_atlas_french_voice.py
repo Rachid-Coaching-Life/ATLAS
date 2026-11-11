@@ -10,7 +10,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 
 def test_unconfigured_piper_downloads_french_voice(monkeypatch, tmp_path):
     """An existing null tts_piper_model_path must select French, not English."""
-    from jarvis.output import tts as speech
+    from atlas.output import tts as speech
 
     monkeypatch.setattr(speech, "_get_piper_models_dir", lambda: tmp_path)
     requested_voices = []
@@ -28,7 +28,7 @@ def test_unconfigured_piper_downloads_french_voice(monkeypatch, tmp_path):
 
 def test_configured_piper_model_stays_prioritary(monkeypatch, tmp_path):
     """Personal voice selection must not be overridden by the new default."""
-    from jarvis.output import tts as speech
+    from atlas.output import tts as speech
 
     monkeypatch.setattr(speech, "_get_piper_models_dir", lambda: tmp_path)
     requested_voices = []
@@ -47,7 +47,7 @@ def test_configured_piper_model_stays_prioritary(monkeypatch, tmp_path):
 
 def test_french_piper_catalog_paths(monkeypatch, tmp_path):
     """French model and metadata use the exact official Piper v1.0.0 paths."""
-    from jarvis.output import tts as speech
+    from atlas.output import tts as speech
 
     monkeypatch.setattr(speech, "_get_piper_models_dir", lambda: tmp_path)
     downloaded = []
@@ -72,7 +72,7 @@ def test_active_tts_never_inserts_english_only_instruction(
     mock_config, db, dialogue_memory, monkeypatch,
 ):
     """The alternate direct-TTS reply path must honour French-only persona."""
-    from jarvis.reply import engine
+    from atlas.reply import engine
 
     monkeypatch.setattr(engine, "plan_query", lambda *args, **kwargs: [])
     monkeypatch.setattr(
@@ -131,7 +131,7 @@ def test_active_tts_never_inserts_english_only_instruction(
 )
 def test_piper_corrects_only_atlas_name_for_synthesis(original, expected):
     """Isolated name pronunciation keeps punctuation boundaries inside raw phonemes."""
-    from jarvis.output.tts import _prepare_piper_synthesis_text
+    from atlas.output.tts import _prepare_piper_synthesis_text
 
     assert _prepare_piper_synthesis_text(original) == expected
 
@@ -141,7 +141,7 @@ def test_piper_phonemes_do_not_modify_request_or_echo_text(monkeypatch):
     import sys
     from types import ModuleType, SimpleNamespace
 
-    from jarvis.output.tts import PiperTTS
+    from atlas.output.tts import PiperTTS
 
     tts = PiperTTS(enabled=True)
     spoken = []
@@ -175,8 +175,8 @@ def test_piper_phonemes_do_not_modify_request_or_echo_text(monkeypatch):
 
 def test_voice_reply_engine_exception_speaks_french_error(monkeypatch, mock_config):
     """Unexpected voice reply failure must never speak an English fallback."""
-    from jarvis.listening import listener as listening
-    from jarvis.reply import engine
+    from atlas.listening import listener as listening
+    from atlas.reply import engine
 
     spoken = []
 

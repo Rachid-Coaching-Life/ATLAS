@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from jarvis.dictation import dictation_engine as module
+from atlas.dictation import dictation_engine as module
 
 pytestmark = pytest.mark.unit
 

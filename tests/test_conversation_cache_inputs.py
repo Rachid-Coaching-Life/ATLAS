@@ -1,8 +1,8 @@
 """Conversation caches reuse identical inputs and respect changed evidence."""
 import pytest
 
-from jarvis.reply import engine
-from jarvis.tools.registry import ToolSpec
+from atlas.reply import engine
+from atlas.tools.registry import ToolSpec
 
 pytestmark = pytest.mark.unit
 
@@ -17,8 +17,8 @@ def reply_context(monkeypatch, mock_config, db, dialogue_memory):
     mock_config.memory_enrichment_source = 'diary'
     monkeypatch.setattr(engine, 'plan_query', lambda **kwargs: ['Reply to the user.'])
     monkeypatch.setattr(engine, '_live_time_location_string', lambda cfg: '')
-    monkeypatch.setattr('jarvis.memory.graph_ops.build_warm_profile', lambda store: {})
-    monkeypatch.setattr('jarvis.memory.graph_ops.format_warm_profile_block', lambda profile: '')
+    monkeypatch.setattr('atlas.memory.graph_ops.build_warm_profile', lambda store: {})
+    monkeypatch.setattr('atlas.memory.graph_ops.format_warm_profile_block', lambda profile: '')
 
     def chat(cfg, messages, *, tools=None, **kwargs):
         names = [tool['function']['name'] for tool in tools or []]
@@ -57,7 +57,7 @@ def test_repeated_query_respects_changed_live_facts(monkeypatch, reply_context):
 def test_repeated_query_respects_changed_catalogue(monkeypatch, reply_context, mock_config, changed_field):
     mock_config.mcps = {'fixture': {}}
     specs = {'topic': ToolSpec('topic', 'weather', {'type': 'object', 'required': ['weather']})}
-    monkeypatch.setattr('jarvis.tools.registry.get_cached_mcp_tools', lambda: specs.copy())
+    monkeypatch.setattr('atlas.tools.registry.get_cached_mcp_tools', lambda: specs.copy())
     monkeypatch.setattr(engine, '_build_enrichment_context_hint', lambda cfg, messages: 'Stable context')
 
     def route(*, mcp_tools, **kwargs):
@@ -80,7 +80,7 @@ def test_repeated_query_respects_changed_catalogue(monkeypatch, reply_context, m
 def test_identical_router_inputs_reuse_result_if_router_is_unavailable(monkeypatch, reply_context, mock_config, description):
     mock_config.mcps = {'fixture': {}}
     specs = {'topic': ToolSpec('topic', description, {'type': 'object', 'properties': {'a': {}, 'b': {}}})}
-    monkeypatch.setattr('jarvis.tools.registry.get_cached_mcp_tools', lambda: specs.copy())
+    monkeypatch.setattr('atlas.tools.registry.get_cached_mcp_tools', lambda: specs.copy())
     monkeypatch.setattr(engine, '_build_enrichment_context_hint', lambda cfg, messages: 'Stable context')
     monkeypatch.setattr(engine, 'select_tools', lambda **kwargs: ['getWeather', 'stop'])
     first = reply_context('Check my topic.')
@@ -97,7 +97,7 @@ def test_identical_router_inputs_reuse_result_if_router_is_unavailable(monkeypat
 def memory_reply_context(monkeypatch, reply_context):
     monkeypatch.setattr(engine, 'select_tools', lambda **kwargs: ['webSearch', 'stop'])
     monkeypatch.setattr(engine, 'plan_query', lambda **kwargs: [])
-    monkeypatch.setattr('jarvis.memory.conversation.search_conversation_memory_by_keywords',
+    monkeypatch.setattr('atlas.memory.conversation.search_conversation_memory_by_keywords',
                         lambda **kwargs: ['MEAL_MEMORY_FIXTURE' if 'food' in kwargs['keywords'] else 'WEATHER_MEMORY_FIXTURE'])
 
     def chat(cfg, messages, **kwargs):

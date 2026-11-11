@@ -22,7 +22,7 @@ from desktop_app.settings_window import (
     _MCPEditDialog,
 )
 from desktop_app.mcp_catalogue import CATALOGUE_BY_NAME
-from jarvis.config import get_default_config
+from atlas.config import get_default_config
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 
@@ -38,7 +38,7 @@ class TestFieldMetadata:
             page = MagicMock(spec=WhisperSetupPage)
             page._is_english_only = english_only
             page._is_apple_silicon = False
-            with patch("jarvis.listening.whisper_capabilities.is_faster_whisper_turbo_supported", return_value=True):
+            with patch("atlas.listening.whisper_capabilities.is_faster_whisper_turbo_supported", return_value=True):
                 options = WhisperSetupPage._get_current_model_options(page)
             for model_id, *_ in options:
                 assert model_id in choices
@@ -498,20 +498,20 @@ class TestMCPCatalogueDialogLogic:
 
     def test_is_node_available_returns_true_when_found(self):
         """_is_node_available returns True when _resolve_command succeeds."""
-        with patch("jarvis.tools.external.mcp_client._resolve_command", return_value="/usr/bin/npx"):
+        with patch("atlas.tools.external.mcp_client._resolve_command", return_value="/usr/bin/npx"):
             assert _MCPCatalogueDialog._is_node_available() is True
 
     def test_is_node_available_returns_false_when_missing(self):
         """_is_node_available returns False when _resolve_command raises."""
-        with patch("jarvis.tools.external.mcp_client._resolve_command", side_effect=FileNotFoundError("not found")):
+        with patch("atlas.tools.external.mcp_client._resolve_command", side_effect=FileNotFoundError("not found")):
             assert _MCPCatalogueDialog._is_node_available() is False
 
 
 def test_settings_keep_one_active_speech_detector_control(settings_config_path, monkeypatch):
     from PyQt6.QtWidgets import QLabel
     from desktop_app import settings_window as sw
-    from jarvis.config import load_settings
-    from jarvis.listening import listener as capture
+    from atlas.config import load_settings
+    from atlas.listening import listener as capture
     from types import SimpleNamespace
     import numpy as np
 
@@ -526,7 +526,7 @@ def test_settings_keep_one_active_speech_detector_control(settings_config_path, 
     assert saved['vad_enabled'] is False
     assert saved['whisper_vad'] is True, 'Unmanaged disk keys must be preserved'
 
-    monkeypatch.setenv('JARVIS_CONFIG_PATH', str(path))
+    monkeypatch.setenv('ATLAS_CONFIG_PATH', str(path))
     cfg = load_settings()
     monkeypatch.setattr(capture, 'create_intent_judge', lambda cfg: None)
     monkeypatch.setattr(capture, 'webrtcvad', SimpleNamespace(

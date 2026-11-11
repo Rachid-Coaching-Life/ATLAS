@@ -26,7 +26,7 @@ CASES = [
 def test_completed_transactions_preserve_only_established_knowledge(
     monkeypatch, summary, fact, retained,
 ):
-    from jarvis.memory import graph_ops
+    from atlas.memory import graph_ops
 
     original = graph_ops.call_llm_direct
     branch = 'DIRECTIVES' if fact.startswith('Always') else 'USER'
@@ -46,7 +46,7 @@ def test_completed_transactions_preserve_only_established_knowledge(
 
 @pytest.mark.parametrize('summary', [case[0] for case in CASES[:5]])
 def test_extraction_omits_completed_transactions(summary):
-    from jarvis.memory import graph_ops
+    from atlas.memory import graph_ops
 
     cfg = voice_config()
     assert graph_ops.extract_graph_memories(
@@ -55,7 +55,7 @@ def test_extraction_omits_completed_transactions(summary):
 
 
 def test_mixed_candidates_retain_personal_knowledge(monkeypatch):
-    from jarvis.memory import graph_ops
+    from atlas.memory import graph_ops
 
     summary = (
         'The user asked to delete a meal entry and received confirmation. '

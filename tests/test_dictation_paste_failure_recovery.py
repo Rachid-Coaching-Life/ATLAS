@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis.dictation import dictation_engine
+from atlas.dictation import dictation_engine
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 
@@ -12,7 +12,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 @pytest.mark.parametrize('failure', [None, 'missing', 'controller', 'press', 'tap', 'release'],
                          ids=['success', 'missing-backend', 'controller', 'modifier-press', 'paste', 'modifier-release'])
 def test_paste_failure_retains_clipboard_and_releases_modifier(monkeypatch, capsys, system, failure):
-    monkeypatch.setenv('JARVIS_VOICE_DEBUG', '1')
+    monkeypatch.setenv('ATLAS_VOICE_DEBUG', '1')
     monkeypatch.setattr(dictation_engine.platform, 'system', lambda: system)
     monkeypatch.setattr(dictation_engine.time, 'sleep', lambda _: None)
     text = 'Synthetic dictated text.'

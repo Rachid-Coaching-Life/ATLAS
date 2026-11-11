@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import sys
 
-from jarvis.debug import debug_log
+from atlas.debug import debug_log
 
 _installed = False
 

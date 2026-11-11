@@ -10,7 +10,7 @@ pytestmark = pytest.mark.unit
 @pytest.fixture
 def isolated_profile(tmp_path, monkeypatch):
     """Redirect the actual file tool and the task path resolver to a test home."""
-    from jarvis.tools.builtin import local_files
+    from atlas.tools.builtin import local_files
 
     expanduser = local_files.os.path.expanduser
     monkeypatch.setattr(
@@ -23,7 +23,7 @@ def isolated_profile(tmp_path, monkeypatch):
 
 
 def test_inventory_documents_runs_real_local_tool_not_llm(isolated_profile, monkeypatch):
-    from jarvis import tasks
+    from atlas import tasks
 
     root = isolated_profile / "Documents"
     root.mkdir()
@@ -60,7 +60,7 @@ def test_inventory_documents_runs_real_local_tool_not_llm(isolated_profile, monk
 
 
 def test_absent_documents_is_reported_as_failed(isolated_profile):
-    from jarvis import tasks
+    from atlas import tasks
 
     manager = tasks.TaskManager(
         db=object(), cfg=SimpleNamespace(), dialogue_memory=None,
@@ -92,13 +92,13 @@ def test_absent_documents_is_reported_as_failed(isolated_profile):
     ],
 )
 def test_inventory_routes_only_explicit_harmless_intents(prompt, folder):
-    from jarvis.tasks import _direct_file_list_folder
+    from atlas.tasks import _direct_file_list_folder
 
     assert _direct_file_list_folder(prompt) == folder
 
 
 def test_redirected_onedrive_inside_home_is_allowed(isolated_profile):
-    from jarvis.tasks import _local_inventory_directory
+    from atlas.tasks import _local_inventory_directory
 
     root = isolated_profile / "OneDrive" / "Documents"
     root.mkdir(parents=True)
@@ -106,7 +106,7 @@ def test_redirected_onedrive_inside_home_is_allowed(isolated_profile):
 
 
 def test_external_onedrive_relocation_is_rejected(isolated_profile, monkeypatch):
-    from jarvis.tasks import _local_inventory_directory
+    from atlas.tasks import _local_inventory_directory
 
     external = isolated_profile.parent / "different-user-onedrive"
     monkeypatch.setenv("OneDrive", str(external))
@@ -123,7 +123,7 @@ def test_external_onedrive_relocation_is_rejected(isolated_profile, monkeypatch)
 
 
 def test_direct_pdf_inventory_filters_without_loading_file_contents(isolated_profile, monkeypatch):
-    from jarvis import tasks
+    from atlas import tasks
 
     documents = isolated_profile / "Documents"
     documents.mkdir()
@@ -158,7 +158,7 @@ def test_direct_pdf_inventory_filters_without_loading_file_contents(isolated_pro
 
 
 def test_direct_pdf_inventory_no_match_is_a_valid_empty_result(isolated_profile):
-    from jarvis import tasks
+    from atlas import tasks
 
     downloads = isolated_profile / "Downloads"
     downloads.mkdir()
@@ -191,13 +191,13 @@ def test_direct_pdf_inventory_no_match_is_a_valid_empty_result(isolated_profile)
     ],
 )
 def test_pdf_inventory_exact_intents_only(prompt, folder):
-    from jarvis.tasks import _direct_pdf_list_folder
+    from atlas.tasks import _direct_pdf_list_folder
 
     assert _direct_pdf_list_folder(prompt) == folder
 
 
 def test_recursive_pdf_search_reads_names_only_in_nested_folders(isolated_profile, monkeypatch):
-    from jarvis import tasks
+    from atlas import tasks
 
     root = isolated_profile / "Documents"
     nested = root / "Dossiers" / "Projet"
@@ -230,7 +230,7 @@ def test_recursive_pdf_search_reads_names_only_in_nested_folders(isolated_profil
 
 
 def test_bounded_pdf_search_reports_partial_when_entry_limit_hit(isolated_profile, monkeypatch):
-    from jarvis.tools.builtin import local_files
+    from atlas.tools.builtin import local_files
 
     root = isolated_profile / "Downloads"
     root.mkdir()
@@ -244,7 +244,7 @@ def test_bounded_pdf_search_reports_partial_when_entry_limit_hit(isolated_profil
 
 
 def test_bounded_pdf_search_does_not_follow_links(isolated_profile):
-    from jarvis.tools.builtin import local_files
+    from atlas.tools.builtin import local_files
 
     root = isolated_profile / "Documents"
     root.mkdir()
@@ -269,7 +269,7 @@ def test_bounded_pdf_search_does_not_follow_links(isolated_profile):
 
 
 def test_bounded_pdf_search_rejects_outside_profile(isolated_profile):
-    from jarvis.tools.builtin import local_files
+    from atlas.tools.builtin import local_files
 
     other = isolated_profile.parent / "atlas-outside-profile"
     other.mkdir(exist_ok=True)
@@ -281,7 +281,7 @@ def test_bounded_pdf_search_rejects_outside_profile(isolated_profile):
 
 
 def test_bounded_pdf_search_rejects_other_file_types(isolated_profile):
-    from jarvis.tools.builtin.local_files import LocalFilesTool
+    from atlas.tools.builtin.local_files import LocalFilesTool
 
     root = isolated_profile / "Documents"
     root.mkdir()
@@ -308,7 +308,7 @@ def test_bounded_pdf_search_rejects_other_file_types(isolated_profile):
     ],
 )
 def test_recursive_pdf_search_requires_exact_safe_command(prompt, expected):
-    from jarvis.tasks import _direct_recursive_pdf_folder
+    from atlas.tasks import _direct_recursive_pdf_folder
 
     assert _direct_recursive_pdf_folder(prompt) == expected
 
@@ -324,7 +324,7 @@ def test_recursive_pdf_search_requires_exact_safe_command(prompt, expected):
 def test_recursive_pdf_search_respects_other_budgets(
     isolated_profile, monkeypatch, limit_name, limit_value, expected,
 ):
-    from jarvis.tools.builtin import local_files
+    from atlas.tools.builtin import local_files
 
     root = isolated_profile / "Documents"
     nested = root / "Alpha"
@@ -338,7 +338,7 @@ def test_recursive_pdf_search_respects_other_budgets(
 
 
 def test_explicit_pdf_open_uses_windows_association_not_model(isolated_profile, monkeypatch):
-    from jarvis import tasks
+    from atlas import tasks
 
     nested = isolated_profile / "Documents" / "Archives"
     nested.mkdir(parents=True)
@@ -394,7 +394,7 @@ def test_explicit_pdf_open_uses_windows_association_not_model(isolated_profile, 
     ],
 )
 def test_explicit_pdf_open_parser_restricts_targets(prompt, expected):
-    from jarvis.tasks import _direct_pdf_open_request
+    from atlas.tasks import _direct_pdf_open_request
 
     assert _direct_pdf_open_request(prompt) == expected
 
@@ -409,7 +409,7 @@ def test_explicit_pdf_open_parser_restricts_targets(prompt, expected):
 def test_bad_pdf_header_does_not_launch(
     isolated_profile, monkeypatch, content, expected_fragment,
 ):
-    from jarvis import tasks
+    from atlas import tasks
 
     root = isolated_profile / "Documents"
     root.mkdir()
@@ -431,7 +431,7 @@ def test_bad_pdf_header_does_not_launch(
 
 
 def test_missing_or_unapproved_pdf_does_not_launch(isolated_profile, monkeypatch):
-    from jarvis import tasks
+    from atlas import tasks
 
     (isolated_profile / "Documents").mkdir()
     launched = []
@@ -453,7 +453,7 @@ def test_missing_or_unapproved_pdf_does_not_launch(isolated_profile, monkeypatch
 def test_open_pdf_rejects_symlink_even_when_link_stays_inside_home(
     isolated_profile, monkeypatch,
 ):
-    from jarvis import tasks
+    from atlas import tasks
 
     root = isolated_profile / "Documents"
     root.mkdir()
@@ -475,7 +475,7 @@ def test_open_pdf_rejects_symlink_even_when_link_stays_inside_home(
 
 
 def test_windows_launch_error_marks_task_failed(isolated_profile, monkeypatch):
-    from jarvis import tasks
+    from atlas import tasks
 
     root = isolated_profile / "Documents"
     root.mkdir()
@@ -510,7 +510,7 @@ def test_windows_launch_error_marks_task_failed(isolated_profile, monkeypatch):
 def test_unsafe_pdf_open_request_fails_closed_without_llm(
     isolated_profile, monkeypatch, instruction,
 ):
-    from jarvis import tasks
+    from atlas import tasks
 
     documents = isolated_profile / "Documents"
     documents.mkdir()
@@ -537,7 +537,7 @@ def test_unsafe_pdf_open_request_fails_closed_without_llm(
 
 
 def test_spoken_pdf_title_opens_unique_matching_document(isolated_profile, monkeypatch):
-    from jarvis import tasks
+    from atlas import tasks
 
     desktop = isolated_profile / "Desktop"
     desktop.mkdir()
@@ -569,7 +569,7 @@ def test_spoken_pdf_title_opens_unique_matching_document(isolated_profile, monke
 
 
 def test_spoken_pdf_ambiguous_name_never_opens(isolated_profile, monkeypatch):
-    from jarvis import tasks
+    from atlas import tasks
 
     for folder in ("Documents", "Desktop"):
         root = isolated_profile / folder
@@ -592,7 +592,7 @@ def test_spoken_pdf_ambiguous_name_never_opens(isolated_profile, monkeypatch):
 
 
 def test_spoken_pdf_folder_qualifier_resolves_ambiguity(isolated_profile, monkeypatch):
-    from jarvis import tasks
+    from atlas import tasks
 
     for folder in ("Desktop", "Documents"):
         root = isolated_profile / folder
@@ -631,7 +631,7 @@ def test_spoken_pdf_folder_qualifier_resolves_ambiguity(isolated_profile, monkey
     ],
 )
 def test_voice_tasks_only_accept_existing_direct_intents(spoken, expected):
-    from jarvis.tasks import _direct_voice_task_prompt
+    from atlas.tasks import _direct_voice_task_prompt
 
     assert _direct_voice_task_prompt(spoken, "atlas", ()) == expected
 
@@ -651,13 +651,13 @@ def test_voice_tasks_only_accept_existing_direct_intents(spoken, expected):
     ],
 )
 def test_spoken_pdf_request_limits_actions(spoken, expected):
-    from jarvis.tasks import _direct_spoken_pdf_request
+    from atlas.tasks import _direct_spoken_pdf_request
 
     assert _direct_spoken_pdf_request(spoken) == expected
 
 
 def test_spoken_pdf_missing_returns_failed_not_fabricated(isolated_profile, monkeypatch):
-    from jarvis import tasks
+    from atlas import tasks
 
     (isolated_profile / "Desktop").mkdir()
     launches = []

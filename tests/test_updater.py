@@ -90,23 +90,23 @@ class TestGetPlatformAssetName:
     def test_macos_arm64(self):
         with patch("sys.platform", "darwin"):
             with patch("platform.machine", return_value="arm64"):
-                assert get_platform_asset_name() == "Jarvis-macOS-arm64.zip"
+                assert get_platform_asset_name() == "ATLAS-macOS-arm64.zip"
 
     @pytest.mark.unit
     def test_macos_x64(self):
         with patch("sys.platform", "darwin"):
             with patch("platform.machine", return_value="x86_64"):
-                assert get_platform_asset_name() == "Jarvis-macOS-x64.zip"
+                assert get_platform_asset_name() == "ATLAS-macOS-x64.zip"
 
     @pytest.mark.unit
     def test_windows(self):
         with patch("sys.platform", "win32"):
-            assert get_platform_asset_name() == "Jarvis-Windows-x64.zip"
+            assert get_platform_asset_name() == "ATLAS-Windows-x64.zip"
 
     @pytest.mark.unit
     def test_linux(self):
         with patch("sys.platform", "linux"):
-            assert get_platform_asset_name() == "Jarvis-Linux-x64.tar.gz"
+            assert get_platform_asset_name() == "ATLAS-Linux-x64.tar.gz"
 
 
 class TestCheckForUpdates:
@@ -127,7 +127,7 @@ class TestCheckForUpdates:
                 "assets": [
                     {
                         "id": 100001,
-                        "name": "Jarvis-macOS-arm64.zip",
+                        "name": "ATLAS-macOS-arm64.zip",
                         "browser_download_url": "https://example.com/download",
                         "size": 1000,
                     }
@@ -159,7 +159,7 @@ class TestCheckForUpdates:
                 "assets": [
                     {
                         "id": 100002,
-                        "name": "Jarvis-macOS-arm64.zip",
+                        "name": "ATLAS-macOS-arm64.zip",
                         "browser_download_url": "https://example.com/download",
                         "size": 1000,
                     }
@@ -192,7 +192,7 @@ class TestCheckForUpdates:
                 "assets": [
                     {
                         "id": 100003,
-                        "name": "Jarvis-macOS-arm64.zip",
+                        "name": "ATLAS-macOS-arm64.zip",
                         "browser_download_url": "https://example.com/download",
                         "size": 1000,
                     }
@@ -225,7 +225,7 @@ class TestCheckForUpdates:
                 "assets": [
                     {
                         "id": 100004,
-                        "name": "Jarvis-macOS-arm64.zip",
+                        "name": "ATLAS-macOS-arm64.zip",
                         "browser_download_url": "https://example.com/download",
                         "size": 1000,
                     }
@@ -270,7 +270,7 @@ class TestCheckForUpdates:
                 "assets": [
                     {
                         "id": 100005,
-                        "name": "Jarvis-Windows-x64.zip",  # Only Windows asset
+                        "name": "ATLAS-Windows-x64.zip",  # Only Windows asset
                         "browser_download_url": "https://example.com/download",
                         "size": 1000,
                     }
@@ -303,7 +303,7 @@ class TestCheckForUpdates:
                 "assets": [
                     {
                         "id": 200001,
-                        "name": "Jarvis-macOS-arm64.zip",
+                        "name": "ATLAS-macOS-arm64.zip",
                         "browser_download_url": "https://example.com/download",
                         "size": 1000,
                     }
@@ -338,7 +338,7 @@ class TestCheckForUpdates:
                 "assets": [
                     {
                         "id": 200002,  # New asset ID
-                        "name": "Jarvis-macOS-arm64.zip",
+                        "name": "ATLAS-macOS-arm64.zip",
                         "browser_download_url": "https://example.com/download",
                         "size": 1000,
                     }
@@ -371,7 +371,7 @@ class TestCheckForUpdates:
                 "assets": [
                     {
                         "id": 200001,  # Same asset ID as last install
-                        "name": "Jarvis-macOS-arm64.zip",
+                        "name": "ATLAS-macOS-arm64.zip",
                         "browser_download_url": "https://example.com/download",
                         "size": 1000,
                     }
@@ -407,7 +407,7 @@ class TestCheckForUpdates:
                 "assets": [
                     {
                         "id": 200001,
-                        "name": "Jarvis-macOS-arm64.zip",
+                        "name": "ATLAS-macOS-arm64.zip",
                         "browser_download_url": "https://example.com/download",
                         "size": 1000,
                     }
@@ -442,7 +442,7 @@ class TestCheckForUpdates:
                 "assets": [
                     {
                         "id": 200002,
-                        "name": "Jarvis-macOS-arm64.zip",
+                        "name": "ATLAS-macOS-arm64.zip",
                         "browser_download_url": "https://example.com/download",
                         "size": 1000,
                     }
@@ -478,7 +478,7 @@ class TestCheckForUpdates:
                 "assets": [
                     {
                         "id": 200003,
-                        "name": "Jarvis-macOS-arm64.zip",
+                        "name": "ATLAS-macOS-arm64.zip",
                         "browser_download_url": "https://example.com/download",
                         "size": 1000,
                     }
@@ -511,7 +511,7 @@ class TestCheckForUpdates:
                 "assets": [
                     {
                         "id": 200004,
-                        "name": "Jarvis-macOS-arm64.zip",
+                        "name": "ATLAS-macOS-arm64.zip",
                         "browser_download_url": "https://example.com/download",
                         "size": 1000,
                     }
@@ -547,7 +547,7 @@ class TestCheckForUpdates:
                 "assets": [
                     {
                         "id": 200005,
-                        "name": "Jarvis-macOS-arm64.zip",
+                        "name": "ATLAS-macOS-arm64.zip",
                         "browser_download_url": "https://example.com/download",
                         "size": 1000,
                     }
@@ -578,7 +578,7 @@ class TestUpdateStatus:
             prerelease=False,
             html_url="https://example.com",
             download_url="https://example.com/download",
-            asset_name="Jarvis-macOS-arm64.zip",
+            asset_name="ATLAS-macOS-arm64.zip",
             asset_size=1000000,
             release_notes="Test notes",
         )
@@ -616,7 +616,7 @@ class TestUpdateStatus:
                 "prerelease": False,
                 "html_url": "https://example.com/v1.3.0",
                 "body": "* feat: feature three (#3)",
-                "assets": [{"id": 300, "name": "Jarvis-macOS-arm64.zip",
+                "assets": [{"id": 300, "name": "ATLAS-macOS-arm64.zip",
                             "browser_download_url": "https://example.com/dl3", "size": 1000}],
             },
             {
@@ -627,7 +627,7 @@ class TestUpdateStatus:
                 "prerelease": False,
                 "html_url": "https://example.com/v1.2.0",
                 "body": "* fix: bug two (#2)",
-                "assets": [{"id": 200, "name": "Jarvis-macOS-arm64.zip",
+                "assets": [{"id": 200, "name": "ATLAS-macOS-arm64.zip",
                             "browser_download_url": "https://example.com/dl2", "size": 1000}],
             },
             {
@@ -638,7 +638,7 @@ class TestUpdateStatus:
                 "prerelease": False,
                 "html_url": "https://example.com/v1.0.0",
                 "body": "* Initial release",
-                "assets": [{"id": 100, "name": "Jarvis-macOS-arm64.zip",
+                "assets": [{"id": 100, "name": "ATLAS-macOS-arm64.zip",
                             "browser_download_url": "https://example.com/dl1", "size": 1000}],
             },
         ]
@@ -667,7 +667,7 @@ class TestUpdateStatus:
                 "prerelease": False,
                 "html_url": "https://example.com/v1.0.0",
                 "body": "",
-                "assets": [{"id": 100, "name": "Jarvis-macOS-arm64.zip",
+                "assets": [{"id": 100, "name": "ATLAS-macOS-arm64.zip",
                             "browser_download_url": "https://example.com/dl1", "size": 1000}],
             },
         ]
@@ -778,7 +778,7 @@ class TestReleaseInfo:
             prerelease=False,
             html_url="https://github.com/isair/jarvis/releases/tag/v1.2.3",
             download_url="https://github.com/isair/jarvis/releases/download/v1.2.3/Jarvis.zip",
-            asset_name="Jarvis-macOS-arm64.zip",
+            asset_name="ATLAS-macOS-arm64.zip",
             asset_size=52428800,
             release_notes="## Changes\n- Bug fixes",
         )
@@ -800,13 +800,13 @@ class TestInstallUpdateWindows:
         import zipfile
         from unittest.mock import patch, MagicMock, call
 
-        # Create a mock zip file with Jarvis.exe
+        # Create a mock zip file with ATLAS.exe
         zip_path = tmp_path / "update.zip"
         with zipfile.ZipFile(zip_path, "w") as zf:
-            zf.writestr("Jarvis.exe", b"mock executable content")
+            zf.writestr("ATLAS.exe", b"mock executable content")
 
         # Mock get_app_path to return a fake path
-        mock_app_path = tmp_path / "Jarvis.exe"
+        mock_app_path = tmp_path / "ATLAS.exe"
         mock_app_path.write_bytes(b"old executable")
 
         # Import here to avoid issues with platform checks
@@ -868,9 +868,9 @@ class TestInstallUpdateWindows:
 
         zip_path = tmp_path / "update.zip"
         with zipfile.ZipFile(zip_path, "w") as zf:
-            zf.writestr("Jarvis.exe", b"mock executable content")
+            zf.writestr("ATLAS.exe", b"mock executable content")
 
-        mock_app_path = tmp_path / "Program Files" / "Jarvis" / "Jarvis.exe"
+        mock_app_path = tmp_path / "Program Files" / "ATLAS" / "ATLAS.exe"
         mock_app_path.parent.mkdir(parents=True)
         mock_app_path.write_bytes(b"old executable")
 
@@ -924,7 +924,7 @@ class TestInstallUpdateMacos:
         from unittest.mock import patch, MagicMock
 
         zip_path = tmp_path / "update.zip"
-        app_source = tmp_path / "zip_content" / "Jarvis.app"
+        app_source = tmp_path / "zip_content" / "ATLAS.app"
         app_source.mkdir(parents=True)
         (app_source / "Contents").mkdir()
         (app_source / "Contents" / "Info.plist").write_bytes(b"mock plist")
@@ -934,7 +934,7 @@ class TestInstallUpdateMacos:
                 if f.is_file():
                     zf.write(f, arcname=str(f.relative_to(tmp_path / "zip_content")))
 
-        mock_app_path = tmp_path / "Applications" / "Jarvis.app"
+        mock_app_path = tmp_path / "Applications" / "ATLAS.app"
         mock_app_path.mkdir(parents=True)
         (mock_app_path / "existing").write_bytes(b"old bundle")
 
@@ -998,7 +998,7 @@ class TestInstallUpdateMacos:
         from desktop_app.paths import get_log_dir
         assert "lsregister" in script_content
         assert "open -n" in script_content
-        binary_path = str(mock_app_path / "Contents" / "MacOS" / "Jarvis")
+        binary_path = str(mock_app_path / "Contents" / "MacOS" / "ATLAS")
         assert binary_path in script_content, "fallback must exec the bundle's inner binary"
         lsregister_idx = script_content.find("lsregister")
         assert xattr_idx < lsregister_idx < open_idx, "lsregister must run after xattr and before open"
@@ -1011,15 +1011,15 @@ class TestInstallUpdateMacos:
     @pytest.mark.unit
     def test_binary_name_read_from_bundle_info_plist(self, tmp_path):
         """The fallback exec must target the actual CFBundleExecutable, not a
-        hardcoded "Jarvis" — so a future bundle rename doesn't silently break
+        hardcoded "ATLAS" — so a future bundle rename doesn't silently break
         the fallback relaunch."""
         import plistlib
         import zipfile
         from unittest.mock import patch, MagicMock
 
-        custom_binary_name = "JarvisNext"
+        custom_binary_name = "AtlasNext"
         zip_path = tmp_path / "update.zip"
-        app_source = tmp_path / "zip_content" / "Jarvis.app"
+        app_source = tmp_path / "zip_content" / "ATLAS.app"
         (app_source / "Contents").mkdir(parents=True)
         plist_bytes = plistlib.dumps({"CFBundleExecutable": custom_binary_name})
         (app_source / "Contents" / "Info.plist").write_bytes(plist_bytes)
@@ -1029,7 +1029,7 @@ class TestInstallUpdateMacos:
                 if f.is_file():
                     zf.write(f, arcname=str(f.relative_to(tmp_path / "zip_content")))
 
-        mock_app_path = tmp_path / "Applications" / "Jarvis.app"
+        mock_app_path = tmp_path / "Applications" / "ATLAS.app"
         mock_app_path.mkdir(parents=True)
 
         from desktop_app.updater import install_update_macos
@@ -1051,11 +1051,11 @@ class TestInstallUpdateMacos:
         assert expected_binary in script_content, (
             "fallback exec must use CFBundleExecutable from the new bundle"
         )
-        # Shell-quoted; a bare 'Jarvis' occurrence would end with a single
-        # quote, whereas 'JarvisNext' does not.
-        hardcoded_binary = f"{mock_app_path / 'Contents' / 'MacOS' / 'Jarvis'}'"
+        # Shell-quoted; a bare 'ATLAS' occurrence would end with a single
+        # quote, whereas 'AtlasNext' does not.
+        hardcoded_binary = f"{mock_app_path / 'Contents' / 'MacOS' / 'ATLAS'}'"
         assert hardcoded_binary not in script_content, (
-            "must not fall back to hardcoded 'Jarvis' when the bundle reports a different name"
+            "must not fall back to hardcoded 'ATLAS' when the bundle reports a different name"
         )
 
     @pytest.mark.unit
@@ -1080,15 +1080,15 @@ class TestInstallUpdateMacos:
         from unittest.mock import patch, MagicMock
 
         zip_path = tmp_path / "update.zip"
-        app_source = tmp_path / "zip_content" / "Jarvis.app"
+        app_source = tmp_path / "zip_content" / "ATLAS.app"
         (app_source / "Contents" / "MacOS").mkdir(parents=True)
         (app_source / "Contents" / "Info.plist").write_bytes(
-            plistlib.dumps({"CFBundleExecutable": "Jarvis"})
+            plistlib.dumps({"CFBundleExecutable": "ATLAS"})
         )
         # The fallback execs Contents/MacOS/<binary_name>; stub it with a
         # shell script that writes a marker file we can check for.
         marker_path = tmp_path / "fallback_fired.marker"
-        stub_binary = app_source / "Contents" / "MacOS" / "Jarvis"
+        stub_binary = app_source / "Contents" / "MacOS" / "ATLAS"
         stub_binary.write_text(f'#!/bin/bash\necho fired > {marker_path}\n')
         stub_binary.chmod(0o755)
 
@@ -1097,7 +1097,7 @@ class TestInstallUpdateMacos:
                 if f.is_file():
                     zf.write(f, arcname=str(f.relative_to(tmp_path / "zip_content")))
 
-        mock_app_path = tmp_path / "Applications" / "Jarvis.app"
+        mock_app_path = tmp_path / "Applications" / "ATLAS.app"
         mock_app_path.mkdir(parents=True)
 
         # PATH-shadowed stubs: `open` always fails, `xattr` no-ops. The real
@@ -1134,7 +1134,7 @@ class TestInstallUpdateMacos:
         new_app_match = re.search(r"mv '([^']+\.app)' '" + re.escape(str(mock_app_path)) + "'",
                                   captured["text"])
         assert new_app_match, "could not find extracted new_app path in script"
-        new_binary = Path(new_app_match.group(1)) / "Contents" / "MacOS" / "Jarvis"
+        new_binary = Path(new_app_match.group(1)) / "Contents" / "MacOS" / "ATLAS"
         new_binary.chmod(0o755)
 
         # Strip the PID-wait loop so the test doesn't hang on the parent PID,
@@ -1192,24 +1192,24 @@ class TestInstallUpdateMacos:
         """PyInstaller's Qt bundle contains symlinks (framework
         Versions/Current, etc.) that Python's zipfile silently flattens into
         regular files — the extracted bundle then fails to launch with
-        "Jarvis.app can't be opened". The updater must extract with
+        "ATLAS.app can't be opened". The updater must extract with
         `/usr/bin/ditto` when it is available, not zipfile."""
         import plistlib
         import zipfile
         from unittest.mock import patch, MagicMock
 
         zip_path = tmp_path / "update.zip"
-        app_source = tmp_path / "zip_content" / "Jarvis.app"
+        app_source = tmp_path / "zip_content" / "ATLAS.app"
         (app_source / "Contents").mkdir(parents=True)
         (app_source / "Contents" / "Info.plist").write_bytes(
-            plistlib.dumps({"CFBundleExecutable": "Jarvis"})
+            plistlib.dumps({"CFBundleExecutable": "ATLAS"})
         )
         with zipfile.ZipFile(zip_path, "w") as zf:
             for f in app_source.rglob("*"):
                 if f.is_file():
                     zf.write(f, arcname=str(f.relative_to(tmp_path / "zip_content")))
 
-        mock_app_path = tmp_path / "Applications" / "Jarvis.app"
+        mock_app_path = tmp_path / "Applications" / "ATLAS.app"
         mock_app_path.mkdir(parents=True)
 
         # Stand in for /usr/bin/ditto with a real file that the updater's
@@ -1284,7 +1284,7 @@ class TestInstallUpdateMacos:
         import zipfile
 
         zip_path = tmp_path / "update.zip"
-        app_source = tmp_path / "zip_content" / "Jarvis.app" / "Contents"
+        app_source = tmp_path / "zip_content" / "ATLAS.app" / "Contents"
         app_source.mkdir(parents=True)
         (app_source / "Info.plist").write_bytes(b"mock")
         with zipfile.ZipFile(zip_path, "w") as zf:
@@ -1292,7 +1292,7 @@ class TestInstallUpdateMacos:
                 if f.is_file():
                     zf.write(f, arcname=str(f.relative_to(tmp_path / "zip_content")))
 
-        mock_app_path = tmp_path / "Applications" / "Jarvis.app"
+        mock_app_path = tmp_path / "Applications" / "ATLAS.app"
         mock_app_path.mkdir(parents=True)
 
         fake_ditto = tmp_path / "fake_ditto"
@@ -1325,19 +1325,19 @@ class TestInstallUpdateLinux:
         import tarfile
         from unittest.mock import patch, MagicMock
 
-        # Create a mock tar.gz file with Jarvis directory
+        # Create a mock tar.gz file with ATLAS directory
         tar_path = tmp_path / "update.tar.gz"
-        jarvis_dir = tmp_path / "jarvis_content" / "Jarvis"
-        jarvis_dir.mkdir(parents=True)
-        (jarvis_dir / "Jarvis").write_bytes(b"mock executable content")
+        atlas_dir = tmp_path / "atlas_content" / "ATLAS"
+        atlas_dir.mkdir(parents=True)
+        (atlas_dir / "ATLAS").write_bytes(b"mock executable content")
 
         with tarfile.open(tar_path, "w:gz") as tf:
-            tf.add(jarvis_dir, arcname="Jarvis")
+            tf.add(atlas_dir, arcname="ATLAS")
 
         # Mock get_app_path to return a fake path
-        mock_app_dir = tmp_path / "installed" / "Jarvis"
+        mock_app_dir = tmp_path / "installed" / "ATLAS"
         mock_app_dir.mkdir(parents=True)
-        (mock_app_dir / "Jarvis").write_bytes(b"old executable")
+        (mock_app_dir / "ATLAS").write_bytes(b"old executable")
 
         # Import here to avoid issues with platform checks
         from desktop_app.updater import install_update_linux
@@ -1393,9 +1393,9 @@ class TestPathEscaping:
     @pytest.mark.unit
     @pytest.mark.skipif(sys.platform == "win32", reason="Unix path test")
     def test_applescript_normal_path_unchanged(self):
-        path = Path('/Applications/Jarvis.app')
+        path = Path('/Applications/ATLAS.app')
         escaped = _escape_applescript_path(path)
-        assert escaped == '/Applications/Jarvis.app'
+        assert escaped == '/Applications/ATLAS.app'
 
     @pytest.mark.unit
     def test_batch_rejects_percent_sign(self):
@@ -1417,9 +1417,9 @@ class TestPathEscaping:
 
     @pytest.mark.unit
     def test_batch_normal_path_unchanged(self):
-        path = Path('C:\\Program Files\\Jarvis\\Jarvis.exe')
+        path = Path('C:\\Program Files\\ATLAS\\ATLAS.exe')
         escaped = _escape_batch_path(path)
-        assert escaped == 'C:\\Program Files\\Jarvis\\Jarvis.exe'
+        assert escaped == 'C:\\Program Files\\ATLAS\\ATLAS.exe'
 
     @pytest.mark.unit
     def test_shell_escapes_single_quotes(self):
@@ -1444,6 +1444,6 @@ class TestPathEscaping:
     @pytest.mark.unit
     @pytest.mark.skipif(sys.platform == "win32", reason="Unix path test")
     def test_shell_normal_path_wrapped(self):
-        path = Path('/opt/Jarvis/Jarvis')
+        path = Path('/opt/ATLAS/ATLAS')
         escaped = _escape_shell_path(path)
-        assert escaped == "'/opt/Jarvis/Jarvis'"
+        assert escaped == "'/opt/ATLAS/ATLAS'"

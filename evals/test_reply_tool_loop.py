@@ -93,7 +93,7 @@ MOCK_MADRID_LIVE = (
 
 @pytest.fixture
 def browser_tools(configure_mcp_tools):
-    from jarvis.tools.registry import ToolSpec
+    from atlas.tools.registry import ToolSpec
 
     return configure_mcp_tools(ToolSpec(
         name='chrome-devtools__navigate_page',
@@ -132,7 +132,7 @@ def _make_tool_runner(capture: ToolCallCapture, responder):
     """Wrap a responder that maps (name, args) -> reply_text into a
     ``run_tool_with_retries`` replacement."""
 
-    from jarvis.tools.types import ToolExecutionResult
+    from atlas.tools.types import ToolExecutionResult
 
     def _runner(db, cfg, tool_name, tool_args, **kwargs):
         args = tool_args or {}
@@ -158,7 +158,7 @@ class TestRequestedToolExecution:
     def test_requested_navigation_executes_tool(
         self, mock_config, eval_db, eval_dialogue_memory, browser_tools
     ):
-        from jarvis.reply.engine import run_reply_engine
+        from atlas.reply.engine import run_reply_engine
 
         _configure(mock_config)
         capture = ToolCallCapture()
@@ -173,10 +173,10 @@ class TestRequestedToolExecution:
         router = _make_router_stub(["chrome-devtools__navigate_page", "stop"])
         runner = _make_tool_runner(capture, _respond)
 
-        with patch("jarvis.reply.engine.select_tools", side_effect=router), \
-             patch("jarvis.reply.engine.run_tool_with_retries", side_effect=runner), \
+        with patch("atlas.reply.engine.select_tools", side_effect=router), \
+             patch("atlas.reply.engine.run_tool_with_retries", side_effect=runner), \
              patch(
-                 "jarvis.reply.engine.get_location_context_with_timezone",
+                 "atlas.reply.engine.get_location_context_with_timezone",
                  return_value=("Location: Kensington, UK", None),
              ):
             reply = run_reply_engine(
@@ -210,7 +210,7 @@ class TestTerminalOnSuccessfulToolUse:
     def test_single_weather_call_terminates(
         self, mock_config, eval_db, eval_dialogue_memory
     ):
-        from jarvis.reply.engine import run_reply_engine
+        from atlas.reply.engine import run_reply_engine
 
         _configure(mock_config)
         capture = ToolCallCapture()
@@ -223,10 +223,10 @@ class TestTerminalOnSuccessfulToolUse:
         router = _make_router_stub(["getWeather", "stop"])
         runner = _make_tool_runner(capture, _respond)
 
-        with patch("jarvis.reply.engine.select_tools", side_effect=router), \
-             patch("jarvis.reply.engine.run_tool_with_retries", side_effect=runner), \
+        with patch("atlas.reply.engine.select_tools", side_effect=router), \
+             patch("atlas.reply.engine.run_tool_with_retries", side_effect=runner), \
              patch(
-                 "jarvis.reply.engine.get_location_context_with_timezone",
+                 "atlas.reply.engine.get_location_context_with_timezone",
                  return_value=("Location: Paris, France", None),
              ):
             reply = run_reply_engine(
@@ -273,7 +273,7 @@ class TestTerminalOnHonestCantDo:
     def test_no_email_tool_declines_honestly(
         self, mock_config, eval_db, eval_dialogue_memory
     ):
-        from jarvis.reply.engine import run_reply_engine
+        from atlas.reply.engine import run_reply_engine
 
         _configure(mock_config)
         capture = ToolCallCapture()
@@ -289,10 +289,10 @@ class TestTerminalOnHonestCantDo:
         router = _make_router_stub(["getWeather", "stop"])
         runner = _make_tool_runner(capture, _respond)
 
-        with patch("jarvis.reply.engine.select_tools", side_effect=router), \
-             patch("jarvis.reply.engine.run_tool_with_retries", side_effect=runner), \
+        with patch("atlas.reply.engine.select_tools", side_effect=router), \
+             patch("atlas.reply.engine.run_tool_with_retries", side_effect=runner), \
              patch(
-                 "jarvis.reply.engine.get_location_context_with_timezone",
+                 "atlas.reply.engine.get_location_context_with_timezone",
                  return_value=("Location: London, UK", None),
              ):
             reply = run_reply_engine(
@@ -334,7 +334,7 @@ class TestConversationWithIrrelevantTools:
     @pytest.mark.eval
     @requires_judge_llm
     def test_poem_reply_with_irrelevant_tools(self, mock_config, eval_db, eval_dialogue_memory):
-        from jarvis.reply.engine import run_reply_engine
+        from atlas.reply.engine import run_reply_engine
 
         _configure(mock_config)
         mock_config.agentic_max_turns = 4
@@ -351,10 +351,10 @@ class TestConversationWithIrrelevantTools:
         router = _make_router_stub(["getWeather", "stop"])
         runner = _make_tool_runner(capture, _respond)
 
-        with patch("jarvis.reply.engine.select_tools", side_effect=router), \
-             patch("jarvis.reply.engine.run_tool_with_retries", side_effect=runner), \
+        with patch("atlas.reply.engine.select_tools", side_effect=router), \
+             patch("atlas.reply.engine.run_tool_with_retries", side_effect=runner), \
              patch(
-                 "jarvis.reply.engine.get_location_context_with_timezone",
+                 "atlas.reply.engine.get_location_context_with_timezone",
                  return_value=("Location: London, UK", None),
              ):
             reply = run_reply_engine(
@@ -391,7 +391,7 @@ class TestMaxTurnDigestCaveat:
     def test_max_turn_triggers_digest(
         self, mock_config, eval_db, eval_dialogue_memory
     ):
-        from jarvis.reply.engine import run_reply_engine
+        from atlas.reply.engine import run_reply_engine
 
         _configure(mock_config)
         mock_config.agentic_max_turns = 3
@@ -435,14 +435,14 @@ class TestMaxTurnDigestCaveat:
                 }
             }
 
-        with patch("jarvis.reply.engine.select_tools", side_effect=router), \
-             patch("jarvis.reply.engine.run_tool_with_retries", side_effect=runner), \
+        with patch("atlas.reply.engine.select_tools", side_effect=router), \
+             patch("atlas.reply.engine.run_tool_with_retries", side_effect=runner), \
              patch(
-                 "jarvis.reply.engine.get_location_context_with_timezone",
+                 "atlas.reply.engine.get_location_context_with_timezone",
                  return_value=("Location: London, UK", None),
              ), \
-             patch("jarvis.reply.engine.chat_with_messages", side_effect=_always_tool_call), \
-             patch("jarvis.reply.engine.digest_loop_for_max_turns", side_effect=_spy_digest):
+             patch("atlas.reply.engine.chat_with_messages", side_effect=_always_tool_call), \
+             patch("atlas.reply.engine.digest_loop_for_max_turns", side_effect=_spy_digest):
             reply = run_reply_engine(
                 db=eval_db, cfg=mock_config, tts=None,
                 text="Write me a very long essay about abstract algebra.",
@@ -487,7 +487,7 @@ class TestToolSearchToolEscapeHatch:
     def test_toolsearchtool_widens_then_navigate(
         self, mock_config, eval_db, eval_dialogue_memory, browser_tools
     ):
-        from jarvis.reply.engine import run_reply_engine
+        from atlas.reply.engine import run_reply_engine
 
         _configure(mock_config)
         capture = ToolCallCapture()
@@ -506,10 +506,10 @@ class TestToolSearchToolEscapeHatch:
         router = _make_router_stub(["webSearch", "stop"])
         runner = _make_tool_runner(capture, _respond)
 
-        with patch("jarvis.reply.engine.select_tools", side_effect=router), \
-             patch("jarvis.reply.engine.run_tool_with_retries", side_effect=runner), \
+        with patch("atlas.reply.engine.select_tools", side_effect=router), \
+             patch("atlas.reply.engine.run_tool_with_retries", side_effect=runner), \
              patch(
-                 "jarvis.reply.engine.get_location_context_with_timezone",
+                 "atlas.reply.engine.get_location_context_with_timezone",
                  return_value=("Location: Kensington, UK", None),
              ):
             reply = run_reply_engine(
@@ -559,7 +559,7 @@ class TestComplexMultiTurnMultiTool:
         self, mock_config, eval_db, eval_dialogue_memory
     ):
         """Two distinct webSearch calls: entity lookup then filmography."""
-        from jarvis.reply.engine import run_reply_engine
+        from atlas.reply.engine import run_reply_engine
 
         _configure(mock_config)
         capture = ToolCallCapture()
@@ -578,10 +578,10 @@ class TestComplexMultiTurnMultiTool:
         router = _make_router_stub(["webSearch", "stop"])
         runner = _make_tool_runner(capture, _respond)
 
-        with patch("jarvis.reply.engine.select_tools", side_effect=router), \
-             patch("jarvis.reply.engine.run_tool_with_retries", side_effect=runner), \
+        with patch("atlas.reply.engine.select_tools", side_effect=router), \
+             patch("atlas.reply.engine.run_tool_with_retries", side_effect=runner), \
              patch(
-                 "jarvis.reply.engine.get_location_context_with_timezone",
+                 "atlas.reply.engine.get_location_context_with_timezone",
                  return_value=("Location: London, UK", None),
              ):
             reply = run_reply_engine(
@@ -621,7 +621,7 @@ class TestComplexMultiTurnMultiTool:
         self, mock_config, eval_db, eval_dialogue_memory
     ):
         """Two getWeather calls, different locations, reply mentions both."""
-        from jarvis.reply.engine import run_reply_engine
+        from atlas.reply.engine import run_reply_engine
 
         _configure(mock_config)
         capture = ToolCallCapture()
@@ -639,10 +639,10 @@ class TestComplexMultiTurnMultiTool:
         router = _make_router_stub(["getWeather", "stop"])
         runner = _make_tool_runner(capture, _respond)
 
-        with patch("jarvis.reply.engine.select_tools", side_effect=router), \
-             patch("jarvis.reply.engine.run_tool_with_retries", side_effect=runner), \
+        with patch("atlas.reply.engine.select_tools", side_effect=router), \
+             patch("atlas.reply.engine.run_tool_with_retries", side_effect=runner), \
              patch(
-                 "jarvis.reply.engine.get_location_context_with_timezone",
+                 "atlas.reply.engine.get_location_context_with_timezone",
                  return_value=("Location: London, UK", None),
              ):
             reply = run_reply_engine(
@@ -687,7 +687,7 @@ class TestComplexMultiTurnMultiTool:
         self, mock_config, eval_db, eval_dialogue_memory
     ):
         """Turn 2 resolves 'his' to the entity established in turn 1."""
-        from jarvis.reply.engine import run_reply_engine
+        from atlas.reply.engine import run_reply_engine
 
         _configure(mock_config)
         capture = ToolCallCapture()
@@ -705,10 +705,10 @@ class TestComplexMultiTurnMultiTool:
         router = _make_router_stub(["webSearch", "stop"])
         runner = _make_tool_runner(capture, _respond)
 
-        with patch("jarvis.reply.engine.select_tools", side_effect=router), \
-             patch("jarvis.reply.engine.run_tool_with_retries", side_effect=runner), \
+        with patch("atlas.reply.engine.select_tools", side_effect=router), \
+             patch("atlas.reply.engine.run_tool_with_retries", side_effect=runner), \
              patch(
-                 "jarvis.reply.engine.get_location_context_with_timezone",
+                 "atlas.reply.engine.get_location_context_with_timezone",
                  return_value=("Location: London, UK", None),
              ):
             # Turn 1: establish entity
@@ -770,7 +770,7 @@ class TestComplexMultiTurnMultiTool:
     ):
         """At least one webSearch must happen; a tool-call retry is
         acceptable, zero searches is not."""
-        from jarvis.reply.engine import run_reply_engine
+        from atlas.reply.engine import run_reply_engine
 
         _configure(mock_config)
         capture = ToolCallCapture()
@@ -786,10 +786,10 @@ class TestComplexMultiTurnMultiTool:
         router = _make_router_stub(["webSearch", "stop"])
         runner = _make_tool_runner(capture, _respond)
 
-        with patch("jarvis.reply.engine.select_tools", side_effect=router), \
-             patch("jarvis.reply.engine.run_tool_with_retries", side_effect=runner), \
+        with patch("atlas.reply.engine.select_tools", side_effect=router), \
+             patch("atlas.reply.engine.run_tool_with_retries", side_effect=runner), \
              patch(
-                 "jarvis.reply.engine.get_location_context_with_timezone",
+                 "atlas.reply.engine.get_location_context_with_timezone",
                  return_value=("Location: London, UK", None),
              ):
             reply = run_reply_engine(
@@ -823,7 +823,7 @@ class TestComplexMultiTurnMultiTool:
     ):
         """Turn 1: narrow router → toolSearchTool → navigate. Turn 2: a new
         action whose argument must be self-contained ('lo-fi')."""
-        from jarvis.reply.engine import run_reply_engine
+        from atlas.reply.engine import run_reply_engine
 
         _configure(mock_config)
         capture = ToolCallCapture()
@@ -845,10 +845,10 @@ class TestComplexMultiTurnMultiTool:
         router = _make_router_stub(["webSearch", "stop"])
         runner = _make_tool_runner(capture, _respond)
 
-        with patch("jarvis.reply.engine.select_tools", side_effect=router), \
-             patch("jarvis.reply.engine.run_tool_with_retries", side_effect=runner), \
+        with patch("atlas.reply.engine.select_tools", side_effect=router), \
+             patch("atlas.reply.engine.run_tool_with_retries", side_effect=runner), \
              patch(
-                 "jarvis.reply.engine.get_location_context_with_timezone",
+                 "atlas.reply.engine.get_location_context_with_timezone",
                  return_value=("Location: London, UK", None),
              ):
             capture.clear()

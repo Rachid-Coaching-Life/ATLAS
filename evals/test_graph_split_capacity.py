@@ -3,8 +3,8 @@ import pytest
 
 from evals.conftest import requires_judge_llm
 from evals.helpers import voice_config
-from jarvis.memory.graph import GraphMemoryStore, SPLIT_THRESHOLD
-from jarvis.memory.graph_ops import auto_split_node
+from atlas.memory.graph import GraphMemoryStore, SPLIT_THRESHOLD
+from atlas.memory.graph_ops import auto_split_node
 
 pytestmark = [pytest.mark.eval, requires_judge_llm]
 

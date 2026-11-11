@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 from evals.helpers import judge_pass_fail, voice_config
 from evals.tool_routing import requires_judge_llm
-from jarvis.reply import engine
+from atlas.reply import engine
 
 pytestmark = [pytest.mark.eval, requires_judge_llm]
 
@@ -83,7 +83,7 @@ def test_followup_reply_matches_the_recorded_outcome(eval_db, eval_dialogue_memo
     ('appointment', 29, 'Dentist', 'O randevuyu sil.'),
 ])
 def test_planner_uses_recorded_identity_for_other_resources(kind, identity, label, query):
-    from jarvis.reply.planner import plan_query, resolve_next_tool_call, tool_steps_of
+    from atlas.reply.planner import plan_query, resolve_next_tool_call, tool_steps_of
     cfg = voice_config()
     cfg.planner_timeout_sec = 60
     tool = 'deleteResource'

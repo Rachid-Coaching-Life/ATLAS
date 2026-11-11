@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis.listening import listener as voice
+from atlas.listening import listener as voice
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 

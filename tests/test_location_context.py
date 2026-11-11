@@ -2,8 +2,8 @@
 
 import pytest
 
-from jarvis.reply import engine
-from jarvis.utils import location
+from atlas.reply import engine
+from atlas.utils import location
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 

@@ -19,7 +19,7 @@ def case():
     return ComparisonCase(
         name="reference", category="reference", transcript=(
             ("The copper lantern looks good", False),
-            ("Jarvis how much does it cost", False),
+            ("ATLAS how much does it cost", False),
         ), expected_tool="webSearch", argument_terms=("copper", "lantern"),
         answer_terms=("843",), payload="The copper lantern costs £843.",
     )
@@ -361,9 +361,9 @@ def test_native_ollama_replay_preserves_native_controls_and_reports(case, model_
     }
     cfg = comparison_settings(url.removesuffix('/v1'), 'fixture:27b', provider='ollama')
     recorder = RequestRecorder(cfg.llm_base_url, no_thinking=True, provider=cfg.llm_provider)
-    from jarvis.llm import get_llm_backend
+    from atlas.llm import get_llm_backend
     from unittest.mock import patch
-    with patch('jarvis.llm.http.post', recorder.post):
+    with patch('atlas.llm.http.post', recorder.post):
         response = get_llm_backend(cfg).chat(
             cfg.llm_chat_model, [{'role': 'user', 'content': 'Price?'}],
             extra_options={'max_tokens': 33, 'num_ctx': 8192}, thinking=False,
@@ -399,10 +399,10 @@ def test_native_replay_rejects_incomplete_or_empty_responses(model_server, done,
 
 
 @pytest.mark.parametrize('query,passed', [('copper lantern price', True),
-                                           ('copper lantern Jarvis price', False)])
+                                           ('copper lantern ATLAS price', False)])
 def test_address_name_cannot_become_part_of_the_search_target(case, query, passed):
     from dataclasses import replace
-    case = replace(case, forbidden_argument_terms=('jarvis',))
+    case = replace(case, forbidden_argument_terms=('atlas',))
     calls = [{'name': 'webSearch', 'args': {'search_query': query}}]
     assert score_result(case, result(case, tool_calls=calls))['passed'] is passed
 
@@ -421,14 +421,14 @@ def test_replay_speech_fits_the_current_rolling_window(case):
 @pytest.mark.parametrize('hot', [False, True])
 def test_rewrite_control_keeps_its_extraction_prompt_in_both_modes(hot):
     from evals.rewrite_baseline import RewriteBaselineJudge
-    from jarvis.listening.transcript_buffer import TranscriptSegment
+    from atlas.listening.transcript_buffer import TranscriptSegment
     from unittest.mock import Mock, patch
     backend = Mock()
     backend.chat.return_value = {'message': {'content': '{"directed":true,"query":"check weather","stop":false,"confidence":"high"}'}}
     judge = RewriteBaselineJudge()
-    with patch('jarvis.listening.intent_judge.get_llm_backend', return_value=backend):
-        result = judge.judge([TranscriptSegment('Jarvis weather', 1, 2)],
-                             in_hot_window=hot, current_text='Jarvis weather')
+    with patch('atlas.listening.intent_judge.get_llm_backend', return_value=backend):
+        result = judge.judge([TranscriptSegment('ATLAS weather', 1, 2)],
+                             in_hot_window=hot, current_text='ATLAS weather')
     prompt = backend.chat.call_args.args[1][0]['content']
     assert '"query"' in prompt
     assert 'Extract complete query' in prompt
@@ -437,7 +437,7 @@ def test_rewrite_control_keeps_its_extraction_prompt_in_both_modes(hot):
 
 @pytest.mark.parametrize('provider', ['ollama', 'openai_compatible'])
 def test_comparison_uses_the_explicit_models_without_user_config_migrations(provider):
-    from jarvis.llm import resolve_model, Tier
+    from atlas.llm import resolve_model, Tier
     chat, fast = 'selected-comparison-model', 'selected-comparison-fast-model'
     cfg = comparison_settings('http://127.0.0.1:1234', chat, fast_model=fast, provider=provider)
     assert resolve_model(cfg, Tier.CHAT) == chat

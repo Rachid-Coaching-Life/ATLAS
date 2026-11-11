@@ -1,5 +1,5 @@
 {
-  "db_path": "~/.local/share/jarvis/jarvis.db",
+  "db_path": "~/.local/share/atlas/atlas.db",
   "sqlite_vss_path": null,
   "llm_provider": "ollama",
   "llm_base_url": "",

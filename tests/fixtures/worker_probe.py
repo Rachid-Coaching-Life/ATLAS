@@ -22,7 +22,7 @@ for name in ('TMPDIR', 'TEMP', 'TMP'):
 tempfile.tempdir = str(runtime)
 os.environ.update(WORKER_PROBE_ROOT=str(data), WORKER_PRIVATE_ROOT=str(data),
                   XDG_CONFIG_HOME=str(data/'xdg'), XDG_CACHE_HOME=str(runtime/'cache'),
-                  JARVIS_CONFIG_PATH=str(data/'config.json'), QT_QPA_PLATFORM='offscreen')
+                  ATLAS_CONFIG_PATH=str(data/'config.json'), QT_QPA_PLATFORM='offscreen')
 (data/'config.json').write_text(json.dumps({'_config_version': 3, 'voice_debug': False,
                                            'db_path': str(data/'synthetic.sqlite')}))
 Path.home = classmethod(lambda cls: data)

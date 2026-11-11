@@ -9,8 +9,8 @@ import time
 import numpy as np
 import pytest
 
-from jarvis.listening import listener as listener_module
-from jarvis.config import get_default_config
+from atlas.listening import listener as listener_module
+from atlas.config import get_default_config
 
 
 pytestmark = pytest.mark.unit

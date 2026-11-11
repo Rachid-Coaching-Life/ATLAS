@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from evals.helpers import voice_config
-from jarvis.reply.enrichment import _TOOL_DIGEST_MIN_CHARS, digest_tool_result_for_query
+from atlas.reply.enrichment import _TOOL_DIGEST_MIN_CHARS, digest_tool_result_for_query
 
 pytestmark = pytest.mark.unit
 
@@ -32,7 +32,7 @@ def test_tool_digest_preserves_facts_after_reasoning(monkeypatch, provider, thin
                                      'choices': [{'message': {'content': content}}]}
         return response
 
-    monkeypatch.setattr('jarvis.llm.http.post', post)
+    monkeypatch.setattr('atlas.llm.http.post', post)
     result = digest_tool_result_for_query(
         'What temperature does Kyoto station report?', 'fetchWebPage', payload,
         cfg, cfg.llm_chat_model, thinking=thinking,

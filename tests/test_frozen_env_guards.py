@@ -9,8 +9,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis import daemon
-from jarvis.config import load_settings
+from atlas import daemon
+from atlas.config import load_settings
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 
@@ -29,12 +29,12 @@ def test_daemon_launch_mode_controls_synthetic_stdin(monkeypatch, tmp_path, plat
         "location_enabled": False, "mcps": {}, "embedding_model": "",
         "ollama_embed_model": "", "use_stdin": True,
     }), encoding="utf-8")
-    monkeypatch.setenv("JARVIS_CONFIG_PATH", str(config))
+    monkeypatch.setenv("ATLAS_CONFIG_PATH", str(config))
     cfg = load_settings()
     monkeypatch.setattr(daemon, "load_settings", lambda: cfg)
     monkeypatch.setattr(daemon, "_install_signal_handlers", lambda: None)
     monkeypatch.setattr(daemon, "_check_and_update_diary", lambda *a, **k: None)
-    monkeypatch.setattr("jarvis.tools.external.mcp_runtime.shutdown_runtime", lambda: None)
+    monkeypatch.setattr("atlas.tools.external.mcp_runtime.shutdown_runtime", lambda: None)
     monkeypatch.setattr(daemon, "VoiceListener", lambda *a, **k: SimpleNamespace(
         start=lambda: None, stop=lambda: None, join=lambda **k: None,
         is_alive=lambda: False,
@@ -54,9 +54,9 @@ def test_daemon_launch_mode_controls_synthetic_stdin(monkeypatch, tmp_path, plat
     owned_sys.platform, owned_sys.frozen, owned_sys.stdin = platform, bundled, stream
     monkeypatch.setattr(daemon, "sys", owned_sys)
     if ipc is None:
-        monkeypatch.delenv("JARVIS_STDIN_IPC", raising=False)
+        monkeypatch.delenv("ATLAS_STDIN_IPC", raising=False)
     else:
-        monkeypatch.setenv("JARVIS_STDIN_IPC", ipc)
+        monkeypatch.setenv("ATLAS_STDIN_IPC", ipc)
 
     class ControlledThread:
         def __init__(self, *, target, daemon):

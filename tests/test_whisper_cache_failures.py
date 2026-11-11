@@ -3,7 +3,7 @@ import errno
 
 import pytest
 
-from jarvis.listening import model_download
+from atlas.listening import model_download
 
 pytestmark = pytest.mark.unit
 
@@ -46,8 +46,8 @@ def test_worker_preserves_resource_failure_category_without_private_paths(monkey
 
 
 @pytest.mark.parametrize('category,actions', [
-    ('disk_space', ('free', 'space', 'smaller', 'settings', 'restart jarvis')),
-    ('cache_access', ('cache', 'permissions', 'security software', 'restart jarvis')),
+    ('disk_space', ('free', 'space', 'smaller', 'settings', 'restart atlas')),
+    ('cache_access', ('cache', 'permissions', 'security software', 'restart atlas')),
 ])
 def test_resource_failure_explains_recovery_and_keeps_existing_cache(monkeypatch, tmp_path, capsys, category, actions):
     cached = tmp_path / 'model-cache' / 'model.bin'

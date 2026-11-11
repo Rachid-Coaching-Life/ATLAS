@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from jarvis.memory.graph import (
+from atlas.memory.graph import (
     GraphMemoryStore,
     MemoryNode,
     _estimate_tokens,
@@ -451,7 +451,7 @@ class TestSafetyGuards:
 
     def test_description_truncated_to_max_length(self, store):
         """Descriptions exceeding SUMMARY_MAX_LENGTH are truncated on create and update."""
-        from jarvis.memory.graph import SUMMARY_MAX_LENGTH
+        from atlas.memory.graph import SUMMARY_MAX_LENGTH
 
         long_desc = "a" * (SUMMARY_MAX_LENGTH + 100)
         node = store.create_node(

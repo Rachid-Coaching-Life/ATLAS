@@ -2,7 +2,7 @@ import threading
 from unittest.mock import patch
 from PyQt6.QtWidgets import QApplication
 from pynput import keyboard
-from jarvis.dictation.dictation_engine import _create_keyboard_listener
+from atlas.dictation.dictation_engine import _create_keyboard_listener
 import pynput.keyboard._darwin as backend
 import Quartz
 

@@ -4,16 +4,16 @@ import time
 from types import SimpleNamespace
 
 import pytest
-from jarvis import daemon
-from jarvis.memory.conversation import DialogueMemory
-from jarvis.memory.db import Database
+from atlas import daemon
+from atlas.memory.conversation import DialogueMemory
+from atlas.memory.db import Database
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 
 
 @pytest.fixture
 def runtime(monkeypatch):
-    monkeypatch.delenv('JARVIS_STDIN_IPC', raising=False)
+    monkeypatch.delenv('ATLAS_STDIN_IPC', raising=False)
     for name in ('_global_db', '_global_cfg', '_global_dialogue_memory', '_global_task_manager', '_chat_cancel_event'):
         monkeypatch.setattr(daemon, name, None)
     monkeypatch.setattr(daemon, '_global_stop_requested', False)
@@ -42,7 +42,7 @@ def test_submission_cannot_start_after_shutdown_wins_admission(monkeypatch, runt
     def complete(value):
         replies.append(value)
         completed.set()
-    monkeypatch.setattr('jarvis.reply.engine.run_reply_engine', reply)
+    monkeypatch.setattr('atlas.reply.engine.run_reply_engine', reply)
     daemon.submit_text_query('Owned query', on_complete=complete)
     assert completed.wait(3)
     assert gate.acquire(timeout=3)
@@ -91,8 +91,8 @@ def test_shutdown_does_not_save_or_close_resources_under_an_active_query(monkeyp
     monkeypatch.setattr(daemon, 'VoiceListener', lambda *a, **kw: SimpleNamespace(start=start_voice, stop=lambda: None, join=lambda **kw: None, is_alive=lambda: False))
     monkeypatch.setattr(daemon, 'create_tts_engine', lambda **kw: SimpleNamespace(enabled=False, stop=lambda: None))
     monkeypatch.setattr(daemon, '_check_and_update_diary', save_diary)
-    monkeypatch.setattr('jarvis.tools.external.mcp_runtime.shutdown_runtime', lambda: None)
-    monkeypatch.setattr('jarvis.reply.engine.run_reply_engine', reply)
+    monkeypatch.setattr('atlas.tools.external.mcp_runtime.shutdown_runtime', lambda: None)
+    monkeypatch.setattr('atlas.reply.engine.run_reply_engine', reply)
     if exit_mode != 'requested':
         def interrupted_sleep(seconds):
             if exit_mode == 'interrupt':
