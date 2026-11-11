@@ -261,7 +261,9 @@ def summarize(tool_name: str, args: Any) -> str:
         text = f"localFiles : {operation} sur {_short(given, keep_end=True)}"
         target = describe_target(operation_name, given)
         if target and target != given:
-            text += f" → {_short(target, keep_end=True, limit=100)}"
+            # Refusals must retain their leading warning, even for long paths.
+            refused = target.startswith("[refusé")
+            text += f" → {_short(target, keep_end=not refused, limit=100)}"
         content = args.get("content")
         if isinstance(content, str):
             text += f" ({len(content)} caractères)"
