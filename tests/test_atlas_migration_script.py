@@ -109,6 +109,23 @@ def migrate(repo):
     git(repo, "add", "-A")
 
 
+def test_wake_word_compounds_are_migrated_without_losing_boundary_checks(repo):
+    fixture = repo / "tests/test_wake_alias_boundaries.py"
+    fixture.write_text(L(
+        "def test_word_boundaries():",
+        "    assert 'jarvisian' != 'Jarvis'",
+        "    assert 'Jarvisring' != 'Jarvis'",
+    ), encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "add wake-word boundary fixtures")
+    migrate(repo)
+    migrated = fixture.read_text(encoding="utf-8")
+    assert "'atlasian' != 'ATLAS'" in migrated
+    assert "'Atlasring' != 'ATLAS'" in migrated
+    assert "jarvisian" not in migrated and "Jarvisring" not in migrated
+    tool(repo, "check", "--skip-imports", "--report-dir", reports(repo))
+
+
 def test_inventory_changes_nothing(repo):
     before = git(repo, "status", "--porcelain")
     done = tool(repo, "inventory", "--out", reports(repo) + "/inv.json")
