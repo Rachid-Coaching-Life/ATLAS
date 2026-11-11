@@ -64,9 +64,6 @@ Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Fil
 ; Launch the application after installation
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
-[UninstallDelete]
-Type: filesandordirs; Name: "{app}"
-
 [Code]
 // Check whether the VC++ 2015-2022 runtime is already installed
 function VCRedistNeeded: Boolean;
@@ -124,27 +121,5 @@ begin
       // Download vc_redist.x64.exe from Microsoft
       DownloadTemporaryFile('{#VCRedistURL}', 'vc_redist.x64.exe', '', nil);
     end;
-  end;
-end;
-
-// After installation, clean up the old exe if the installer was launched
-// from a legacy location (e.g. old updater placed it at a custom path).
-// The installer can't delete itself while running, so we schedule a
-// cmd /c del command that retries until the file is unlocked.
-procedure DeinitializeSetup;
-var
-  InstallerPath, InstalledDir: String;
-  ResultCode: Integer;
-begin
-  InstallerPath := ExpandConstant('{srcexe}');
-  InstalledDir := ExpandConstant('{app}');
-  // Only clean up if the installer is NOT inside the installation directory
-  // (i.e. it was placed somewhere else by the old updater)
-  if Pos(Lowercase(InstalledDir), Lowercase(InstallerPath)) = 0 then
-  begin
-    Log('Scheduling cleanup of old installer at: ' + InstallerPath);
-    Exec('cmd.exe',
-      '/c ping -n 3 127.0.0.1 >nul & del /f "' + InstallerPath + '"',
-      '', SW_HIDE, ewNoWait, ResultCode);
   end;
 end;
