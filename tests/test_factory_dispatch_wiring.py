@@ -44,10 +44,10 @@ def provider_config(request):
 # ── direct() wrappers ───────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("module_path", [
-    "jarvis.reply.planner",
-    "jarvis.reply.enrichment",
-    "jarvis.memory.graph_ops",
-    "jarvis.tools.builtin.nutrition.log_meal",
+    "atlas.reply.planner",
+    "atlas.reply.enrichment",
+    "atlas.memory.graph_ops",
+    "atlas.tools.builtin.nutrition.log_meal",
 ])
 def test_call_llm_direct_wrapper_dispatches_via_factory(
     module_path: str, provider_config
@@ -62,8 +62,8 @@ def test_call_llm_direct_wrapper_dispatches_via_factory(
     # Patch the concrete backend classes' .direct so we can see which one
     # the wrapper actually called. Patching at the class level catches the
     # backend regardless of how the factory constructs it.
-    from jarvis.llm.ollama import OllamaBackend
-    from jarvis.llm.openai_compatible import OpenAICompatibleBackend
+    from atlas.llm.ollama import OllamaBackend
+    from atlas.llm.openai_compatible import OpenAICompatibleBackend
 
     with patch.object(OllamaBackend, "direct", return_value="ollama-result"), \
          patch.object(OpenAICompatibleBackend, "direct", return_value="openai-result"):
@@ -83,9 +83,9 @@ def test_call_llm_direct_wrapper_dispatches_via_factory(
 def test_engine_chat_with_messages_dispatches_via_factory(provider_config):
     """``engine.chat_with_messages`` (the agentic-loop boundary) must dispatch
     through the configured provider's factory."""
-    from jarvis.reply import engine as engine_mod
-    from jarvis.llm.ollama import OllamaBackend
-    from jarvis.llm.openai_compatible import OpenAICompatibleBackend
+    from atlas.reply import engine as engine_mod
+    from atlas.llm.ollama import OllamaBackend
+    from atlas.llm.openai_compatible import OpenAICompatibleBackend
 
     cfg = provider_config
 
@@ -100,9 +100,9 @@ def test_engine_chat_with_messages_dispatches_via_factory(provider_config):
 # ── weather extractor (uses get_llm_backend directly, no local wrapper) ────
 
 def test_weather_place_extractor_dispatches_via_factory(provider_config):
-    from jarvis.tools.builtin import weather as weather_mod
-    from jarvis.llm.ollama import OllamaBackend
-    from jarvis.llm.openai_compatible import OpenAICompatibleBackend
+    from atlas.tools.builtin import weather as weather_mod
+    from atlas.llm.ollama import OllamaBackend
+    from atlas.llm.openai_compatible import OpenAICompatibleBackend
 
     cfg = provider_config
 

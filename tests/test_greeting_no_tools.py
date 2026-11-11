@@ -17,7 +17,7 @@ pytestmark = pytest.mark.usefixtures("no_network")
 
 @pytest.fixture(autouse=True)
 def _isolate_decision_models(monkeypatch):
-    from jarvis.reply import engine
+    from atlas.reply import engine
 
     monkeypatch.setattr(engine, "plan_query", lambda *args, **kwargs: [])
     monkeypatch.setattr(engine, "select_tools", lambda **kwargs: list(kwargs["builtin_tools"]))
@@ -121,21 +121,21 @@ class TestGreetingNoTools:
         dialogue_memory,
     ):
         """Greetings and user instructions should not trigger tool calls."""
-        from jarvis.reply.engine import run_reply_engine
+        from atlas.reply.engine import run_reply_engine
 
         capture = ToolCallCapture()
 
         def mock_tool_run(db, cfg, tool_name, tool_args, **kwargs):  # noqa: F841 (shadows fixture)
-            from jarvis.tools.types import ToolExecutionResult
+            from atlas.tools.types import ToolExecutionResult
             capture.record(tool_name, tool_args or {})
             return ToolExecutionResult(success=True, reply_text="Tool result")
 
         def mock_chat(*args, **kwargs):
             return _mock_llm_response("Hello! How can I help you today?")
 
-        with patch('jarvis.reply.engine.run_tool_with_retries', side_effect=mock_tool_run), \
-             patch('jarvis.reply.engine.chat_with_messages', side_effect=mock_chat), \
-             patch('jarvis.reply.engine.extract_search_params_for_memory', return_value={"keywords": []}):
+        with patch('atlas.reply.engine.run_tool_with_retries', side_effect=mock_tool_run), \
+             patch('atlas.reply.engine.chat_with_messages', side_effect=mock_chat), \
+             patch('atlas.reply.engine.extract_search_params_for_memory', return_value={"keywords": []}):
 
             run_reply_engine(
                 db=db, cfg=mock_config, tts=None,
@@ -155,12 +155,12 @@ class TestGreetingNoTools:
         dialogue_memory,
     ):
         """Queries that require tools should still trigger them."""
-        from jarvis.reply.engine import run_reply_engine
+        from atlas.reply.engine import run_reply_engine
 
         capture = ToolCallCapture()
 
         def mock_tool_run(db, cfg, tool_name, tool_args, **kwargs):  # noqa: F841 (shadows fixture)
-            from jarvis.tools.types import ToolExecutionResult
+            from atlas.tools.types import ToolExecutionResult
             capture.record(tool_name, tool_args or {})
             return ToolExecutionResult(success=True, reply_text="Weather: 20C sunny")
 
@@ -178,10 +178,10 @@ class TestGreetingNoTools:
                     return _mock_llm_response("", [_tool_call("fetchMeals", {})])
             return _mock_llm_response("Here's the information you requested.")
 
-        with patch('jarvis.reply.engine.run_tool_with_retries', side_effect=mock_tool_run), \
-             patch('jarvis.reply.engine.chat_with_messages', side_effect=mock_chat), \
-             patch('jarvis.reply.engine.extract_search_params_for_memory', return_value={"keywords": []}), \
-             patch('jarvis.reply.engine.select_tools',
+        with patch('atlas.reply.engine.run_tool_with_retries', side_effect=mock_tool_run), \
+             patch('atlas.reply.engine.chat_with_messages', side_effect=mock_chat), \
+             patch('atlas.reply.engine.extract_search_params_for_memory', return_value={"keywords": []}), \
+             patch('atlas.reply.engine.select_tools',
                    return_value=["webSearch", "getWeather", "fetchMeals", "stop"]):
 
             response = run_reply_engine(
@@ -200,7 +200,7 @@ class TestGreetingNoTools:
         dialogue_memory,
     ):
         """A thinking-only response (no content, no tool call) should continue the loop, not break it."""
-        from jarvis.reply.engine import run_reply_engine
+        from atlas.reply.engine import run_reply_engine
 
         mock_config.llm_chat_model = "gemma4:12b"
         call_count = 0
@@ -214,8 +214,8 @@ class TestGreetingNoTools:
             # Second turn: actual response
             return _mock_llm_response("The answer is 42.")
 
-        with patch('jarvis.reply.engine.chat_with_messages', side_effect=mock_chat), \
-             patch('jarvis.reply.engine.extract_search_params_for_memory', return_value={"keywords": []}):
+        with patch('atlas.reply.engine.chat_with_messages', side_effect=mock_chat), \
+             patch('atlas.reply.engine.extract_search_params_for_memory', return_value={"keywords": []}):
 
             response = run_reply_engine(
                 db=db, cfg=mock_config, tts=None,
@@ -235,12 +235,12 @@ class TestGreetingNoTools:
         dialogue_memory,
     ):
         """All builtin tools should be available regardless of which profile is selected."""
-        from jarvis.reply.engine import run_reply_engine
+        from atlas.reply.engine import run_reply_engine
 
         capture = ToolCallCapture()
 
         def mock_tool_run(db, cfg, tool_name, tool_args, **kwargs):
-            from jarvis.tools.types import ToolExecutionResult
+            from atlas.tools.types import ToolExecutionResult
             capture.record(tool_name, tool_args or {})
             return ToolExecutionResult(success=True, reply_text="Logged: pizza")
 
@@ -253,9 +253,9 @@ class TestGreetingNoTools:
                 return _mock_llm_response("", [_tool_call("logMeal", {"meal": "pizza"})])
             return _mock_llm_response("Logged your meal!")
 
-        with patch('jarvis.reply.engine.run_tool_with_retries', side_effect=mock_tool_run), \
-             patch('jarvis.reply.engine.chat_with_messages', side_effect=mock_chat), \
-             patch('jarvis.reply.engine.extract_search_params_for_memory', return_value={"keywords": []}):
+        with patch('atlas.reply.engine.run_tool_with_retries', side_effect=mock_tool_run), \
+             patch('atlas.reply.engine.chat_with_messages', side_effect=mock_chat), \
+             patch('atlas.reply.engine.extract_search_params_for_memory', return_value={"keywords": []}):
 
             run_reply_engine(
                 db=db, cfg=mock_config, tts=None,

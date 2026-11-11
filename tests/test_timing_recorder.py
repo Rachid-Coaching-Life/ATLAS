@@ -5,10 +5,10 @@ import threading
 
 import pytest
 
-from jarvis import llm
-from jarvis.llm.factory import get_llm_backend
-from jarvis.llm.ollama import OllamaBackend
-from jarvis.llm.openai_compatible import OpenAICompatibleBackend
+from atlas import llm
+from atlas.llm.factory import get_llm_backend
+from atlas.llm.ollama import OllamaBackend
+from atlas.llm.openai_compatible import OpenAICompatibleBackend
 from tests.performance.timing_recorder import TimingRecorder
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
@@ -115,7 +115,7 @@ def test_native_tool_response_is_recorded_without_text(monkeypatch):
 
 
 def test_actual_engine_chat_has_a_main_turn_context(monkeypatch, mock_config):
-    from jarvis.reply.engine import chat_with_messages
+    from atlas.reply.engine import chat_with_messages
 
     mock_config.llm_provider = 'ollama'
     result = {'message': {'content': 'answer'}}

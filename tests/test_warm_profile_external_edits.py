@@ -3,8 +3,8 @@ import sqlite3
 
 import pytest
 
-from jarvis.memory.graph import GraphMemoryStore
-from jarvis.reply import engine
+from atlas.memory.graph import GraphMemoryStore
+from atlas.reply import engine
 
 pytestmark = pytest.mark.unit
 
@@ -79,7 +79,7 @@ def test_unchanged_warm_profile_reuses_cache_when_traversal_is_unavailable(reply
     def unavailable(store):
         raise RuntimeError('Synthetic profile traversal unavailable')
 
-    monkeypatch.setattr('jarvis.memory.graph_ops.build_warm_profile', unavailable)
+    monkeypatch.setattr('atlas.memory.graph_ops.build_warm_profile', unavailable)
     assert reply() == 'Supplied memory: Alpha'
 
 
@@ -93,7 +93,7 @@ def test_changed_profile_is_not_reused_when_rebuilding_fails(reply_context, monk
     def unavailable(store):
         raise RuntimeError('Synthetic profile traversal unavailable')
 
-    monkeypatch.setattr('jarvis.memory.graph_ops.build_warm_profile', unavailable)
+    monkeypatch.setattr('atlas.memory.graph_ops.build_warm_profile', unavailable)
     assert reply() == 'Supplied memory: Absent'
 
 
@@ -151,7 +151,7 @@ def test_graph_reply_readers_close_after_every_retrieval_path(graph_recall_conte
         opened.append(reader.conn)
         return reader
 
-    monkeypatch.setattr('jarvis.memory.graph.GraphMemoryStore', open_store)
+    monkeypatch.setattr('atlas.memory.graph.GraphMemoryStore', open_store)
     if path == 'failure':
         def unavailable(*args):
             raise RuntimeError('Synthetic ancestry unavailable')

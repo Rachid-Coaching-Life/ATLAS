@@ -5,11 +5,11 @@ import pytest
 
 @pytest.mark.unit
 def test_old_and_new_system_tray_symbols_reference_the_same_class():
-    from desktop_app import JarvisSystemTray
-    from desktop_app.app import ATLASSystemTray, JarvisSystemTray as LegacyTray
+    from desktop_app import AtlasSystemTray
+    from desktop_app.app import ATLASSystemTray, AtlasSystemTray as LegacyTray
 
     assert LegacyTray is ATLASSystemTray
-    assert JarvisSystemTray is ATLASSystemTray
+    assert AtlasSystemTray is ATLASSystemTray
 
 
 @pytest.mark.unit

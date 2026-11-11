@@ -7,15 +7,15 @@ from unittest.mock import Mock
 import pytest
 from PyQt6.QtGui import QAction
 
-from desktop_app.app import JarvisSystemTray, LogSignals
-from jarvis import daemon
+from desktop_app.app import AtlasSystemTray, LogSignals
+from atlas import daemon
 
 pytestmark = pytest.mark.unit
 
 
 @pytest.fixture
 def pause_tray(qapp):
-    tray = JarvisSystemTray.__new__(JarvisSystemTray)
+    tray = AtlasSystemTray.__new__(AtlasSystemTray)
     tray.is_bundled = False
     tray.is_listening = True
     tray._daemon_stop_expected = False

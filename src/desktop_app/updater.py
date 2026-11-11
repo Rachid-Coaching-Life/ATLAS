@@ -1,5 +1,5 @@
 """
-Auto-update functionality for Jarvis Desktop App.
+Auto-update functionality for ATLAS Desktop App.
 
 Checks GitHub Releases for new versions and handles the update process.
 """
@@ -22,8 +22,8 @@ from typing import Optional
 import requests
 from PyQt6.QtCore import QObject, pyqtSignal
 
-from jarvis import get_version
-from jarvis.debug import debug_log
+from atlas import get_version
+from atlas.debug import debug_log
 
 from .paths import get_log_dir
 from .qt_worker import KeepAliveWorker
@@ -46,7 +46,7 @@ def _extract_macos_bundle(zip_path: Path, dest_dir: Path) -> None:
     Uses ``ditto`` when available because PyInstaller's Qt/Qt WebEngine
     bundle contains symlinks (framework ``Versions/Current`` entries) that
     Python's ``zipfile`` silently flattens into regular files, producing a
-    bundle macOS refuses to launch with "Jarvis.app can't be opened". Falls
+    bundle macOS refuses to launch with "ATLAS.app can't be opened". Falls
     back to ``zipfile`` when ditto is absent so unit tests on non-macOS CI
     runners still exercise the rest of the installer.
     """
@@ -103,9 +103,9 @@ def _get_update_state_path() -> Path:
     """Get path to update state file."""
     xdg = os.environ.get("XDG_CONFIG_HOME")
     if xdg:
-        config_dir = Path(xdg) / "jarvis"
+        config_dir = Path(xdg) / "atlas"
     else:
-        config_dir = Path.home() / ".config" / "jarvis"
+        config_dir = Path.home() / ".config" / "atlas"
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir / "update_state.json"
 
@@ -184,12 +184,12 @@ def get_platform_asset_name() -> str:
     if sys.platform == "darwin":
         arch = platform.machine()
         if arch == "arm64":
-            return "Jarvis-macOS-arm64.zip"
-        return "Jarvis-macOS-x64.zip"
+            return "ATLAS-macOS-arm64.zip"
+        return "ATLAS-macOS-x64.zip"
     elif sys.platform == "win32":
-        return "Jarvis-Windows-x64.zip"
+        return "ATLAS-Windows-x64.zip"
     else:
-        return "Jarvis-Linux-x64.tar.gz"
+        return "ATLAS-Linux-x64.tar.gz"
 
 
 def parse_version(tag: str) -> tuple[int, ...]:
@@ -419,7 +419,7 @@ def get_app_path() -> Path:
     """Get the path to the current application."""
     if getattr(sys, "frozen", False):
         if sys.platform == "darwin":
-            # Jarvis.app/Contents/MacOS/Jarvis -> Jarvis.app
+            # ATLAS.app/Contents/MacOS/ATLAS -> ATLAS.app
             return Path(sys.executable).parent.parent.parent
         elif sys.platform == "win32":
             return Path(sys.executable)
@@ -452,16 +452,16 @@ def install_update_macos(download_path: Path) -> bool:
     try:
         _extract_macos_bundle(download_path, temp_dir)
 
-        new_app_path = temp_dir / "Jarvis.app"
+        new_app_path = temp_dir / "ATLAS.app"
 
         if not new_app_path.exists():
-            raise FileNotFoundError("Jarvis.app not found in download")
+            raise FileNotFoundError("ATLAS.app not found in download")
 
         # Read the executable name from the new bundle's Info.plist rather
-        # than hardcoding "Jarvis" — if the bundle ever renames its
+        # than hardcoding "ATLAS" — if the bundle ever renames its
         # CFBundleExecutable, the fallback relaunch still targets the right
         # binary.
-        binary_name = "Jarvis"
+        binary_name = "ATLAS"
         info_plist = new_app_path / "Contents" / "Info.plist"
         if info_plist.is_file():
             try:
@@ -488,7 +488,7 @@ def install_update_macos(download_path: Path) -> bool:
         # cached, so a bare `open` can silently no-op. `lsregister -f` forces
         # a re-scan, `open -n` forces a fresh instance, and if that still
         # fails we exec the bundle's inner binary directly. Script output is
-        # appended to ~/Library/Logs/Jarvis/updater.log so future failures
+        # appended to ~/Library/Logs/ATLAS/updater.log so future failures
         # leave a trace — the script runs detached with no terminal.
         script_path = temp_dir / "update.sh"
         script_content = f'''#!/bin/bash
@@ -497,7 +497,7 @@ if [ -f "$LOG_FILE" ] && [ "$(wc -c < "$LOG_FILE" 2>/dev/null || echo 0)" -gt {l
     : > "$LOG_FILE"
 fi
 exec >> "$LOG_FILE" 2>&1
-echo "=== Jarvis update $(date) ==="
+echo "=== ATLAS update $(date) ==="
 echo "Waiting for process {current_pid} to exit..."
 while kill -0 {current_pid} 2>/dev/null; do
     sleep 1
@@ -539,7 +539,7 @@ def install_update_windows(download_path: Path) -> bool:
     """Install update on Windows.
 
     Strategy:
-    1. Extract zip to temp location (contains Inno Setup installer as Jarvis.exe)
+    1. Extract zip to temp location (contains Inno Setup installer as ATLAS.exe)
     2. Create batch script to:
        - Wait for current process to actually exit (by PID)
        - Run the installer silently (upgrades in place to Program Files)
@@ -559,10 +559,10 @@ def install_update_windows(download_path: Path) -> bool:
         with zipfile.ZipFile(download_path, "r") as zf:
             zf.extractall(temp_dir)
 
-        new_exe_path = temp_dir / "Jarvis.exe"
+        new_exe_path = temp_dir / "ATLAS.exe"
 
         if not new_exe_path.exists():
-            raise FileNotFoundError("Jarvis.exe not found in download")
+            raise FileNotFoundError("ATLAS.exe not found in download")
 
         escaped_new_exe = _escape_batch_path(new_exe_path)
 
@@ -576,7 +576,7 @@ def install_update_windows(download_path: Path) -> bool:
         # step is still skipped under /SILENT (skipifsilent), so we relaunch
         # the upgraded exe ourselves.
         batch_content = f'''@echo off
-echo Updating Jarvis...
+echo Updating ATLAS...
 echo Waiting for process {current_pid} to exit...
 :wait_loop
 tasklist /fi "pid eq {current_pid}" 2>nul | find "{current_pid}" >nul
@@ -586,7 +586,7 @@ if not errorlevel 1 (
 )
 echo Process exited, running installer...
 "{escaped_new_exe}" /SILENT /SUPPRESSMSGBOXES /NORESTART
-echo Launching updated Jarvis...
+echo Launching updated ATLAS...
 start "" "{escaped_installed_exe}"
 rmdir /s /q "{escaped_temp}"
 '''
@@ -628,23 +628,23 @@ def install_update_linux(download_path: Path) -> bool:
         with tarfile.open(download_path, "r:gz") as tf:
             tf.extractall(temp_dir, filter="data")
 
-        new_app_dir = temp_dir / "Jarvis"
+        new_app_dir = temp_dir / "ATLAS"
 
         if not new_app_dir.is_dir() or new_app_dir.is_symlink():
-            raise ValueError("Jarvis directory not found or invalid in download")
+            raise ValueError("ATLAS directory not found or invalid in download")
 
         # Escape paths using single quotes to prevent shell injection
         escaped_app_dir = _escape_shell_path(app_dir)
         escaped_backup = _escape_shell_path(app_dir.with_name(app_dir.name + ".backup"))
         escaped_new_app = _escape_shell_path(new_app_dir)
         escaped_temp = _escape_shell_path(temp_dir)
-        escaped_jarvis = _escape_shell_path(app_dir / "Jarvis")
+        escaped_atlas = _escape_shell_path(app_dir / "ATLAS")
 
         script_path = temp_dir / "update.sh"
         # Keeping the previous directory as .backup gives the user a one-step
         # rollback if the new version fails to launch.
         script_content = f'''#!/bin/bash
-echo "Updating Jarvis..."
+echo "Updating ATLAS..."
 echo "Waiting for process {current_pid} to exit..."
 while kill -0 {current_pid} 2>/dev/null; do
     sleep 1
@@ -655,7 +655,7 @@ if [ -e {escaped_app_dir} ]; then
     mv {escaped_app_dir} {escaped_backup}
 fi
 mv {escaped_new_app} {escaped_app_dir}
-{escaped_jarvis} &
+{escaped_atlas} &
 rm -rf {escaped_temp}
 '''
         script_path.write_text(script_content)

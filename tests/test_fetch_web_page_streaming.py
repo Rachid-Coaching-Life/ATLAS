@@ -6,7 +6,7 @@ import tracemalloc
 
 import pytest
 
-from jarvis.tools.builtin import fetch_web_page
+from atlas.tools.builtin import fetch_web_page
 
 pytestmark = pytest.mark.unit
 

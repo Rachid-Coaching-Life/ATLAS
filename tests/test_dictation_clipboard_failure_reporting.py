@@ -6,8 +6,8 @@ import time
 import numpy as np
 import pytest
 
-from jarvis.dictation import dictation_engine
-from jarvis.dictation.history import DictationHistory
+from atlas.dictation import dictation_engine
+from atlas.dictation.history import DictationHistory
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 
@@ -20,7 +20,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 @pytest.mark.parametrize('debug', ['0', '1'])
 def test_clipboard_failure_is_safe_and_preserves_saved_result(
         monkeypatch, tmp_path, capsys, system, writer, debug):
-    monkeypatch.setenv('JARVIS_VOICE_DEBUG', debug)
+    monkeypatch.setenv('ATLAS_VOICE_DEBUG', debug)
     monkeypatch.setattr(dictation_engine.platform, 'system', lambda: system)
     monkeypatch.setattr(dictation_engine, 'pynput_keyboard', None)
     monkeypatch.setattr(dictation_engine, 'parse_hotkey', lambda _: (frozenset(), None))

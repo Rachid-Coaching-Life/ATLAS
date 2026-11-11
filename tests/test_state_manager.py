@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import pytest
 from unittest.mock import patch
 
-from jarvis.listening.state_manager import StateManager, ListeningState
+from atlas.listening.state_manager import StateManager, ListeningState
 
 pytestmark = pytest.mark.unit
 
@@ -18,7 +18,7 @@ pytestmark = pytest.mark.unit
 @pytest.fixture
 def collection_clock(monkeypatch):
     """Advance collection deadlines without scheduling or wall-clock sleeps."""
-    from jarvis.listening import state_manager
+    from atlas.listening import state_manager
 
     now = [1000.0]
     monkeypatch.setattr(state_manager, "time", SimpleNamespace(time=lambda: now[0]))
@@ -127,7 +127,7 @@ class TestQueryCollection:
 @pytest.fixture
 def hot_clock(monkeypatch):
     """Run real hot-window callbacks against an explicitly advanced clock."""
-    from jarvis.listening import state_manager
+    from atlas.listening import state_manager
 
     clock = SimpleNamespace(now=1000.0)
     pending = []

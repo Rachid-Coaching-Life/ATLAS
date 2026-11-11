@@ -7,7 +7,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from jarvis.llm import OllamaBackend, OpenAICompatibleBackend
+from atlas.llm import OllamaBackend, OpenAICompatibleBackend
 
 pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("owned_loopback_network")]
 

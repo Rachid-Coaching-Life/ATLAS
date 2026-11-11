@@ -10,7 +10,7 @@ _GIB = 1024 ** 3
 
 
 def _set_sample_counters(monkeypatch):
-    from jarvis.tools.builtin import system_status
+    from atlas.tools.builtin import system_status
 
     monkeypatch.setattr(
         system_status.psutil, "cpu_percent",
@@ -31,8 +31,8 @@ def _set_sample_counters(monkeypatch):
 
 
 def test_system_status_is_measured_and_read_only(monkeypatch):
-    from jarvis.tools.builtin.system_status import SystemStatusTool
-    from jarvis.tools.registry import BUILTIN_TOOLS, generate_tools_json_schema
+    from atlas.tools.builtin.system_status import SystemStatusTool
+    from atlas.tools.registry import BUILTIN_TOOLS, generate_tools_json_schema
 
     _set_sample_counters(monkeypatch)
     tool = BUILTIN_TOOLS["systemStatus"]
@@ -51,7 +51,7 @@ def test_system_status_is_measured_and_read_only(monkeypatch):
 
 
 def test_direct_status_task_bypasses_model_and_reports_real_result(monkeypatch):
-    from jarvis import tasks
+    from atlas import tasks
 
     _set_sample_counters(monkeypatch)
 
@@ -78,8 +78,8 @@ def test_direct_status_task_bypasses_model_and_reports_real_result(monkeypatch):
 
 
 def test_status_failure_is_failed_not_completed(monkeypatch):
-    from jarvis import tasks
-    from jarvis.tools.builtin import system_status
+    from atlas import tasks
+    from atlas.tools.builtin import system_status
 
     def broken_measurement(interval):
         raise PermissionError("Counter inaccessible")
@@ -112,6 +112,6 @@ def test_status_failure_is_failed_not_completed(monkeypatch):
     ],
 )
 def test_direct_command_only_matches_read_only_intents(prompt, direct):
-    from jarvis.tasks import _is_direct_system_status_task
+    from atlas.tasks import _is_direct_system_status_task
 
     assert _is_direct_system_status_task(prompt) is direct

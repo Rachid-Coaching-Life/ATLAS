@@ -2,7 +2,7 @@
 import numpy as np
 from faster_whisper import available_models
 from faster_whisper.vad import get_speech_timestamps
-from jarvis.listening.whisper_capabilities import is_faster_whisper_turbo_supported
+from atlas.listening.whisper_capabilities import is_faster_whisper_turbo_supported
 
 assert "large-v3-turbo" in available_models()
 assert is_faster_whisper_turbo_supported()

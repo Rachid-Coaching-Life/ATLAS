@@ -7,7 +7,7 @@ import pytest
 
 from conftest import requires_judge_llm
 from helpers import judge_pass_fail, voice_config
-from jarvis.reply import engine
+from atlas.reply import engine
 
 pytestmark = [pytest.mark.eval, requires_judge_llm]
 

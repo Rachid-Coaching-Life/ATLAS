@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from jarvis.listening import model_download
+from atlas.listening import model_download
 
 pytestmark = pytest.mark.unit
 
@@ -20,7 +20,7 @@ def complete_model(path):
 
 
 def successful_worker(connection, model_name):
-    connection.send(('ready', os.environ.get('JARVIS_TEST_WHISPER_PATH', model_name), ''))
+    connection.send(('ready', os.environ.get('ATLAS_TEST_WHISPER_PATH', model_name), ''))
     connection.close()
 
 
@@ -46,7 +46,7 @@ def test_partial_cache_is_completed_by_worker_before_loading(tmp_path, monkeypat
     import faster_whisper.utils
     monkeypatch.setattr(faster_whisper.utils, 'download_model', lambda *a, **k: str(partial))
     monkeypatch.setattr(model_download, '_download_worker', successful_worker, raising=False)
-    monkeypatch.setenv('JARVIS_TEST_WHISPER_PATH', str(ready))
+    monkeypatch.setenv('ATLAS_TEST_WHISPER_PATH', str(ready))
     assert model_download.prepare_faster_whisper_model('small') == str(ready)
 
 
@@ -94,7 +94,7 @@ def test_rate_limit_status_survives_wrapped_cache_error():
 def listener_for_loading(monkeypatch):
     from unittest.mock import MagicMock
     from test_voice_listener import _create_mock_config, _mock_input_devices
-    from jarvis.listening import listener as module
+    from atlas.listening import listener as module
 
     monkeypatch.setattr(module, 'FASTER_WHISPER_AVAILABLE', True)
     monkeypatch.setattr(module, 'MLX_WHISPER_AVAILABLE', False)
@@ -134,12 +134,12 @@ def test_listener_passes_complete_path_and_forbids_network_loading(tmp_path, mon
         assert path == ready
         assert options['local_files_only']
         def transcribe(audio, **kwargs):
-            segment = SimpleNamespace(text='hello Jarvis', avg_logprob=0.0, no_speech_prob=0.0)
+            segment = SimpleNamespace(text='hello ATLAS', avg_logprob=0.0, no_speech_prob=0.0)
             return iter([segment]), SimpleNamespace(language='en')
         return SimpleNamespace(transcribe=transcribe, model=SimpleNamespace(device='cpu'))
     monkeypatch.setattr(module, 'WhisperModel', load)
     listener.run()
-    assert listener._transcribe_audio(np.zeros(16000)) == ('hello Jarvis', 'en', ())
+    assert listener._transcribe_audio(np.zeros(16000)) == ('hello ATLAS', 'en', ())
 
 
 def test_runtime_cpu_recovery_uses_isolated_local_model(tmp_path, monkeypatch):
@@ -370,7 +370,7 @@ def test_terminal_download_failure_explains_retained_cache_and_recovery(monkeypa
     assert failure.value.category == category
     output = capsys.readouterr().out.lower()
     assert 'cached files' in output
-    assert 'restart jarvis' in output
+    assert 'restart atlas' in output
     assert 'resume' in output
     if category == 'timeout':
         assert 'smaller' in output and 'settings' in output

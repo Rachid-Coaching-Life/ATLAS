@@ -6,7 +6,7 @@ from contextlib import contextmanager
 
 import pytest
 
-from jarvis.llm import http
+from atlas.llm import http
 
 pytestmark = pytest.mark.unit
 

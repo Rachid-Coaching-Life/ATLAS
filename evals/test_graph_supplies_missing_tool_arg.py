@@ -27,7 +27,7 @@ _EDINBURGH_FORECAST = (
 
 
 def _make_runner(capture: ToolCallCapture):
-    from jarvis.tools.types import ToolExecutionResult
+    from atlas.tools.types import ToolExecutionResult
 
     def _runner(db, cfg, tool_name, tool_args, **kwargs):
         capture.record(tool_name, tool_args or {})
@@ -65,7 +65,7 @@ class TestGraphSuppliesMissingToolArg:
     def test_warm_profile_user_fact_grounds_get_weather_call(
         self, eval_dialogue_memory, graph_store,
     ):
-        from jarvis.reply.engine import run_reply_engine
+        from atlas.reply.engine import run_reply_engine
 
         cfg = voice_config()
         # Geoip disabled — the only way the model gets a location is from
@@ -74,18 +74,18 @@ class TestGraphSuppliesMissingToolArg:
 
         capture = ToolCallCapture()
 
-        from jarvis.memory.db import Database
+        from atlas.memory.db import Database
         cfg.db_path = graph_store.db_path
         graph_store.create_node('Home', 'User residence',
                                 data='The user lives in Edinburgh.', parent_id='user')
 
         with closing(Database(graph_store.db_path)) as persisted_db, patch(
-            "jarvis.reply.engine.run_tool_with_retries",
+            "atlas.reply.engine.run_tool_with_retries",
             side_effect=_make_runner(capture),
         ):
             response = run_reply_engine(
                 db=persisted_db, cfg=cfg, tts=None,
-                text="how's the weather, Jarvis?",
+                text="how's the weather, ATLAS?",
                 dialogue_memory=eval_dialogue_memory,
             )
 

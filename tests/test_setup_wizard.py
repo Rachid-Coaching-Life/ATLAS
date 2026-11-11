@@ -33,9 +33,9 @@ from desktop_app.setup_wizard import (
 )
 from desktop_app.mcp_catalogue import get_wizard_entries
 from desktop_app import setup_wizard
-from jarvis.config import DEFAULT_CHAT_MODEL
-from jarvis.llm import ollama
-from jarvis.utils.location import (
+from atlas.config import DEFAULT_CHAT_MODEL
+from atlas.llm import ollama
+from atlas.utils.location import (
     get_location_context,
     is_location_available,
     _is_private_ip,
@@ -156,7 +156,7 @@ class TestCheckOllamaCli:
 def real_http_protocol_probe():
     """Exercise independent HTTP protocol validation without opening a socket."""
     with ThreadPoolExecutor(max_workers=1) as worker:
-        yield lambda: worker.submit(requests.get, 'jarvis-test://unsupported-transport', timeout=1).result(timeout=5)
+        yield lambda: worker.submit(requests.get, 'atlas-test://unsupported-transport', timeout=1).result(timeout=5)
 
 
 @pytest.mark.unit
@@ -257,7 +257,7 @@ class TestGetRequiredModels:
         with patch("desktop_app.setup_wizard.load_settings", side_effect=Exception("Config error")):
             models = get_required_models()
 
-            from jarvis.config import DEFAULT_CHAT_MODEL, DEFAULT_FAST_MODEL
+            from atlas.config import DEFAULT_CHAT_MODEL, DEFAULT_FAST_MODEL
             assert set(models) == {DEFAULT_CHAT_MODEL, DEFAULT_FAST_MODEL, "nomic-embed-text"}
 
     def _cfg(self, **over):
@@ -596,7 +596,7 @@ class TestProviderChoicePage:
             f.write("{}")
             cfg_path = Path(f.name)
         try:
-            with patch("jarvis.config.get_config_path", return_value=cfg_path):
+            with patch("atlas.config.get_config_path", return_value=cfg_path):
                 page._selected = "openai_compatible"
                 assert page.validatePage() is True
             saved = json.loads(cfg_path.read_text())
@@ -622,7 +622,7 @@ class TestProviderChoicePage:
             }, f)
             cfg_path = Path(f.name)
         try:
-            with patch("jarvis.config.get_config_path", return_value=cfg_path):
+            with patch("atlas.config.get_config_path", return_value=cfg_path):
                 page._selected = "ollama"
                 assert page.validatePage() is True
             saved = json.loads(cfg_path.read_text())
@@ -652,7 +652,7 @@ class TestProviderChoicePage:
             json.dump({"llm_provider": "openai_compatible"}, f)
             cfg_path = Path(f.name)
         try:
-            with patch("jarvis.config.get_config_path", return_value=cfg_path):
+            with patch("atlas.config.get_config_path", return_value=cfg_path):
                 page = ProviderChoicePage()  # __init__ calls _preselect_from_config
             assert page._selected == "openai_compatible"
             assert page._openai_radio.isChecked() is True
@@ -667,7 +667,7 @@ class TestProviderChoicePage:
             f.write("{}")
             cfg_path = Path(f.name)
         try:
-            with patch("jarvis.config.get_config_path", return_value=cfg_path):
+            with patch("atlas.config.get_config_path", return_value=cfg_path):
                 page = ProviderChoicePage()
             assert page._selected == "ollama"
             assert page._ollama_radio.isChecked() is True
@@ -684,7 +684,7 @@ class TestProviderChoicePage:
             f.write("{}")
             cfg_path = Path(f.name)
         try:
-            with patch("jarvis.config.get_config_path", return_value=cfg_path):
+            with patch("atlas.config.get_config_path", return_value=cfg_path):
                 page = ProviderChoicePage()
             # Default: Ollama selected, OpenAI not.
             assert page._ollama_radio.isChecked() and not page._openai_radio.isChecked()
@@ -708,7 +708,7 @@ class TestProviderChoicePage:
             f.write("{}")
             cfg_path = Path(f.name)
         try:
-            with patch("jarvis.config.get_config_path", return_value=cfg_path):
+            with patch("atlas.config.get_config_path", return_value=cfg_path):
                 page = ProviderChoicePage()
             blob = " ".join(lbl.text().lower() for lbl in page.findChildren(QLabel))
             assert "local" in blob and "network" in blob, (
@@ -738,7 +738,7 @@ class TestProviderChoicePage:
             f.write("{}")
             cfg_path = Path(f.name)
         try:
-            with patch("jarvis.config.get_config_path", return_value=cfg_path):
+            with patch("atlas.config.get_config_path", return_value=cfg_path):
                 wiz = SetupWizard()
             assert wiz.startId() == wiz.mlx_whisper_page_id
         finally:
@@ -784,7 +784,7 @@ class TestOpenAICompatiblePage:
             json.dump({"llm_provider": "openai_compatible"}, f)
             cfg_path = Path(f.name)
         try:
-            with patch("jarvis.config.get_config_path", return_value=cfg_path):
+            with patch("atlas.config.get_config_path", return_value=cfg_path):
                 page._read_inputs = MagicMock(return_value=(
                     "http://localhost:1234/v1", "sk-secret", "lmstudio/gemma", "text-embed-3", "",
                 ))
@@ -810,7 +810,7 @@ class TestOpenAICompatiblePage:
             f.write("{}")
             cfg_path = Path(f.name)
         try:
-            with patch("jarvis.config.get_config_path", return_value=cfg_path):
+            with patch("atlas.config.get_config_path", return_value=cfg_path):
                 page._read_inputs = MagicMock(return_value=(
                     "http://localhost:1234/v1", "", "lmstudio/gemma", "", "",
                 ))
@@ -848,7 +848,7 @@ class TestOpenAICompatiblePage:
             cfg_path = Path(f.name)
         try:
             page = OpenAICompatiblePage()
-            with patch("jarvis.config.get_config_path", return_value=cfg_path):
+            with patch("atlas.config.get_config_path", return_value=cfg_path):
                 page.initializePage()
             assert page._base_url_input.text() == "http://lmstudio:1234/v1"
             assert page._api_key_input.text() == "sk-saved"
@@ -975,7 +975,7 @@ class TestOpenAICompatiblePage:
             f.write("{}")
             cfg_path = Path(f.name)
         try:
-            with patch("jarvis.config.get_config_path", return_value=cfg_path):
+            with patch("atlas.config.get_config_path", return_value=cfg_path):
                 page._read_inputs = MagicMock(return_value=(
                     "http://localhost:9876/v1", "", "qwen-27b", "some-embed", "",
                 ))
@@ -1015,12 +1015,12 @@ class TestOpenAICompatiblePage:
             saved_cfg = Path(f.name)
         try:
             page._start_discovery = MagicMock()
-            with patch("jarvis.config.get_config_path", return_value=empty_cfg):
+            with patch("atlas.config.get_config_path", return_value=empty_cfg):
                 page.initializePage()
             assert page._start_discovery.call_count == 1
 
             page._start_discovery.reset_mock()
-            with patch("jarvis.config.get_config_path", return_value=saved_cfg):
+            with patch("atlas.config.get_config_path", return_value=saved_cfg):
                 page.initializePage()
             assert page._start_discovery.call_count == 0
             assert page._base_url_input.text() == "http://saved:9/v1"
@@ -1118,8 +1118,8 @@ class TestLocationDetectionForWizard:
     def test_location_context_returns_unknown_when_unavailable(self):
         """Location context returns 'Unknown' when detection fails."""
         # Disable auto-detect to avoid network calls, no config IP
-        with patch("jarvis.utils.location._get_external_ip_automatically", return_value=None):
-            with patch("jarvis.utils.location._get_local_network_ip", return_value="192.168.1.1"):
+        with patch("atlas.utils.location._get_external_ip_automatically", return_value=None):
+            with patch("atlas.utils.location._get_local_network_ip", return_value="192.168.1.1"):
                 context = get_location_context(config_ip=None, auto_detect=True)
                 # Should return Unknown since 192.168.x.x can't be geolocated
                 assert "Unknown" in context or "error" in context.lower()
@@ -1132,7 +1132,7 @@ class TestLocationDetectionForWizard:
     def test_location_availability_check(
             self, monkeypatch, tmp_path, library_available, database_exists, expected):
         """Location needs both the optional library and a local database."""
-        from jarvis.utils import location
+        from atlas.utils import location
 
         database = tmp_path / "owned-geoip.mmdb"
         if database_exists:
@@ -1150,7 +1150,7 @@ class TestLocationDetectionForWizard:
             "timezone": "America/Los_Angeles",
         }
 
-        with patch("jarvis.utils.location.get_location_info", return_value=mock_location):
+        with patch("atlas.utils.location.get_location_info", return_value=mock_location):
             context = get_location_context(config_ip="203.0.113.45")
 
             assert "San Francisco" in context
@@ -1183,7 +1183,7 @@ class TestModelOptions:
     def test_model_options_uses_centralized_config(self):
         """ModelsPage.MODEL_OPTIONS should reference the centralized config."""
         from desktop_app.setup_wizard import ModelsPage
-        from jarvis.config import SUPPORTED_CHAT_MODELS
+        from atlas.config import SUPPORTED_CHAT_MODELS
 
         # Verify they're the same object (not just equal values)
         assert ModelsPage.MODEL_OPTIONS is SUPPORTED_CHAT_MODELS
@@ -1223,7 +1223,7 @@ class TestModelsPageUI:
 
     def test_default_chat_model_is_default_config_model(self, qapp):
         from desktop_app.setup_wizard import ModelsPage
-        from jarvis.config import DEFAULT_CHAT_MODEL
+        from atlas.config import DEFAULT_CHAT_MODEL
         # Unknown VRAM keeps the default recommendation regardless of the
         # machine running the tests.
         with patch("desktop_app.setup_wizard.detect_total_vram_mb", return_value=None):
@@ -1330,8 +1330,8 @@ class TestWizardMemoryBudget:
 
     def test_openai_known_models_prefill_editable_estimates(self, qapp):
         from PyQt6.QtWidgets import QDoubleSpinBox, QLabel
-        from jarvis.config import SUPPORTED_CHAT_MODELS
-        from jarvis.utils.vram import required_vram_mb
+        from atlas.config import SUPPORTED_CHAT_MODELS
+        from atlas.utils.vram import required_vram_mb
 
         known_model = next(iter(SUPPORTED_CHAT_MODELS))
         page = OpenAICompatiblePage()
@@ -1402,8 +1402,8 @@ class TestWizardMemoryBudget:
 
     def test_fetched_models_refresh_known_estimates(self, qapp):
         from PyQt6.QtWidgets import QDoubleSpinBox
-        from jarvis.config import SUPPORTED_CHAT_MODELS
-        from jarvis.utils.vram import required_vram_mb
+        from atlas.config import SUPPORTED_CHAT_MODELS
+        from atlas.utils.vram import required_vram_mb
 
         model_id = next(iter(SUPPORTED_CHAT_MODELS))
         page = OpenAICompatiblePage()
@@ -1527,7 +1527,7 @@ class TestWizardMemoryBudget:
         }
         with patch("desktop_app.setup_wizard.load_settings",
                    return_value=SimpleNamespace(whisper_model="medium")):
-            with patch("jarvis.config._load_json", return_value=saved):
+            with patch("atlas.config._load_json", return_value=saved):
                 page.initializePage()
         assert "Whisper ~5.0 GB" in summary.text()
 
@@ -1660,7 +1660,7 @@ class TestWhisperModelOptions:
         page._is_english_only = False
         page._is_apple_silicon = False
 
-        with patch("jarvis.listening.whisper_capabilities.is_faster_whisper_turbo_supported", return_value=False):
+        with patch("atlas.listening.whisper_capabilities.is_faster_whisper_turbo_supported", return_value=False):
             options = WhisperSetupPage._get_current_model_options(page)
         model_ids = [m[0] for m in options]
         assert "large-v3-turbo" not in model_ids
@@ -1674,7 +1674,7 @@ class TestWhisperModelOptions:
         page._is_english_only = False
         page._is_apple_silicon = False
 
-        with patch("jarvis.listening.whisper_capabilities.is_faster_whisper_turbo_supported", return_value=True):
+        with patch("atlas.listening.whisper_capabilities.is_faster_whisper_turbo_supported", return_value=True):
             options = WhisperSetupPage._get_current_model_options(page)
         model_ids = [m[0] for m in options]
         assert "large-v3-turbo" in model_ids
@@ -1687,7 +1687,7 @@ class TestWhisperModelOptions:
         page._is_english_only = False
         page._is_apple_silicon = True
 
-        with patch("jarvis.listening.whisper_capabilities.is_faster_whisper_turbo_supported", return_value=False), \
+        with patch("atlas.listening.whisper_capabilities.is_faster_whisper_turbo_supported", return_value=False), \
              patch("desktop_app.setup_wizard.check_mlx_whisper_installed", return_value=False), \
              patch("desktop_app.setup_wizard.load_settings", return_value=SimpleNamespace(whisper_backend="auto")):
             options = WhisperSetupPage._get_current_model_options(page)
@@ -1702,7 +1702,7 @@ class TestWhisperModelOptions:
         page._is_english_only = False
         page._is_apple_silicon = True
 
-        with patch("jarvis.listening.whisper_capabilities.is_faster_whisper_turbo_supported", return_value=False), \
+        with patch("atlas.listening.whisper_capabilities.is_faster_whisper_turbo_supported", return_value=False), \
              patch("desktop_app.setup_wizard.check_mlx_whisper_installed", return_value=True), \
              patch("desktop_app.setup_wizard.load_settings", return_value=SimpleNamespace(whisper_backend="auto")):
             options = WhisperSetupPage._get_current_model_options(page)
@@ -1717,7 +1717,7 @@ class TestWhisperModelOptions:
         page._is_english_only = False
         page._is_apple_silicon = True
 
-        with patch("jarvis.listening.whisper_capabilities.is_faster_whisper_turbo_supported", return_value=True), \
+        with patch("atlas.listening.whisper_capabilities.is_faster_whisper_turbo_supported", return_value=True), \
              patch("desktop_app.setup_wizard.check_mlx_whisper_installed", return_value=False), \
              patch("desktop_app.setup_wizard.load_settings", return_value=SimpleNamespace(whisper_backend="auto")):
             options = WhisperSetupPage._get_current_model_options(page)
@@ -1732,7 +1732,7 @@ class TestWhisperModelOptions:
         page._is_english_only = False
         page._is_apple_silicon = True
 
-        with patch("jarvis.listening.whisper_capabilities.is_faster_whisper_turbo_supported", return_value=False), \
+        with patch("atlas.listening.whisper_capabilities.is_faster_whisper_turbo_supported", return_value=False), \
              patch("desktop_app.setup_wizard.check_mlx_whisper_installed", return_value=True), \
              patch("desktop_app.setup_wizard.load_settings", return_value=SimpleNamespace(whisper_backend="faster-whisper")):
             options = WhisperSetupPage._get_current_model_options(page)
@@ -1743,7 +1743,7 @@ class TestWhisperModelOptions:
         """An existing turbo choice displays the runtime fallback in the wizard."""
         from desktop_app.setup_wizard import WhisperSetupPage
 
-        with patch("jarvis.listening.whisper_capabilities.is_faster_whisper_turbo_supported", return_value=False):
+        with patch("atlas.listening.whisper_capabilities.is_faster_whisper_turbo_supported", return_value=False):
             page = WhisperSetupPage()
             page._is_apple_silicon = False
             page._is_english_only = False
@@ -1908,18 +1908,18 @@ class TestMCPPage:
 
     def test_is_already_configured_returns_false_on_empty_config(self):
         """When config has no mcps key, returns False."""
-        with patch("jarvis.config._load_json", return_value={}):
+        with patch("atlas.config._load_json", return_value={}):
             assert MCPPage._is_already_configured("filesystem") is False
 
     def test_is_already_configured_returns_true_when_present(self):
         """When the server name exists in config.mcps, returns True."""
         mock_config = {"mcps": {"filesystem": {"transport": "stdio"}}}
-        with patch("jarvis.config._load_json", return_value=mock_config):
+        with patch("atlas.config._load_json", return_value=mock_config):
             assert MCPPage._is_already_configured("filesystem") is True
 
     def test_is_already_configured_handles_exception(self):
         """Returns False if config loading fails."""
-        with patch("jarvis.config._load_json", side_effect=Exception("boom")):
+        with patch("atlas.config._load_json", side_effect=Exception("boom")):
             assert MCPPage._is_already_configured("filesystem") is False
 
     def test_wizard_entries_available(self):
@@ -1936,7 +1936,7 @@ class TestMCPPage:
         import json
         import tempfile
         from pathlib import Path
-        from jarvis.config import _load_json
+        from atlas.config import _load_json
 
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
             json.dump({}, f)
@@ -1952,7 +1952,7 @@ class TestMCPPage:
                 cb.isChecked.return_value = (i == 0)
                 page._checkboxes[entry.name] = cb
 
-            with patch("jarvis.config.get_config_path", return_value=cfg_path):
+            with patch("atlas.config.get_config_path", return_value=cfg_path):
                 result = page.validatePage()
 
             assert result is True
@@ -1965,12 +1965,12 @@ class TestMCPPage:
 
     def test_is_node_available_returns_true_when_npx_found(self):
         """_is_node_available returns True when _resolve_command succeeds."""
-        with patch("jarvis.tools.external.mcp_client._resolve_command", return_value="/usr/bin/npx"):
+        with patch("atlas.tools.external.mcp_client._resolve_command", return_value="/usr/bin/npx"):
             assert MCPPage._is_node_available() is True
 
     def test_is_node_available_returns_false_when_npx_missing(self):
         """_is_node_available returns False when _resolve_command raises."""
-        with patch("jarvis.tools.external.mcp_client._resolve_command", side_effect=FileNotFoundError("not found")):
+        with patch("atlas.tools.external.mcp_client._resolve_command", side_effect=FileNotFoundError("not found")):
             assert MCPPage._is_node_available() is False
 
     def test_validate_page_preserves_existing_non_wizard_mcps(self):
@@ -1978,7 +1978,7 @@ class TestMCPPage:
         import json
         import tempfile
         from pathlib import Path
-        from jarvis.config import _load_json
+        from atlas.config import _load_json
 
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
             json.dump({"mcps": {"custom-server": {"transport": "stdio", "command": "node", "args": []}}}, f)
@@ -1993,7 +1993,7 @@ class TestMCPPage:
                 cb.isChecked.return_value = False
                 page._checkboxes[entry.name] = cb
 
-            with patch("jarvis.config.get_config_path", return_value=cfg_path):
+            with patch("atlas.config.get_config_path", return_value=cfg_path):
                 page.validatePage()
 
             saved = _load_json(cfg_path)
@@ -2025,14 +2025,14 @@ class TestSearchProvidersPage:
         import json
         import tempfile
         from pathlib import Path
-        from jarvis.config import _load_json
+        from atlas.config import _load_json
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({}, f)
             cfg_path = Path(f.name)
         try:
             page = self._make_page(brave_key="BSA-abc123", wiki_enabled=True)
-            with patch("jarvis.config.get_config_path", return_value=cfg_path):
+            with patch("atlas.config.get_config_path", return_value=cfg_path):
                 assert page.validatePage() is True
             saved = _load_json(cfg_path)
             # Default non-default-only write: Brave present, Wikipedia omitted.
@@ -2047,14 +2047,14 @@ class TestSearchProvidersPage:
         import json
         import tempfile
         from pathlib import Path
-        from jarvis.config import _load_json
+        from atlas.config import _load_json
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({}, f)
             cfg_path = Path(f.name)
         try:
             page = self._make_page(brave_key="   ", wiki_enabled=True)
-            with patch("jarvis.config.get_config_path", return_value=cfg_path):
+            with patch("atlas.config.get_config_path", return_value=cfg_path):
                 page.validatePage()
             saved = _load_json(cfg_path)
             assert "brave_search_api_key" not in saved
@@ -2067,14 +2067,14 @@ class TestSearchProvidersPage:
         import json
         import tempfile
         from pathlib import Path
-        from jarvis.config import _load_json
+        from atlas.config import _load_json
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({}, f)
             cfg_path = Path(f.name)
         try:
             page = self._make_page(brave_key="", wiki_enabled=False)
-            with patch("jarvis.config.get_config_path", return_value=cfg_path):
+            with patch("atlas.config.get_config_path", return_value=cfg_path):
                 page.validatePage()
             saved = _load_json(cfg_path)
             assert saved.get("wikipedia_fallback_enabled") is False
@@ -2086,14 +2086,14 @@ class TestSearchProvidersPage:
         import json
         import tempfile
         from pathlib import Path
-        from jarvis.config import _load_json
+        from atlas.config import _load_json
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({"brave_search_api_key": "old-key"}, f)
             cfg_path = Path(f.name)
         try:
             page = self._make_page(brave_key="", wiki_enabled=True)
-            with patch("jarvis.config.get_config_path", return_value=cfg_path):
+            with patch("atlas.config.get_config_path", return_value=cfg_path):
                 page.validatePage()
             saved = _load_json(cfg_path)
             assert "brave_search_api_key" not in saved
@@ -2105,14 +2105,14 @@ class TestSearchProvidersPage:
         import json
         import tempfile
         from pathlib import Path
-        from jarvis.config import _load_json
+        from atlas.config import _load_json
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({"ollama_chat_model": "gpt-oss:20b", "mcps": {"x": {}}}, f)
             cfg_path = Path(f.name)
         try:
             page = self._make_page(brave_key="BSA-key", wiki_enabled=False)
-            with patch("jarvis.config.get_config_path", return_value=cfg_path):
+            with patch("atlas.config.get_config_path", return_value=cfg_path):
                 page.validatePage()
             saved = _load_json(cfg_path)
             assert saved["ollama_chat_model"] == "gpt-oss:20b"
@@ -2130,7 +2130,7 @@ class TestOpenAICompatibleServer:
         base, _ = stub_openai_server
         cfg_path = tmp_path / "config.json"
         cfg_path.write_text("{}", encoding="utf-8")
-        monkeypatch.setenv("JARVIS_CONFIG_PATH", str(cfg_path))
+        monkeypatch.setenv("ATLAS_CONFIG_PATH", str(cfg_path))
         monkeypatch.setattr(OpenAICompatiblePage, "_DEFAULT_BASE_URL", base)
         monkeypatch.setattr(OpenAICompatiblePage, "_KNOWN_SERVERS", [("Owned", base)])
         page = OpenAICompatiblePage()

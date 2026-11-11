@@ -9,17 +9,17 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 from datetime import datetime, timezone
 
-from jarvis.memory import conversation
-from jarvis.memory.db import Database
+from atlas.memory import conversation
+from atlas.memory.db import Database
 
-from jarvis.memory.conversation import (
+from atlas.memory.conversation import (
     DialogueMemory,
     update_daily_conversation_summary,
     update_diary_from_dialogue_memory,
 )
-from jarvis.reply.engine import run_reply_engine
-from jarvis.tools.types import ToolExecutionResult
-from jarvis.utils.redact import redact
+from atlas.reply.engine import run_reply_engine
+from atlas.tools.types import ToolExecutionResult
+from atlas.utils.redact import redact
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
@@ -92,8 +92,8 @@ class TestDialogueMemory:
 @pytest.fixture
 def reply_memory_runtime(tmp_path, mock_config, monkeypatch):
     """Exercise the reply loop with synthetic decisions and owned storage."""
-    from jarvis.reply import engine
-    from jarvis.reply.prompts import ModelSize
+    from atlas.reply import engine
+    from atlas.reply.prompts import ModelSize
 
     mock_config.db_path = str(tmp_path / "dialogue.db")
     mock_config.llm_chat_model = "test"
@@ -114,7 +114,7 @@ def reply_memory_runtime(tmp_path, mock_config, monkeypatch):
 class TestReplyEngineDialogueMemory:
     """Test reply engine dialogue memory integration."""
     
-    @patch('jarvis.reply.engine.chat_with_messages')
+    @patch('atlas.reply.engine.chat_with_messages')
     def test_dialogue_memory_preserves_message_order(self, mock_chat, reply_memory_runtime):
         """Test that reply engine stores conversation in correct order."""
         # Mock dependencies
@@ -142,8 +142,8 @@ class TestReplyEngineDialogueMemory:
         assert "User: What's the weather in London?" in chunks
         assert "Assistant: Final response" in chunks
     
-    @patch('jarvis.reply.engine.chat_with_messages')
-    @patch('jarvis.reply.engine.run_tool_with_retries')
+    @patch('atlas.reply.engine.chat_with_messages')
+    @patch('atlas.reply.engine.run_tool_with_retries')
     def test_dialogue_memory_filters_tool_calls(self, mock_tool, mock_chat, reply_memory_runtime):
         """Test that JSON tool calls are filtered from dialogue memory."""
         # Mock dependencies
@@ -234,7 +234,7 @@ class TestDiaryRedaction:
         assert "user@example.com" not in redacted
         assert "sk-abcd1234567890abcdef" not in redacted
     
-    @patch('jarvis.memory.conversation.generate_conversation_summary')
+    @patch('atlas.memory.conversation.generate_conversation_summary')
     def test_diary_update_redacts_chunks(self, mock_summary, diary_redaction_runtime):
         """Test that diary updates redact sensitive information from chunks."""
         # Mock summary generation
@@ -270,7 +270,7 @@ class TestDiaryRedaction:
         assert "sensitive@example.com" not in redacted_text
         assert "sk-abcdef123456" not in redacted_text
     
-    @patch('jarvis.memory.conversation.generate_conversation_summary')
+    @patch('atlas.memory.conversation.generate_conversation_summary')
     def test_diary_update_preserves_conversation_flow(self, mock_summary, diary_redaction_runtime):
         """Test that diary updates preserve conversation order after redaction."""
         # Mock summary generation
@@ -550,7 +550,7 @@ class TestDialogueMemoryEdgeCases:
         chunks_snapshot, _ = dm.get_pending_chunks_with_snapshot()
         assert chunks_simple == chunks_snapshot
 
-    @patch('jarvis.memory.conversation.update_daily_conversation_summary')
+    @patch('atlas.memory.conversation.update_daily_conversation_summary')
     def test_update_diary_preserves_new_messages_during_slow_llm(self, mock_summary):
         """Integration test: messages arriving during slow LLM call are preserved."""
         dm = DialogueMemory(inactivity_timeout=0.1)

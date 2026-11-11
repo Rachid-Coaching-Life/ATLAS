@@ -5,9 +5,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis import daemon
-from jarvis.memory import graph
-from jarvis.memory.db import Database
+from atlas import daemon
+from atlas.memory import graph
+from atlas.memory.db import Database
 
 pytestmark = pytest.mark.unit
 
@@ -20,7 +20,7 @@ def test_startup_releases_graph_store_after_inspection(tmp_path, mock_config, mo
     mock_config.use_stdin = True
     mock_config.dictation_enabled = False
     with closing(Database(path, sqlite_vss_path=None)) as diary:
-        diary.upsert_conversation_summary('2026-01-01', 'Synthetic retained diary.', 'synthetic', 'jarvis')
+        diary.upsert_conversation_summary('2026-01-01', 'Synthetic retained diary.', 'synthetic', 'atlas')
     original_store = graph.GraphMemoryStore
     with closing(original_store(path)) as seed:
         retained = seed.create_node('Retained', 'Synthetic world fact', data='Keep this fact', parent_id='world')
@@ -51,7 +51,7 @@ def test_startup_releases_graph_store_after_inspection(tmp_path, mock_config, mo
         start=lambda: None, stop=lambda: None, join=lambda **kwargs: None,
     ))
     monkeypatch.setattr(daemon, 'create_tts_engine', lambda **kwargs: SimpleNamespace(enabled=False, stop=lambda: None))
-    monkeypatch.setattr('jarvis.tools.external.mcp_runtime.shutdown_runtime', lambda: None)
+    monkeypatch.setattr('atlas.tools.external.mcp_runtime.shutdown_runtime', lambda: None)
     try:
         daemon._run_daemon(smoke_test=True)
         assert 'SMOKE_TEST_INIT_OK' in capsys.readouterr().out

@@ -1,12 +1,12 @@
-"""Behavioural tests for the local Jarvis task queue."""
+"""Behavioural tests for the local ATLAS task queue."""
 
 from types import SimpleNamespace
 from threading import Event
 from unittest.mock import patch
 import pytest
 
-from jarvis.memory.db import Database
-from jarvis.tasks import TaskManager, TaskStatus
+from atlas.memory.db import Database
+from atlas.tasks import TaskManager, TaskStatus
 
 pytestmark = pytest.mark.unit
 
@@ -21,7 +21,7 @@ def test_task_runs_reply_engine_and_reports_completion():
         max_workers=1,
     )
 
-    with patch("jarvis.tasks.run_reply_engine", return_value="Done"):
+    with patch("atlas.tasks.run_reply_engine", return_value="Done"):
         task_id = manager.submit("整理我的收件箱")
         manager.wait_for_idle(timeout=2)
 
@@ -48,7 +48,7 @@ def test_cancel_queued_task_prevents_execution():
         dialogue_memory=object(),
         max_workers=1,
     )
-    with patch("jarvis.tasks.run_reply_engine", side_effect=blocking_reply):
+    with patch("atlas.tasks.run_reply_engine", side_effect=blocking_reply):
         blocker = manager.submit("first")
         assert started.wait(timeout=1)
         second = manager.submit("second")
@@ -81,7 +81,7 @@ def test_cancel_running_task_signals_reply_engine_and_stays_cancelled():
         dialogue_memory=object(),
         max_workers=1,
     )
-    with patch("jarvis.tasks.run_reply_engine", side_effect=cooperative_reply):
+    with patch("atlas.tasks.run_reply_engine", side_effect=cooperative_reply):
         task_id = manager.submit("stop this")
         assert started.wait(timeout=1)
         assert manager.cancel(task_id) is True
@@ -111,7 +111,7 @@ def test_task_queue_rejects_submissions_over_capacity():
         release.wait(timeout=2)
         return "done"
 
-    with patch("jarvis.tasks.run_reply_engine", side_effect=blocking_reply):
+    with patch("atlas.tasks.run_reply_engine", side_effect=blocking_reply):
         manager.submit("first")
         assert started.wait(timeout=1)
         with pytest.raises(RuntimeError, match="queue is full"):
@@ -122,7 +122,7 @@ def test_task_queue_rejects_submissions_over_capacity():
 
 
 def test_tasks_restore_from_local_database_without_persisting_secrets(tmp_path):
-    db_path = tmp_path / "jarvis.db"
+    db_path = tmp_path / "atlas.db"
     db = Database(str(db_path), sqlite_vss_path=None)
     manager = TaskManager(
         db=db,
@@ -130,7 +130,7 @@ def test_tasks_restore_from_local_database_without_persisting_secrets(tmp_path):
         dialogue_memory=object(),
         max_workers=1,
     )
-    with patch("jarvis.tasks.run_reply_engine", return_value="done token=super-secret"):
+    with patch("atlas.tasks.run_reply_engine", return_value="done token=super-secret"):
         task_id = manager.submit("remember token=secret-value")
         manager.wait_for_idle(timeout=2)
     manager.shutdown()
@@ -164,7 +164,7 @@ def test_cancellation_keeps_capacity_until_the_executor_drains(cancel_queued):
         assert release.wait(5)
         return 'Finished'
 
-    with patch('jarvis.tasks.run_reply_engine', side_effect=blocked_reply):
+    with patch('atlas.tasks.run_reply_engine', side_effect=blocked_reply):
         try:
             running = manager.submit('Running request')
             assert started.wait(2)
@@ -193,7 +193,7 @@ def test_idle_waits_for_a_cancelled_request_to_release_its_resources():
         assert release.wait(5)
         return 'Discarded'
 
-    with patch('jarvis.tasks.run_reply_engine', side_effect=blocked_reply):
+    with patch('atlas.tasks.run_reply_engine', side_effect=blocked_reply):
         try:
             task = manager.submit('An in-flight request')
             assert started.wait(2)
@@ -219,7 +219,7 @@ def test_history_pruning_preserves_cancelled_work_still_in_the_queue():
         assert release.wait(5)
         return 'Finished'
 
-    with patch('jarvis.tasks.run_reply_engine', side_effect=blocked_reply):
+    with patch('atlas.tasks.run_reply_engine', side_effect=blocked_reply):
         try:
             manager.submit('Running request')
             assert started.wait(2)
@@ -245,7 +245,7 @@ def test_invalid_saved_history_does_not_block_valid_tasks(tmp_path):
         manager = TaskManager(database, SimpleNamespace(), object())
         assert manager.get('valid').result == 'Done'
         assert manager.get('invalid') is None
-        with patch('jarvis.tasks.run_reply_engine', return_value='Still working'):
+        with patch('atlas.tasks.run_reply_engine', return_value='Still working'):
             task = manager.submit('A fresh task')
             manager.wait_for_idle(timeout=2)
         assert manager.get(task).result == 'Still working'
@@ -271,7 +271,7 @@ def test_desktop_task_delivery_is_silent_and_redacted(tmp_path, capsys):
         return result
 
     try:
-        with patch('jarvis.tasks.run_reply_engine', side_effect=reply):
+        with patch('atlas.tasks.run_reply_engine', side_effect=reply):
             task = manager.submit('A desktop task')
             manager.wait_for_idle(timeout=2)
         assert manager.get(task).status is TaskStatus.COMPLETED
@@ -285,7 +285,7 @@ def test_desktop_task_delivery_is_silent_and_redacted(tmp_path, capsys):
 
 @pytest.mark.parametrize('failure', ['reply', 'event', 'persist', 'restore', 'prune'])
 def test_task_errors_do_not_expose_secrets_in_diagnostics(monkeypatch, failure):
-    from jarvis import tasks
+    from atlas import tasks
     logs = []
     monkeypatch.setattr(tasks, 'debug_log', lambda message, *args: logs.append(message))
 
@@ -300,7 +300,7 @@ def test_task_errors_do_not_expose_secrets_in_diagnostics(monkeypatch, failure):
     manager = TaskManager(database, SimpleNamespace(), object(),
                           event_callback=fail if failure == 'event' else None)
     try:
-        with patch('jarvis.tasks.run_reply_engine', side_effect=fail if failure == 'reply' else None,
+        with patch('atlas.tasks.run_reply_engine', side_effect=fail if failure == 'reply' else None,
                    return_value='Done'):
             task = manager.submit('A task with a failing boundary')
             manager.wait_for_idle(timeout=2)

@@ -11,9 +11,9 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QBoxLayout, QApplication, QMen
 from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QPainterPathStroker, QRadialGradient, QRegion, QPixmap
 from PyQt6.QtCore import Qt, QTimer, QPointF, QRectF, pyqtSignal
 
-from jarvis.activity import JarvisState, get_jarvis_state
-from jarvis.debug import debug_log
-from jarvis.output.lip_sync import read_envelope, envelope_level
+from atlas.activity import AtlasState, get_atlas_state
+from atlas.debug import debug_log
+from atlas.output.lip_sync import read_envelope, envelope_level
 from desktop_app.themes import COLORS, apply_theme
 from desktop_app.hologram_panel import HologramPanel, ProjectionBridge
 
@@ -58,8 +58,8 @@ class FaceWidget(QWidget):
             QPixmap(str(Path(__file__).resolve().parent / "desktop_assets" / "atlas_portrait.png"))
             if portrait else QPixmap()
         )
-        self._state_manager = get_jarvis_state()
-        self._jarvis_state = JarvisState.ASLEEP
+        self._state_manager = get_atlas_state()
+        self._atlas_state = AtlasState.ASLEEP
         self._expression = Expression.NEUTRAL
         self._activation_level = 0.0
         self._listening = 0.0
@@ -121,37 +121,37 @@ class FaceWidget(QWidget):
         elapsed = max(0.0, now - self._last_frame_at)
         self._last_frame_at = now
         self._elapsed = max(0.0, now - self._started_at)
-        previous = self._jarvis_state
-        self._jarvis_state = self._state_manager.state
-        if self._jarvis_state != previous:
+        previous = self._atlas_state
+        self._atlas_state = self._state_manager.state
+        if self._atlas_state != previous:
             self._mouth_envelope = None
             self._state_entered_at = now
-            if self._jarvis_state == JarvisState.LISTENING:
+            if self._atlas_state == AtlasState.LISTENING:
                 self._listening_started_at = now
-            self.state_observed.emit(self._jarvis_state.value)
-            debug_log(f"👤 Face state: {self._jarvis_state.value}", "face")
+            self.state_observed.emit(self._atlas_state.value)
+            debug_log(f"👤 Face state: {self._atlas_state.value}", "face")
         self._state_elapsed = max(0.0, now - self._state_entered_at)
-        state = self._jarvis_state
-        if state == JarvisState.SPEAKING and self._mouth_envelope is None:
+        state = self._atlas_state
+        if state == AtlasState.SPEAKING and self._mouth_envelope is None:
             # TTS publishes after it claims SPEAKING, just before audio start.
             # Retry on later frames until its waveform arrives.
             self._mouth_envelope = read_envelope()
-        awake = state != JarvisState.ASLEEP
+        awake = state != AtlasState.ASLEEP
         self._activation_level = self._approach(self._activation_level, float(awake), elapsed, 0.32)
         for name, target in (
-            ("_listening", state == JarvisState.LISTENING),
-            ("_thinking", state in (JarvisState.THINKING, JarvisState.DICTATION_PROCESSING)),
-            ("_speaking", state == JarvisState.SPEAKING),
-            ("_dictating", state in (JarvisState.DICTATING, JarvisState.DICTATION_PROCESSING)),
+            ("_listening", state == AtlasState.LISTENING),
+            ("_thinking", state in (AtlasState.THINKING, AtlasState.DICTATION_PROCESSING)),
+            ("_speaking", state == AtlasState.SPEAKING),
+            ("_dictating", state in (AtlasState.DICTATING, AtlasState.DICTATION_PROCESSING)),
         ):
             setattr(self, name, self._approach(getattr(self, name), float(target), elapsed, 0.18))
         self._breathing_scale = 1.0 + math.sin(self._elapsed * math.tau / 7.5) * 0.006 * self._activation_level
         self._update_blink(now, awake)
-        self._update_glance(now, state == JarvisState.IDLE)
+        self._update_glance(now, state == AtlasState.IDLE)
         # Sleeping faces still observe daemon state promptly; hidden ones do no work.
         self._animation_timer.setInterval(
             250 if not awake and self._activation_level == 0.0
-            else 50 if state == JarvisState.IDLE else 33
+            else 50 if state == AtlasState.IDLE else 33
         )
         self.update()
 
@@ -219,7 +219,7 @@ class FaceWidget(QWidget):
             # Do not smooth the PCM amplitude by the visual state's
             # 180ms ease-in/out; that delay desynchronises the lips.
             opening = (envelope_level(self._mouth_envelope)
-                       if self._jarvis_state == JarvisState.SPEAKING else 0.0)
+                       if self._atlas_state == AtlasState.SPEAKING else 0.0)
         else:
             # Legacy TTS backends do not publish a PCM envelope.
             opening = self._speech_mouth_opening(self._elapsed, self._speaking)
@@ -663,16 +663,16 @@ class FaceWindow(QWidget):
 
     def _update_presence(self, state_value: str) -> None:
         """Keep resting states quiet and active interaction clearly visible."""
-        state = JarvisState(state_value)
+        state = AtlasState(state_value)
         if self._hologram_enabled:
             opacity = (
-                0.84 if state == JarvisState.ASLEEP
-                else 0.94 if state == JarvisState.IDLE else 1.0
+                0.84 if state == AtlasState.ASLEEP
+                else 0.94 if state == AtlasState.IDLE else 1.0
             )
         else:
             opacity = (
-                0.45 if state == JarvisState.ASLEEP
-                else 0.72 if state == JarvisState.IDLE else 0.96
+                0.45 if state == AtlasState.ASLEEP
+                else 0.72 if state == AtlasState.IDLE else 0.96
             )
         self.setWindowOpacity(opacity)
         if self._hologram_enabled:

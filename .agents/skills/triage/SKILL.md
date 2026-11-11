@@ -1,7 +1,7 @@
 ---
 name: triage
 description: >
-  Triage open GitHub issues and discussions on the Jarvis repo. Sweep for
+  Triage open GitHub issues and discussions on the ATLAS repo. Sweep for
   untriaged reports, reply to awaiting-user threads when new info lands,
   apply the right labels, close duplicates, and edit past owner comments
   rather than stacking follow-ups. Use after a release or any time the user
@@ -109,7 +109,7 @@ capture, recognition, intent, model availability, tool execution or playback.
   produced anything when the log already contains the relevant transcript.
 - The configured wake name can occur at the start or end of a request. A brief
   hot window allows directed follow-ups without repeating it; unrelated
-  conversation is not automatically addressed to Jarvis.
+  conversation is not automatically addressed to ATLAS.
 - Ask only for evidence still missing. Successful loading or a model pull proves
   that operation succeeded then, not that the current provider, microphone or
   complete request is healthy. Respect the chosen provider rather than assuming

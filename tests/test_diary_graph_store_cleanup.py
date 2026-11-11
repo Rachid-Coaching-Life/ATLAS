@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from jarvis.memory import conversation, graph, graph_ops
-from jarvis.memory.db import Database
+from atlas.memory import conversation, graph, graph_ops
+from atlas.memory.db import Database
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 
@@ -46,7 +46,7 @@ def test_diary_save_releases_graph_store_for_every_graph_outcome(tmp_path, mock_
         monkeypatch.setattr(graph_ops, 'update_graph_from_dialogue', update_graph)
         try:
             summary_id = conversation.update_diary_from_dialogue_memory(db, dialogue_memory, mock_config, force=True)
-            row = read_summary(datetime.now(timezone.utc).date().isoformat(), 'jarvis')
+            row = read_summary(datetime.now(timezone.utc).date().isoformat(), 'atlas')
             assert summary_id is not None
             assert row['summary'] == summary
             assert dialogue_memory.get_pending_chunks() == []

@@ -5,8 +5,8 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from jarvis.config import load_settings
-from jarvis.listening import listener as capture
+from atlas.config import load_settings
+from atlas.listening import listener as capture
 
 pytestmark = pytest.mark.unit
 

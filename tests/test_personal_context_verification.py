@@ -9,8 +9,8 @@ pytestmark = pytest.mark.unit
 
 
 def _run(db, monkeypatch, text, candidate, review):
-    from jarvis.reply import personal_context
-    db.upsert_conversation_summary(datetime.now(timezone.utc).date().isoformat(), text, 'personal', 'jarvis')
+    from atlas.reply import personal_context
+    db.upsert_conversation_summary(datetime.now(timezone.utc).date().isoformat(), text, 'personal', 'atlas')
     responses = iter([json.dumps([candidate]), json.dumps(review)])
     monkeypatch.setattr(personal_context, 'get_llm_backend', lambda cfg:
                         SimpleNamespace(direct=lambda *a, **kw: next(responses)))

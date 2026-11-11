@@ -1,7 +1,7 @@
 """Reply preparation and mid-turn discovery honour configured model budgets."""
 import pytest
 
-from jarvis.llm import Tier, resolve_model
+from atlas.llm import Tier, resolve_model
 
 pytestmark = pytest.mark.unit
 
@@ -10,7 +10,7 @@ pytestmark = pytest.mark.unit
 def test_reply_preparation_uses_configured_deadlines_and_fast_model(
     mock_config, monkeypatch, budget_offset,
 ):
-    from jarvis.reply import engine
+    from atlas.reply import engine
 
     cfg = mock_config
     cfg.llm_embedding_timeout_sec += budget_offset
@@ -37,7 +37,7 @@ def test_reply_preparation_uses_configured_deadlines_and_fast_model(
     monkeypatch.setattr(engine, "select_tools", route)
     monkeypatch.setattr(engine, "plan_query", lambda *args, **kwargs: [])
     monkeypatch.setattr(engine, "extract_search_params_for_memory", extract)
-    monkeypatch.setattr("jarvis.memory.conversation.search_conversation_memory_by_keywords", search)
+    monkeypatch.setattr("atlas.memory.conversation.search_conversation_memory_by_keywords", search)
     monkeypatch.setattr(engine, "chat_with_messages", lambda **kwargs: None)
     engine.run_reply_engine(None, cfg, None, "Which city did I mention when we discussed my commute last week?", None)
 
@@ -52,8 +52,8 @@ def test_reply_preparation_uses_configured_deadlines_and_fast_model(
 def test_mid_turn_discovery_uses_configured_deadlines_and_fast_model(
     mock_config, monkeypatch, budget_offset,
 ):
-    from jarvis.tools.base import ToolContext
-    from jarvis.tools.builtin import tool_search
+    from atlas.tools.base import ToolContext
+    from atlas.tools.builtin import tool_search
 
     cfg = mock_config
     cfg.llm_embedding_timeout_sec += budget_offset

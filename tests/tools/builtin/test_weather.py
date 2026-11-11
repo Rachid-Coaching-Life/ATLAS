@@ -4,13 +4,13 @@ import pytest
 from unittest.mock import Mock, patch
 import requests
 
-from jarvis.tools.builtin.weather import (
+from atlas.tools.builtin.weather import (
     WeatherTool,
     WMO_CODES,
     _extract_place_from_user_text,
 )
-from jarvis.tools.base import ToolContext
-from jarvis.tools.types import ToolExecutionResult
+from atlas.tools.base import ToolContext
+from atlas.tools.types import ToolExecutionResult
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 
@@ -121,7 +121,7 @@ class TestWeatherTool:
 
     @pytest.mark.parametrize("args", [None, {}, {"location": None}, {"location": ""}],
                              ids=["no-args", "omitted", "null", "empty"])
-    @patch('jarvis.tools.builtin.weather.get_location_info')
+    @patch('atlas.tools.builtin.weather.get_location_info')
     def test_missing_location_uses_fallback(self, mock_location, args):
         """Missing locations use detection, never geocoding null or empty text."""
         mock_location.return_value = {"error": "Location not available"}
@@ -136,7 +136,7 @@ class TestWeatherTool:
     @pytest.mark.parametrize("args", [None, {}, {"location": None}, {"location": ""}],
                              ids=["no-args", "omitted", "null", "empty"])
     @patch('requests.get')
-    @patch('jarvis.tools.builtin.weather.get_location_info')
+    @patch('atlas.tools.builtin.weather.get_location_info')
     def test_run_no_location_with_successful_fallback(self, mock_location, mock_get, args):
         """Test weather with no location but successful user location detection."""
         # Mock successful location detection with coordinates (no geocoding needed)
@@ -177,8 +177,8 @@ class TestWeatherTool:
         assert mock_get.call_count == 1
 
     @patch('requests.get')
-    @patch('jarvis.tools.builtin.weather._extract_place_from_user_text')
-    @patch('jarvis.tools.builtin.weather.get_location_info')
+    @patch('atlas.tools.builtin.weather._extract_place_from_user_text')
+    @patch('atlas.tools.builtin.weather.get_location_info')
     def test_auto_detect_fail_falls_back_to_user_text(
         self, mock_location, mock_extract, mock_get,
     ):
@@ -232,8 +232,8 @@ class TestWeatherTool:
         called_text = mock_extract.call_args[0][0]
         assert "London" in called_text
 
-    @patch('jarvis.tools.builtin.weather._extract_place_from_user_text')
-    @patch('jarvis.tools.builtin.weather.get_location_info')
+    @patch('atlas.tools.builtin.weather._extract_place_from_user_text')
+    @patch('atlas.tools.builtin.weather.get_location_info')
     def test_auto_detect_fail_and_no_place_in_text_asks_user(
         self, mock_location, mock_extract,
     ):
@@ -408,7 +408,7 @@ class TestExtractPlaceFromUserText:
         backend = Mock()
         backend.direct.return_value = return_value
         return patch(
-            "jarvis.tools.builtin.weather.get_llm_backend",
+            "atlas.tools.builtin.weather.get_llm_backend",
             return_value=backend,
         )
 

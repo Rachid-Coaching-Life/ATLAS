@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from jarvis.dictation.history import DictationHistory, HistoryUpdateError
+from atlas.dictation.history import DictationHistory, HistoryUpdateError
 
 pytestmark = pytest.mark.unit
 

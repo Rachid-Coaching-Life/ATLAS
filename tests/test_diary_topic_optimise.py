@@ -14,9 +14,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis.memory.db import Database
-import jarvis.memory.conversation as cmod
-from jarvis.memory.conversation import optimise_diary_topics
+from atlas.memory.db import Database
+import atlas.memory.conversation as cmod
+from atlas.memory.conversation import optimise_diary_topics
 
 pytestmark = pytest.mark.unit
 
@@ -44,7 +44,7 @@ def _seed(db: Database, rows: list[tuple[str, str, str | None]]) -> None:
             date_utc=date_utc,
             summary=summary,
             topics=topics,
-            source_app="jarvis",
+            source_app="atlas",
         )
 
 
@@ -213,7 +213,7 @@ class TestOptimiseAuditTrail:
             date_utc="2026-04-10",
             summary="User made pasta.",
             topics="cook",
-            source_app="jarvis",
+            source_app="atlas",
             ts_utc=original_ts,
         )
         monkeypatch.setattr(cmod, "_direct_llm", _fake_llm({"cook": "cooking"}))

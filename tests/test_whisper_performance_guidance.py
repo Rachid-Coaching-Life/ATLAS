@@ -6,8 +6,8 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 import numpy as np
 import pytest
-from jarvis.listening import listener as listener_module
-from jarvis.listening.listener import VoiceListener, _TranscriptionJob
+from atlas.listening import listener as listener_module
+from atlas.listening.listener import VoiceListener, _TranscriptionJob
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 

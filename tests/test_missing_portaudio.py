@@ -67,11 +67,11 @@ def _assert_ok(result: subprocess.CompletedProcess) -> None:
 def test_dictation_engine_imports_without_portaudio():
     """Dictation engine must load (audio disabled) when PortAudio is absent."""
     extra = (
-        "from jarvis.dictation.dictation_engine import format_hotkey_display\n"
+        "from atlas.dictation.dictation_engine import format_hotkey_display\n"
         "assert format_hotkey_display('ctrl+alt')"
     )
     result = _run(
-        "jarvis.dictation.dictation_engine",
+        "atlas.dictation.dictation_engine",
         dep="sounddevice",
         error='OSError("PortAudio library not found")',
         attr="sd",
@@ -83,7 +83,7 @@ def test_dictation_engine_imports_without_portaudio():
 def test_dictation_engine_imports_with_broken_pynput():
     """Dictation engine must load (hotkey disabled) when pynput fails to import."""
     result = _run(
-        "jarvis.dictation.dictation_engine",
+        "atlas.dictation.dictation_engine",
         dep="pynput",
         error='RuntimeError("no X display available")',
         attr="pynput_keyboard",
@@ -94,7 +94,7 @@ def test_dictation_engine_imports_with_broken_pynput():
 def test_listener_imports_without_portaudio():
     """Voice listener module must load (audio disabled) when PortAudio is absent."""
     result = _run(
-        "jarvis.listening.listener",
+        "atlas.listening.listener",
         dep="sounddevice",
         error='OSError("PortAudio library not found")',
         attr="sd",
@@ -114,7 +114,7 @@ def test_text_submission_survives_unavailable_speech_backend(error, dependency):
     extra = r'''
 import threading
 from unittest.mock import patch
-from jarvis.memory.conversation import DialogueMemory
+from atlas.memory.conversation import DialogueMemory
 
 m._global_cfg = object()
 m._global_db = object()
@@ -127,12 +127,12 @@ def complete(reply):
 def text_engine(*, text, tts, **kwargs):
     assert tts is None
     return "Typed reply: " + text
-with patch('jarvis.reply.engine.run_reply_engine', text_engine):
-    m.submit_text_query('hello Jarvis', on_complete=complete)
+with patch('atlas.reply.engine.run_reply_engine', text_engine):
+    m.submit_text_query('hello ATLAS', on_complete=complete)
     assert completed.wait(5), 'Typed query never completed'
-assert replies == ['Typed reply: hello Jarvis'], replies
+assert replies == ['Typed reply: hello ATLAS'], replies
 '''
-    result = _run('jarvis.daemon', dep=dependency, error=error,
+    result = _run('atlas.daemon', dep=dependency, error=error,
                   attr='_global_db', extra=extra)
     _assert_ok(result)
 
@@ -159,7 +159,7 @@ assert not listener._is_speech_frame(np.ones(320, dtype=np.float32) * listener.c
 assert listener._is_speech_frame(np.ones(320, dtype=np.float32) * listener.cfg.voice_min_energy * 2), 'Audible frame rejected'
 assert m.sd is not None, 'Optional VAD failure disabled microphone capture'
 '''
-    result = _run('jarvis.listening.listener', dep='webrtcvad', error=error,
+    result = _run('atlas.listening.listener', dep='webrtcvad', error=error,
                   attr='webrtcvad', extra=extra)
     _assert_ok(result)
     assert 'PortAudio' not in result.stdout
@@ -172,7 +172,7 @@ def test_listener_without_numpy_reports_unavailable_processing():
 listener = m.VoiceListener.__new__(m.VoiceListener)
 listener._run()
 '''
-    result = _run('jarvis.listening.listener', dep='numpy',
+    result = _run('atlas.listening.listener', dep='numpy',
                   error='ImportError("fixture array processing unavailable")',
                   attr='np', extra=extra)
     _assert_ok(result)

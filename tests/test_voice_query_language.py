@@ -3,16 +3,16 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
-from jarvis.config import get_default_config
+from atlas.config import get_default_config
 
 pytestmark = pytest.mark.unit
 
 
 @pytest.mark.parametrize("kind", ["empty", "whitespace", "repetition", "echo", "undirected", "accepted", "unknown"])
 def test_pending_reply_language_tracks_accepted_request(mock_config, monkeypatch, kind):
-    from jarvis.listening import listener as module
-    from jarvis.listening import state_manager as state
-    from jarvis.reply import engine
+    from atlas.listening import listener as module
+    from atlas.listening import state_manager as state
+    from atlas.reply import engine
 
     clock = {"now": 1000.0}
     monkeypatch.setattr(state.time, "time", lambda: clock["now"])
@@ -21,7 +21,7 @@ def test_pending_reply_language_tracks_accepted_request(mock_config, monkeypatch
     obj._start_thinking_tune = lambda: None
     obj._stop_thinking_tune = lambda: None
     first = module._TranscriptionResult(
-        text="Jarvis, tell me the weather", language="en", low_confidence_events=(),
+        text="ATLAS, tell me the weather", language="en", low_confidence_events=(),
         start_time=999, end_time=1000, energy=get_default_config()["voice_min_energy"],
         capture_generation=obj._capture_generation,
         captured_during_tts=False, captured_tts_start_time=0,
@@ -31,8 +31,8 @@ def test_pending_reply_language_tracks_accepted_request(mock_config, monkeypatch
     texts = {
         "empty": "", "whitespace": "  ", "repetition": "noise " * 8,
         "echo": "Le ciel sera couvert demain à Londres.",
-        "undirected": "Je parle à Jarvis, pas à toi.",
-        "accepted": "Jarvis, 오늘 날씨는 어때요?", "unknown": "Jarvis, provide the forecast.",
+        "undirected": "Je parle à ATLAS, pas à toi.",
+        "accepted": "ATLAS, 오늘 날씨는 어때요?", "unknown": "ATLAS, provide the forecast.",
     }
     if kind == "echo":
         obj.tts = SimpleNamespace(enabled=True, is_speaking=lambda: True, preparing_request_at=lambda timestamp: None)
@@ -63,25 +63,25 @@ def test_pending_reply_language_tracks_accepted_request(mock_config, monkeypatch
 
 
 def test_collection_snapshot_retains_only_accepted_segment_metadata():
-    from jarvis.listening.state_manager import StateManager
+    from atlas.listening.state_manager import StateManager
 
     state = StateManager()
-    state.start_collection("Jarvis", language="en")
+    state.start_collection("ATLAS", language="en")
     state.add_to_collection("quel temps fera-t-il ?", language="fr")
     query = state.clear_collection()
-    assert (query.text, query.language) == ("Jarvis quel temps fera-t-il ?", "fr")
+    assert (query.text, query.language) == ("ATLAS quel temps fera-t-il ?", "fr")
     state.start_collection("Another request", language="ko")
-    assert (query.text, query.language) == ("Jarvis quel temps fera-t-il ?", "fr")
+    assert (query.text, query.language) == ("ATLAS quel temps fera-t-il ?", "fr")
     state.reset_engagement()
     empty = state.clear_collection()
     assert (empty.text, empty.language) == ("", None)
 
 
 def test_unknown_accepted_segment_does_not_inherit_a_previous_locale():
-    from jarvis.listening.state_manager import StateManager
+    from atlas.listening.state_manager import StateManager
 
     state = StateManager()
-    state.start_collection("Jarvis", language="en")
+    state.start_collection("ATLAS", language="en")
     state.add_to_collection("tell me the weather", language=None)
     query = state.clear_collection()
-    assert (query.text, query.language) == ("Jarvis tell me the weather", None)
+    assert (query.text, query.language) == ("ATLAS tell me the weather", None)

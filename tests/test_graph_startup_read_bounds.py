@@ -5,7 +5,7 @@ import tracemalloc
 
 import pytest
 
-from jarvis.memory.graph import GraphMemoryStore
+from atlas.memory.graph import GraphMemoryStore
 
 pytestmark = pytest.mark.unit
 

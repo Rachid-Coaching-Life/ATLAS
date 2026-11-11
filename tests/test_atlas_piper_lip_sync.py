@@ -5,7 +5,7 @@ import time
 import numpy as np
 import pytest
 
-from jarvis.output import lip_sync
+from atlas.output import lip_sync
 
 pytestmark = pytest.mark.unit
 

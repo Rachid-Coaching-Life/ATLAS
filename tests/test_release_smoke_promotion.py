@@ -88,11 +88,11 @@ def test_smoke_promotion_preserves_main_for_unqualified_commits(tmp_path, tested
     binaries = tmp_path / "bin"
     binaries.mkdir()
     stub = binaries / "gh"
-    stub.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$JARVIS_TEST_COMMAND_LOG"\n')
+    stub.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$ATLAS_TEST_COMMAND_LOG"\n')
     stub.chmod(0o755)
     environment.update({key: bindings[value] for key, value in dispatch["env"].items()})
     environment["PATH"] = str(binaries) + os.pathsep + os.environ["PATH"]
-    environment["JARVIS_TEST_COMMAND_LOG"] = str(commands)
+    environment["ATLAS_TEST_COMMAND_LOG"] = str(commands)
     dispatched = subprocess.run([shutil.which("bash"), "-c", dispatch["run"]],
                                cwd=checkout, env=environment, capture_output=True, text=True, timeout=10)
     assert dispatched.returncode == 0, dispatched.stdout + dispatched.stderr

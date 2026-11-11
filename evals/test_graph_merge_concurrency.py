@@ -5,8 +5,8 @@ import pytest
 
 from conftest import requires_judge_llm
 from helpers import voice_config
-from jarvis.memory.graph import GraphMemoryStore
-from jarvis.memory import graph_ops
+from atlas.memory.graph import GraphMemoryStore
+from atlas.memory import graph_ops
 
 pytestmark = [pytest.mark.eval, requires_judge_llm]
 

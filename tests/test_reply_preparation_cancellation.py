@@ -2,8 +2,8 @@
 from threading import Event
 
 import pytest
-from jarvis.reply import engine
-from jarvis.memory import conversation
+from atlas.reply import engine
+from atlas.memory import conversation
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 
@@ -33,7 +33,7 @@ def test_preparation_stops_after_the_inflight_stage(monkeypatch, mock_config, db
         return value
 
     if stop_during in {'profile', 'graph'}:
-        from jarvis.memory import graph, graph_ops
+        from atlas.memory import graph, graph_ops
         mock_config.db_path = str(tmp_path / 'graph.db')
         store = graph.GraphMemoryStore(mock_config.db_path)
         try:
@@ -50,7 +50,7 @@ def test_preparation_stops_after_the_inflight_stage(monkeypatch, mock_config, db
         monkeypatch.setattr(dialogue_memory, 'hot_cache_get', lambda key: stage('router_cache', None))
 
     if stop_during == 'discovery':
-        from jarvis.tools import registry
+        from atlas.tools import registry
         mock_config.mcps = {'owned': {}}
         monkeypatch.setattr(registry, 'is_mcp_cache_initialized', lambda: True)
         monkeypatch.setattr(registry, 'refresh_mcp_tools', lambda **kw: stage('discovery', ({}, {})))
@@ -75,7 +75,7 @@ def test_preparation_stops_after_the_inflight_stage(monkeypatch, mock_config, db
 def test_cancelling_a_running_task_stops_preparation_before_planning(
     monkeypatch, mock_config, db, dialogue_memory, tmp_path,
 ):
-    from jarvis.tasks import TaskManager, TaskStatus
+    from atlas.tasks import TaskManager, TaskStatus
     started, release = Event(), Event()
     forbidden = tmp_path / 'planning-started-after-cancellation'
     mock_config.planner_enabled = True

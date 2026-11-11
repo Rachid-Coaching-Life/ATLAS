@@ -8,7 +8,7 @@ import pytest
 
 from conftest import requires_judge_llm
 from helpers import judge_pass_fail
-from jarvis.reply.engine import run_reply_engine
+from atlas.reply.engine import run_reply_engine
 
 
 @pytest.mark.eval

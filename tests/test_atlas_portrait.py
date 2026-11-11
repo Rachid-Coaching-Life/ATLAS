@@ -131,17 +131,17 @@ def test_portrait_lips_move_only_during_speaking(qapp):
 def test_portrait_speaking_animation_uses_real_shared_state(qapp, monkeypatch):
     """Qt's timer must react to the real shared SPEAKING state."""
     from types import SimpleNamespace
-    from jarvis.activity import JarvisState
+    from atlas.activity import AtlasState
     from desktop_app.face_widget import FaceWidget
 
     face = FaceWidget()
     try:
-        face._state_manager = SimpleNamespace(state=JarvisState.SPEAKING)
+        face._state_manager = SimpleNamespace(state=AtlasState.SPEAKING)
         face._last_frame_at -= 0.5
         face._animate()
         assert face._speaking > 0.8
 
-        face._state_manager.state = JarvisState.IDLE
+        face._state_manager.state = AtlasState.IDLE
         face._last_frame_at -= 0.5
         face._animate()
         assert face._speaking < 0.2
@@ -157,9 +157,9 @@ def test_portrait_lips_follow_real_pcm_level_not_timer(qapp, monkeypatch):
 
     face = face_module.FaceWidget()
     face.resize(240, 280)
-    from jarvis.activity import JarvisState
+    from atlas.activity import AtlasState
     face._speaking = 1.0
-    face._jarvis_state = JarvisState.SPEAKING
+    face._atlas_state = AtlasState.SPEAKING
     face._mouth_envelope = {"started_at": 123.0, "frame_ms": 40, "levels": [0, 100, 0]}
 
     def frame():
@@ -178,7 +178,7 @@ def test_portrait_lips_follow_real_pcm_level_not_timer(qapp, monkeypatch):
         assert silent_frame != voiced_frame
         monkeypatch.setattr(face_module, "envelope_level", lambda data: 0.0)
         assert frame() == silent_frame
-        face._jarvis_state = JarvisState.IDLE
+        face._atlas_state = AtlasState.IDLE
         monkeypatch.setattr(face_module, "envelope_level", lambda data: 1.0)
         assert frame() == silent_frame  # no ghost articulation after playback
     finally:

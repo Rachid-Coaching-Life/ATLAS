@@ -22,7 +22,7 @@ class TestDictationHistory:
     @pytest.mark.parametrize("limit", [1, 3, 7])
     def test_records_persist_with_metadata_and_bounded_newest_order(self, tmp_path, limit):
         from uuid import UUID
-        from jarvis.dictation.history import DictationHistory
+        from atlas.dictation.history import DictationHistory
 
         path = tmp_path / "history.json"
         history = DictationHistory(path=path, max_entries=limit)
@@ -48,7 +48,7 @@ class TestDictationHistory:
 
     @pytest.mark.parametrize("operation", ["delete", "clear"])
     def test_mutations_persist_by_identity(self, tmp_path, operation):
-        from jarvis.dictation.history import DictationHistory
+        from atlas.dictation.history import DictationHistory
 
         path = tmp_path / "history.json"
         history = DictationHistory(path=path)
@@ -65,7 +65,7 @@ class TestDictationHistory:
         assert DictationHistory(path=path).get_all() == expected
 
     def test_missing_deletion_preserves_saved_bytes(self, tmp_path):
-        from jarvis.dictation.history import DictationHistory
+        from atlas.dictation.history import DictationHistory
 
         path = tmp_path / "history.json"
         history = DictationHistory(path=path)
@@ -77,7 +77,7 @@ class TestDictationHistory:
 
     @pytest.mark.parametrize("change", ["addition", "deletion", "replacement"])
     def test_delete_uses_current_disk_entries(self, tmp_path, change):
-        from jarvis.dictation.history import DictationHistory
+        from atlas.dictation.history import DictationHistory
 
         path = tmp_path / "history.json"
         desktop = DictationHistory(path=path)
@@ -99,7 +99,7 @@ class TestDictationHistory:
 
     @pytest.mark.parametrize("content", ["", "not valid json{{{"])
     def test_initial_unavailable_store_is_empty_without_rewriting(self, tmp_path, content):
-        from jarvis.dictation.history import DictationHistory
+        from atlas.dictation.history import DictationHistory
 
         path = tmp_path / "history.json"
         path.write_text(content, encoding="utf-8")
@@ -108,7 +108,7 @@ class TestDictationHistory:
         assert path.read_text(encoding="utf-8") == content
 
     def test_reload_picks_up_external_records(self, tmp_path):
-        from jarvis.dictation.history import DictationHistory
+        from atlas.dictation.history import DictationHistory
 
         path = tmp_path / "history.json"
         history = DictationHistory(path=path)
@@ -120,7 +120,7 @@ class TestDictationHistory:
 
     def test_concurrent_reload_retains_every_written_record(self, tmp_path):
         import threading
-        from jarvis.dictation.history import DictationHistory
+        from atlas.dictation.history import DictationHistory
 
         path = tmp_path / "history.json"
         record_count = 20
@@ -204,7 +204,7 @@ class TestDictationHistoryWindow:
     def test_hidden_notifications_are_inert_and_surface_on_open(self, qapp, tmp_path, delivery):
         from PyQt6.QtWidgets import QScrollArea
         from desktop_app.dictation_history import DictationHistoryWindow
-        from jarvis.dictation.history import DictationHistory
+        from atlas.dictation.history import DictationHistory
 
         history = DictationHistory(path=tmp_path / "history.json")
         window = DictationHistoryWindow(history=history)
@@ -221,7 +221,7 @@ class TestDictationHistoryWindow:
     @pytest.mark.parametrize("delivery", ["main", "worker"])
     def test_visible_notifications_render_saved_text(self, qapp, tmp_path, delivery):
         from desktop_app.dictation_history import DictationHistoryWindow
-        from jarvis.dictation.history import DictationHistory
+        from atlas.dictation.history import DictationHistory
 
         history = DictationHistory(path=tmp_path / "history.json")
         window = DictationHistoryWindow(history=history)
@@ -237,7 +237,7 @@ class TestDictationHistoryWindow:
     def test_reopening_defers_refresh_and_displays_current_disk_records(self, qapp, tmp_path, change):
         from PyQt6.QtWidgets import QScrollArea
         from desktop_app.dictation_history import DictationHistoryWindow
-        from jarvis.dictation.history import DictationHistory
+        from atlas.dictation.history import DictationHistory
 
         path = tmp_path / "history.json"
         desktop = DictationHistory(path=path)
@@ -265,7 +265,7 @@ class TestDictationHistoryWindow:
     def test_attaching_history_renders_saved_dictations(self, qapp, tmp_path):
         from PyQt6.QtWidgets import QLabel
         from desktop_app.dictation_history import DictationHistoryWindow
-        from jarvis.dictation.history import DictationHistory
+        from atlas.dictation.history import DictationHistory
 
         history = DictationHistory(path=tmp_path / "history.json")
         entry = history.add("A saved dictation")
@@ -281,7 +281,7 @@ class TestDictationHistoryWindow:
     def test_delete_button_preserves_an_unseen_external_dictation(self, qapp, tmp_path):
         from PyQt6.QtWidgets import QLabel, QPushButton
         from desktop_app.dictation_history import DictationHistoryWindow, _DictationCard
-        from jarvis.dictation.history import DictationHistory
+        from atlas.dictation.history import DictationHistory
 
         path = tmp_path / "history.json"
         desktop = DictationHistory(path=path)
@@ -310,7 +310,7 @@ class TestDictationHistoryWindow:
         from filelock import FileLock
         from PyQt6.QtWidgets import QLabel, QPushButton, QMessageBox
         from desktop_app.dictation_history import DictationHistoryWindow
-        from jarvis.dictation.history import DictationHistory
+        from atlas.dictation.history import DictationHistory
 
         path = tmp_path / "history.json"
         history = DictationHistory(path=path)
@@ -362,8 +362,8 @@ class TestDictationHistoryWindow:
 @pytest.mark.parametrize("text", ["A dictated entry, café", ""])
 def test_dictation_history_persists_before_announcing_the_result(monkeypatch, text):
     import numpy as np
-    from jarvis.dictation import dictation_engine as engine_module
-    from jarvis.dictation.history import DictationHistory
+    from atlas.dictation import dictation_engine as engine_module
+    from atlas.dictation.history import DictationHistory
 
     pasted, announced = [], []
     monkeypatch.setattr(engine_module, "_clipboard_paste", pasted.append)
@@ -395,8 +395,8 @@ def test_dictation_history_persists_before_announcing_the_result(monkeypatch, te
 @pytest.mark.unit
 def test_failed_history_save_keeps_the_paste_without_announcing_a_saved_entry(tmp_path, monkeypatch):
     import numpy as np
-    from jarvis.dictation import history as history_module
-    from jarvis.dictation import dictation_engine as engine_module
+    from atlas.dictation import history as history_module
+    from atlas.dictation import dictation_engine as engine_module
 
     history = history_module.DictationHistory(path=tmp_path / "history.json")
     saved = history.add("Already saved")
@@ -430,7 +430,7 @@ def test_busy_history_keeps_the_qt_event_loop_responsive(qapp, tmp_path, monkeyp
     from PyQt6.QtCore import QEventLoop, QTimer
     from PyQt6.QtWidgets import QMessageBox
     from desktop_app.dictation_history import DictationHistoryWindow
-    from jarvis.dictation.history import DictationHistory
+    from atlas.dictation.history import DictationHistory
 
     path = tmp_path / "history.json"
     history = DictationHistory(path=path)

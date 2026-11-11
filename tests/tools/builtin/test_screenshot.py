@@ -4,9 +4,9 @@ import pytest
 from unittest.mock import Mock, patch
 import sys
 
-from jarvis.tools.builtin.screenshot import ScreenshotTool
-from jarvis.tools.base import ToolContext
-from jarvis.tools.types import ToolExecutionResult
+from atlas.tools.builtin.screenshot import ScreenshotTool
+from atlas.tools.base import ToolContext
+from atlas.tools.types import ToolExecutionResult
 
 
 class TestScreenshotTool:
@@ -60,7 +60,7 @@ class TestScreenshotTool:
         mock_run.return_value = mock_proc
 
         try:
-            with patch('tempfile.mkdtemp', return_value='/tmp/jarvis_ocr_test'), \
+            with patch('tempfile.mkdtemp', return_value='/tmp/atlas_ocr_test'), \
                  patch('os.path.exists', return_value=True), \
                  patch('os.remove'), \
                  patch('os.rmdir'):
@@ -90,7 +90,7 @@ class TestScreenshotTool:
         mock_proc = Mock(); mock_proc.returncode = 0; mock_run.return_value = mock_proc
         with patch('tempfile.mkdtemp') as mock_tmp, \
              patch('os.path.exists') as mock_exists:
-            mock_tmp.return_value = '/tmp/jarvis_ocr_test'
+            mock_tmp.return_value = '/tmp/atlas_ocr_test'
             mock_exists.return_value = True
             result = self.tool.run({}, self.context)
         assert isinstance(result, ToolExecutionResult)

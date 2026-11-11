@@ -4,8 +4,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from jarvis.tools.registry import ToolSpec
-from jarvis.tools.selection import select_tools, ToolSelectionStrategy
+from atlas.tools.registry import ToolSpec
+from atlas.tools.selection import select_tools, ToolSelectionStrategy
 
 pytestmark = pytest.mark.unit
 

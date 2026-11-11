@@ -1,8 +1,8 @@
 """Echo timing and follow-up ownership follow actual local speech playback."""
 import pytest
-from jarvis import activity
-from jarvis.output import tts as speech
-from jarvis.listening.listener import VoiceListener
+from atlas import activity
+from atlas.output import tts as speech
+from atlas.listening.listener import VoiceListener
 
 pytestmark = pytest.mark.unit
 
@@ -12,7 +12,7 @@ def playback(request, make_speech_backend, mock_config, monkeypatch):
     engine = make_speech_backend(request.param)
     mock_config.tune_enabled = False
     mock_config.hot_window_enabled = True
-    monkeypatch.setattr('jarvis.listening.listener.create_intent_judge', lambda cfg: None)
+    monkeypatch.setattr('atlas.listening.listener.create_intent_judge', lambda cfg: None)
     listener = VoiceListener(None, mock_config, engine, None)
     yield listener, engine
     listener.stop()
@@ -44,7 +44,7 @@ def test_cancelled_unplayed_speech_cannot_replace_echo_history(playback):
 @pytest.mark.parametrize('result', ['answer', 'error', 'empty', 'disabled', 'failed-synthesis'])
 def test_voice_dispatch_retains_thinking_until_delivery_or_terminal_failure(playback, monkeypatch, result):
     listener, engine = playback
-    from jarvis.reply import engine as reply
+    from atlas.reply import engine as reply
     def respond(*args, **kwargs):
         if result == 'error':
             raise RuntimeError('Owned reply failure')
@@ -55,14 +55,14 @@ def test_voice_dispatch_retains_thinking_until_delivery_or_terminal_failure(play
     if result == 'failed-synthesis':
         monkeypatch.setattr(engine, '_speak_once', lambda request: False)
     listener._dispatch_query('question', generation=listener._capture_generation, language=None)
-    state = activity.get_jarvis_state()
+    state = activity.get_atlas_state()
     if result in {'empty', 'disabled'}:
-        assert state.state is activity.JarvisState.IDLE
+        assert state.state is activity.AtlasState.IDLE
     else:
-        assert state.state is activity.JarvisState.THINKING
+        assert state.state is activity.AtlasState.THINKING
         assert listener.echo_detector._last_tts_text == ''
         engine._run()
-        assert state.state is activity.JarvisState.IDLE
+        assert state.state is activity.AtlasState.IDLE
         if result == 'failed-synthesis':
             assert listener.echo_detector._last_tts_text == ''
         else:
@@ -86,7 +86,7 @@ def test_stale_playback_finish_cannot_end_a_newer_echo_window(playback):
 def test_only_successful_voice_reply_opens_follow_up(playback, monkeypatch, outcome):
     import time
     listener, engine = playback
-    from jarvis.reply import engine as reply
+    from atlas.reply import engine as reply
     def respond(*args, **kwargs):
         if outcome == 'error':
             raise RuntimeError('Owned reply failure')
@@ -112,20 +112,20 @@ def test_only_successful_voice_reply_opens_follow_up(playback, monkeypatch, outc
         while not listener.state_manager.is_hot_window_active() and time.monotonic() < deadline:
             time.sleep(.001)
     assert listener.state_manager.is_hot_window_active() is (outcome == 'completed')
-    assert activity.get_jarvis_state().state is activity.JarvisState.IDLE
+    assert activity.get_atlas_state().state is activity.AtlasState.IDLE
 
 
 def test_rejected_acknowledgement_releases_presence_without_a_thinking_tune(playback):
     listener, _ = playback
-    state = activity.get_jarvis_state()
+    state = activity.get_atlas_state()
     listener._set_face_state_listening()
-    assert state.state is activity.JarvisState.LISTENING
+    assert state.state is activity.AtlasState.LISTENING
     listener._stop_thinking_tune()
-    assert state.state is activity.JarvisState.IDLE
+    assert state.state is activity.AtlasState.IDLE
     listener._set_face_state_listening()
-    state.set_state(activity.JarvisState.DICTATING)
+    state.set_state(activity.AtlasState.DICTATING)
     listener._stop_thinking_tune()
-    assert state.state is activity.JarvisState.DICTATING
+    assert state.state is activity.AtlasState.DICTATING
 
 
 @pytest.mark.parametrize('control,interrupts', [('configured', True), ('ambient', False), ('stale', False)])
@@ -173,7 +173,7 @@ def test_synthesis_remains_interruptible_without_claiming_playback(playback, mon
 def test_delayed_preparation_stop_remains_bound_to_its_captured_request(playback, monkeypatch, transition):
     import threading
     import time
-    from jarvis.listening import listener as module
+    from atlas.listening import listener as module
     listener, engine = playback
     entered_first, release_first = threading.Event(), threading.Event()
     entered_second, release_second = threading.Event(), threading.Event()

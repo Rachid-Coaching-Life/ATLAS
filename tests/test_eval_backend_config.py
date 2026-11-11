@@ -39,7 +39,7 @@ def test_model_override_applies_without_an_endpoint_override(monkeypatch):
 
 def test_eval_default_tracks_the_product_chat_default(monkeypatch):
     import runpy
-    from jarvis import config
+    from atlas import config
     monkeypatch.setattr(config, 'DEFAULT_CHAT_MODEL', 'synthetic-quality-default')
     assert runpy.run_path(helpers.__file__)['JUDGE_MODEL'] == config.DEFAULT_CHAT_MODEL
 
@@ -50,19 +50,19 @@ def test_versioned_endpoint_can_detect_an_available_model(monkeypatch):
         if url == 'http://127.0.0.1:8000/v1/models':
             return nullcontext(SimpleNamespace(status_code=200, json=lambda: {'data': [{'id': helpers.JUDGE_MODEL}]}))
         return nullcontext(SimpleNamespace(status_code=404))
-    monkeypatch.setattr('jarvis.llm.http.get', get)
+    monkeypatch.setattr('atlas.llm.http.get', get)
     assert helpers.is_judge_llm_available()
 
 
 def test_versioned_endpoint_returns_a_judge_response(monkeypatch):
     monkeypatch.setattr(helpers, 'JUDGE_BASE_URL', 'http://127.0.0.1:8000/v1')
-    monkeypatch.setattr('jarvis.llm.http.get', lambda *args, **kwargs: nullcontext(SimpleNamespace(status_code=404)))
+    monkeypatch.setattr('atlas.llm.http.get', lambda *args, **kwargs: nullcontext(SimpleNamespace(status_code=404)))
     def post(url, **kwargs):
         assert url == 'http://127.0.0.1:8000/v1/chat/completions'
         return nullcontext(SimpleNamespace(raise_for_status=lambda: None, json=lambda: {
             'choices': [{'message': {'content': 'PASS'}}],
         }))
-    monkeypatch.setattr('jarvis.llm.http.post', post)
+    monkeypatch.setattr('atlas.llm.http.post', post)
     assert helpers.call_judge_llm('Evaluate the response.', 'Synthetic example.') == 'PASS'
 
 
@@ -70,7 +70,7 @@ def test_versioned_endpoint_returns_a_judge_response(monkeypatch):
 def test_judge_uses_requested_transport_when_both_are_available(monkeypatch, provider):
     monkeypatch.setenv('EVAL_JUDGE_PROVIDER', provider)
     monkeypatch.setattr(helpers, 'JUDGE_BASE_URL', 'http://127.0.0.1:11439')
-    monkeypatch.setattr('jarvis.llm.http.get', lambda *args, **kwargs: nullcontext(SimpleNamespace(status_code=200)))
+    monkeypatch.setattr('atlas.llm.http.get', lambda *args, **kwargs: nullcontext(SimpleNamespace(status_code=200)))
     expected = '/api/chat' if provider == 'ollama' else '/v1/chat/completions'
     def post(url, **kwargs):
         assert url == 'http://127.0.0.1:11439' + expected
@@ -78,7 +78,7 @@ def test_judge_uses_requested_transport_when_both_are_available(monkeypatch, pro
             'choices': [{'message': {'content': 'PASS'}}],
         }
         return nullcontext(SimpleNamespace(raise_for_status=lambda: None, json=lambda: payload))
-    monkeypatch.setattr('jarvis.llm.http.post', post)
+    monkeypatch.setattr('atlas.llm.http.post', post)
     assert helpers.call_judge_llm('Evaluate.', 'Example.') == 'PASS'
 
 
@@ -93,7 +93,7 @@ def test_availability_does_not_fall_back_from_requested_provider(monkeypatch, pr
         return nullcontext(SimpleNamespace(status_code=200, json=lambda: {
             'models': [{'name': helpers.JUDGE_MODEL}], 'data': [{'id': helpers.JUDGE_MODEL}],
         }))
-    monkeypatch.setattr('jarvis.llm.http.get', get)
+    monkeypatch.setattr('atlas.llm.http.get', get)
     assert not helpers.is_judge_llm_available()
 
 
@@ -118,7 +118,7 @@ def test_provider_override_applies_to_the_default_endpoint(monkeypatch):
 ])
 def test_planner_eval_reaches_the_selected_backend(monkeypatch, provider, url, expected):
     """The eval must generate a plan, rather than silently skip an unset model."""
-    from jarvis.reply.planner import plan_query
+    from atlas.reply.planner import plan_query
     if provider:
         monkeypatch.setenv('EVAL_JUDGE_PROVIDER', provider)
     if url:
@@ -139,7 +139,7 @@ def test_planner_eval_reaches_the_selected_backend(monkeypatch, provider, url, e
             'choices': [{'message': {'content': 'Reply to the user.'}}],
         }
         return response
-    monkeypatch.setattr('jarvis.llm.http.post', post)
+    monkeypatch.setattr('atlas.llm.http.post', post)
     assert plan_query(helpers.planner_config(), 'What is two plus two?', '', []) == [
         'Reply to the user.',
     ]
@@ -156,8 +156,8 @@ def test_voice_evals_reach_selected_backend(monkeypatch, provider, url, expected
     monkeypatch.setenv('EVAL_JUDGE_PROVIDER', provider)
     monkeypatch.setenv('EVAL_JUDGE_BASE_URL', url)
     monkeypatch.setenv('EVAL_JUDGE_MODEL', 'synthetic-voice-model')
-    monkeypatch.setattr('jarvis.llm.http.get', lambda *args, **kw: nullcontext(SimpleNamespace(status_code=404)))
-    monkeypatch.setattr('jarvis.activity.get_jarvis_state', lambda: MagicMock())
+    monkeypatch.setattr('atlas.llm.http.get', lambda *args, **kw: nullcontext(SimpleNamespace(status_code=404)))
+    monkeypatch.setattr('atlas.activity.get_atlas_state', lambda: MagicMock())
     calls = []
     content = json.dumps(dict(directed=True, query=('random topic' if entry == 'processed' else 'weather'), stop=False,
                              confidence='high', reasoning='Addressed to the assistant'))
@@ -170,7 +170,7 @@ def test_voice_evals_reach_selected_backend(monkeypatch, provider, url, expected
             'choices': [{'message': {'content': content}}],
         }
         return response
-    monkeypatch.setattr('jarvis.llm.http.post', post)
+    monkeypatch.setattr('atlas.llm.http.post', post)
     from evals import test_intent_judge as intent, test_listener_integration as listener_eval
     if entry == 'processed':
         monkeypatch.setattr(intent, 'is_intent_judge_available', lambda: True)
@@ -188,7 +188,7 @@ def test_voice_evals_reach_selected_backend(monkeypatch, provider, url, expected
     else:
         obj, _ = listener_eval._create_listener()
         try:
-            result = obj._intent_judge.judge([intent.create_transcript_segment('Jarvis weather')])
+            result = obj._intent_judge.judge([intent.create_transcript_segment('ATLAS weather')])
         finally:
             obj.state_manager.stop()
     assert result is not None and result.directed and not result.stop
@@ -208,7 +208,7 @@ def test_tool_selection_evals_use_selected_backends(monkeypatch, provider, base,
     monkeypatch.setenv('EVAL_JUDGE_PROVIDER', 'openai_compatible' if provider == 'embedding_override' else provider)
     monkeypatch.setenv('EVAL_JUDGE_BASE_URL', base)
     monkeypatch.setenv('EVAL_JUDGE_MODEL', 'synthetic-router-model')
-    monkeypatch.setattr('jarvis.llm.http.get', lambda *args, **kw: nullcontext(SimpleNamespace(
+    monkeypatch.setattr('atlas.llm.http.get', lambda *args, **kw: nullcontext(SimpleNamespace(
         status_code=200, raise_for_status=lambda: None, json=lambda: {
             'models': [{'name': 'synthetic-embedding-model'}],
             'data': [{'id': 'synthetic-embedding-model'}],
@@ -234,7 +234,7 @@ def test_tool_selection_evals_use_selected_backends(monkeypatch, provider, base,
             'embedding': vector, 'data': [{'embedding': vector}],
         }
         return response
-    monkeypatch.setattr('jarvis.llm.http.post', post)
+    monkeypatch.setattr('atlas.llm.http.post', post)
     from evals import test_tool_selection as evaluation
     if strategy in ('context', 'implicit'):
         if strategy == 'context':
@@ -265,13 +265,13 @@ def test_tool_selection_evals_use_selected_backends(monkeypatch, provider, base,
 @pytest.mark.parametrize('names', [[], ['a-different-embedding-model']])
 def test_embedding_eval_skips_only_when_selected_model_is_missing(monkeypatch, names):
     from evals import test_tool_selection as evaluation
-    monkeypatch.setattr('jarvis.llm.http.get', lambda *args, **kwargs: nullcontext(SimpleNamespace(
+    monkeypatch.setattr('atlas.llm.http.get', lambda *args, **kwargs: nullcontext(SimpleNamespace(
         status_code=200, raise_for_status=lambda: None,
         json=lambda: {'models': [{'name': name} for name in names]},
     )))
     def unexpected_inference(*args, **kwargs):
         pytest.fail('An unavailable embedding model must not run inference')
-    monkeypatch.setattr('jarvis.llm.http.post', unexpected_inference)
+    monkeypatch.setattr('atlas.llm.http.post', unexpected_inference)
     cfg = helpers.MockConfig(llm_provider='ollama')
     with pytest.raises(pytest.skip.Exception, match='embedding evaluation model is unavailable'):
         evaluation.TestToolSelectionFiltering().test_embedding_selects_relevant_tools(

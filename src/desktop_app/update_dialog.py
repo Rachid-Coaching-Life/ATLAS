@@ -28,7 +28,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from .themes import COLORS, JARVIS_THEME_STYLESHEET
+from .themes import COLORS, ATLAS_THEME_STYLESHEET
 from .updater import (
     DownloadSignals,
     DownloadWorker,
@@ -399,7 +399,7 @@ class UpdateAvailableDialog(QDialog):
     def _setup_ui(self):
         self.setWindowTitle("Update Available")
         self.setMinimumSize(540, 520)
-        self.setStyleSheet(JARVIS_THEME_STYLESHEET)
+        self.setStyleSheet(ATLAS_THEME_STYLESHEET)
 
         layout = QVBoxLayout(self)
         layout.setSpacing(14)
@@ -518,7 +518,7 @@ class UpdateProgressDialog(QDialog):
         self._connect_signals()
 
     def _setup_ui(self):
-        self.setWindowTitle("Updating Jarvis")
+        self.setWindowTitle("Updating ATLAS")
         self.setMinimumSize(450, 220)
         self.setWindowFlags(
             Qt.WindowType.Dialog
@@ -526,7 +526,7 @@ class UpdateProgressDialog(QDialog):
             | Qt.WindowType.CustomizeWindowHint
             | Qt.WindowType.WindowTitleHint
         )
-        self.setStyleSheet(JARVIS_THEME_STYLESHEET)
+        self.setStyleSheet(ATLAS_THEME_STYLESHEET)
 
         layout = QVBoxLayout(self)
         layout.setSpacing(16)
@@ -614,7 +614,7 @@ class UpdateProgressDialog(QDialog):
             try:
                 self._pre_install_callback()
             except Exception as e:
-                from jarvis.debug import debug_log
+                from atlas.debug import debug_log
                 debug_log(f"Pre-install callback failed: {e}", "updater")
 
         if self._cancelled:
@@ -659,7 +659,7 @@ class UpdateProgressDialog(QDialog):
         if self._installer_handoff_complete:
             return
         if not self._cancelled:
-            from jarvis.debug import debug_log
+            from atlas.debug import debug_log
             debug_log("Update download cancellation requested", "updater")
         self._cancelled = True
         if self.download_worker and self.download_worker.isRunning():
@@ -695,7 +695,7 @@ def show_no_update_dialog(current_version: str, parent=None) -> None:
     msg.setIcon(QMessageBox.Icon.Information)
     msg.setWindowTitle("No Updates Available")
     msg.setText(f"You're running the latest version ({current_version})")
-    msg.setStyleSheet(JARVIS_THEME_STYLESHEET)
+    msg.setStyleSheet(ATLAS_THEME_STYLESHEET)
     msg.exec()
 
 
@@ -706,5 +706,5 @@ def show_update_error_dialog(error: str, parent=None) -> None:
     msg.setWindowTitle("Update Check Failed")
     msg.setText("Could not check for updates")
     msg.setInformativeText(error)
-    msg.setStyleSheet(JARVIS_THEME_STYLESHEET)
+    msg.setStyleSheet(ATLAS_THEME_STYLESHEET)
     msg.exec()

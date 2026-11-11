@@ -7,9 +7,9 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
-from jarvis.config import load_settings
-from jarvis.listening.listener import VoiceListener
-import jarvis.listening.listener as capture
+from atlas.config import load_settings
+from atlas.listening.listener import VoiceListener
+import atlas.listening.listener as capture
 
 pytestmark = pytest.mark.unit
 
@@ -23,7 +23,7 @@ def synthetic_listener(monkeypatch, silent_thinking_tunes):
     monkeypatch.setattr(capture, '_load_faster_whisper_model', lambda *a, **kw: MagicMock())
     monkeypatch.setattr(VoiceListener, '_decode_faster_whisper', lambda *a: ([], None))
     monkeypatch.setattr(VoiceListener, '_start_llm_warmup', lambda _self: [])
-    monkeypatch.setattr('jarvis.activity.get_jarvis_state', lambda: MagicMock())
+    monkeypatch.setattr('atlas.activity.get_atlas_state', lambda: MagicMock())
     obj = VoiceListener(MagicMock(), cfg, None, None)
 
     class Stream:
@@ -102,7 +102,7 @@ def test_full_transcript_queue_cancels_pending_delivery(synthetic_listener, inva
     obj._transcription_results_q = ResultQueue(maxsize=1)
     obj._transcription_results_q.put(object())
     def transcribe(audio):
-        return 'Jarvis hello', 'en', ()
+        return 'ATLAS hello', 'en', ()
     obj._transcribe_audio = transcribe
     job = SimpleNamespace(audio=np.ones(obj.cfg.sample_rate), start_time=1., end_time=2.,
                           energy=.1, capture_generation=0, captured_during_tts=False,
@@ -129,7 +129,7 @@ def test_full_transcript_queue_cancels_pending_delivery(synthetic_listener, inva
 
 @pytest.mark.parametrize('invalidate', ['shutdown', 'dictation'])
 def test_invalidated_intent_result_does_not_start_query(synthetic_listener, invalidate):
-    from jarvis.listening.intent_judge import IntentJudgment
+    from atlas.listening.intent_judge import IntentJudgment
     obj = synthetic_listener
     def judge(**kwargs):
         if invalidate == 'shutdown':
@@ -138,9 +138,9 @@ def test_invalidated_intent_result_does_not_start_query(synthetic_listener, inva
             obj.set_capture_paused('dictation', True)
             obj.set_capture_paused('dictation', False)
         return IntentJudgment(directed=True,  stop=False,
-                              confidence='high', reasoning='Addressed to Jarvis')
+                              confidence='high', reasoning='Addressed to ATLAS')
     obj._intent_judge = SimpleNamespace(available=True, judge=judge)
-    obj._process_transcript('Jarvis weather', captured_during_tts=False,
+    obj._process_transcript('ATLAS weather', captured_during_tts=False,
                             captured_tts_start_time=0., generation=obj._capture_generation, language=None)
     assert not obj.state_manager.get_pending_query(), 'Invalidated intent was accepted as a new query'
 
@@ -161,7 +161,7 @@ def test_invalidated_reply_does_not_speak(synthetic_listener, monkeypatch, inval
         if reply_error:
             raise RuntimeError('Synthetic reply failure')
         return 'Synthetic reply'
-    monkeypatch.setattr('jarvis.reply.engine.run_reply_engine', reply)
+    monkeypatch.setattr('atlas.reply.engine.run_reply_engine', reply)
     obj._dispatch_query('weather', generation=obj._capture_generation, language=None)
     assert spoken == [], 'Invalidated voice reply reached speech output'
 
@@ -284,7 +284,7 @@ def test_failed_frame_processing_stops_listener_and_reports_recovery(synthetic_l
     obj._on_audio(np.ones((obj._frame_samples, 1), dtype=np.float32), obj._frame_samples, None, None)
     obj._run_audio_worker(obj.cfg.vad_frame_ms)
     assert obj._should_stop
-    assert 'Restart Jarvis to resume listening' in capsys.readouterr().out
+    assert 'Restart ATLAS to resume listening' in capsys.readouterr().out
 
 
 def test_pause_after_dequeue_rejects_audio_captured_before_pause(synthetic_listener):
@@ -318,7 +318,7 @@ def test_discarded_reply_stops_thinking_audio(synthetic_listener, monkeypatch):
         obj.set_capture_paused('dictation', True)
         obj.set_capture_paused('dictation', False)
         return 'Stale reply'
-    monkeypatch.setattr('jarvis.reply.engine.run_reply_engine', reply)
+    monkeypatch.setattr('atlas.reply.engine.run_reply_engine', reply)
     obj._dispatch_query('weather', generation=obj._capture_generation, language=None)
     assert not playing[0], 'Suppressed reply left thinking audio playing'
 
@@ -339,7 +339,7 @@ def test_pause_during_thinking_tune_teardown_cancels_tts(synthetic_listener, mon
     if invalidate == 'shutdown':
         # Simulate shutdown during the blocking player join without recursive teardown.
         obj._tune_player.stop_tune = lambda: setattr(obj, '_should_stop', True)
-    monkeypatch.setattr('jarvis.reply.engine.run_reply_engine', lambda *a, **kw: 'Stale reply')
+    monkeypatch.setattr('atlas.reply.engine.run_reply_engine', lambda *a, **kw: 'Stale reply')
     obj._dispatch_query('weather', generation=obj._capture_generation, language=None)
     assert spoken == [], 'Invalidation during tune teardown still queued speech'
 
@@ -368,8 +368,8 @@ def test_callback_copy_cannot_relabel_audio_after_pause(synthetic_listener):
 
 
 def test_transcript_keeps_capture_generation_across_buffer_storage(synthetic_listener):
-    from jarvis.listening.listener import _TranscriptionResult
-    from jarvis.listening.intent_judge import IntentJudgment
+    from atlas.listening.listener import _TranscriptionResult
+    from atlas.listening.intent_judge import IntentJudgment
     obj = synthetic_listener
     def add(**kwargs):
         obj.set_capture_paused('dictation', True)
@@ -377,8 +377,8 @@ def test_transcript_keeps_capture_generation_across_buffer_storage(synthetic_lis
     obj._transcript_buffer.add = add
     obj._intent_judge = SimpleNamespace(available=True, judge=lambda **kw:
         IntentJudgment(directed=True, stop=False,
-                      confidence='high', reasoning='Addressed to Jarvis'))
-    result = _TranscriptionResult('Jarvis weather', 'en', (), 1., 2., .1,
+                      confidence='high', reasoning='Addressed to ATLAS'))
+    result = _TranscriptionResult('ATLAS weather', 'en', (), 1., 2., .1,
                                    obj._capture_generation, False, 0.)
     obj._handle_transcription_result(result)
     assert not obj.state_manager.get_pending_query(), 'Old transcript adopted a new voice generation'
@@ -386,13 +386,13 @@ def test_transcript_keeps_capture_generation_across_buffer_storage(synthetic_lis
 
 @pytest.mark.parametrize('text', [
     "I'm talking to Jairus not you.",
-    "I'm talking to Jarvis, not you.",
-    "I told my friend about Jarvis yesterday.",
-    "Jarvis'le konuşuyorum, seninle değil.",
-    "Estoy hablando con Jarvis, no contigo.",
+    "I'm talking to ATLAS, not you.",
+    "I told my friend about ATLAS yesterday.",
+    "ATLAS'le konuşuyorum, seninle değil.",
+    "Estoy hablando con ATLAS, no contigo.",
 ])
 def test_confident_mention_rejection_does_not_start_query(synthetic_listener, text):
-    from jarvis.listening.intent_judge import IntentJudgment
+    from atlas.listening.intent_judge import IntentJudgment
     obj = synthetic_listener
     obj._intent_judge = SimpleNamespace(available=True, judge=lambda **kwargs:
         IntentJudgment(directed=False,  stop=False, confidence='high',
@@ -404,12 +404,12 @@ def test_confident_mention_rejection_does_not_start_query(synthetic_listener, te
 
 @pytest.mark.parametrize('confidence,directed', [('high', True), ('low', False)])
 def test_direct_address_and_inconclusive_fallback_remain_usable(synthetic_listener, confidence, directed):
-    from jarvis.listening.intent_judge import IntentJudgment
+    from atlas.listening.intent_judge import IntentJudgment
     obj = synthetic_listener
     obj._intent_judge = SimpleNamespace(available=True, judge=lambda **kwargs:
         IntentJudgment(directed=directed,
                        stop=False, confidence=confidence, reasoning='Address or uncertainty'))
-    obj._process_transcript('Jarvis I am tired', captured_during_tts=False,
+    obj._process_transcript('ATLAS I am tired', captured_during_tts=False,
                             captured_tts_start_time=0., generation=obj._capture_generation, language=None)
     assert obj.state_manager.get_pending_query(), 'Direct address or fail-open fallback was lost'
 
@@ -421,7 +421,7 @@ def test_direct_address_and_inconclusive_fallback_remain_usable(synthetic_listen
     ('Jarvas what time is it', True),
 ])
 def test_whole_alias_gate_keeps_ambient_words_out_of_reply_collection(synthetic_listener, text, accepted):
-    from jarvis.listening.intent_judge import IntentJudgment
+    from atlas.listening.intent_judge import IntentJudgment
     obj = synthetic_listener
     obj._intent_judge = SimpleNamespace(available=True, judge=lambda **kwargs:
         IntentJudgment(directed=True,  stop=False,

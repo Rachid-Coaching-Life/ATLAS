@@ -5,9 +5,9 @@ import sqlite3
 import numpy as np
 import pytest
 
-from jarvis.memory.db import Database
-from jarvis.utils.fast_vector_store import FAISSVectorStore
-from jarvis.utils.vector_store import PythonVectorStore
+from atlas.memory.db import Database
+from atlas.utils.fast_vector_store import FAISSVectorStore
+from atlas.utils.vector_store import PythonVectorStore
 
 pytestmark = pytest.mark.unit
 
@@ -80,7 +80,7 @@ def test_finite_embedding_retains_cosine_direction(store, magnitude):
 
 @pytest.mark.parametrize('query', [[float('nan'), 0.], [1., 0., 0.], [0., 0.]])
 def test_unusable_embedding_preserves_keyword_retrieval(tmp_path, monkeypatch, query):
-    monkeypatch.setattr('jarvis.utils.vector_store.get_best_vector_store',
+    monkeypatch.setattr('atlas.utils.vector_store.get_best_vector_store',
                         lambda path, dimension: PythonVectorStore(path))
     db = Database(str(tmp_path / 'diary.db'))
     try:

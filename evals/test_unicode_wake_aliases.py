@@ -3,9 +3,9 @@ import unicodedata
 import pytest
 from evals.conftest import requires_judge_llm
 from evals.helpers import voice_config
-from jarvis.listening.intent_judge import IntentJudge, IntentJudgeConfig
-from jarvis.listening.transcript_buffer import TranscriptSegment
-from jarvis.listening.wake_detection import is_wake_word_detected
+from atlas.listening.intent_judge import IntentJudge, IntentJudgeConfig
+from atlas.listening.transcript_buffer import TranscriptSegment
+from atlas.listening.wake_detection import is_wake_word_detected
 
 pytestmark = [pytest.mark.eval, requires_judge_llm]
 
@@ -15,9 +15,9 @@ pytestmark = [pytest.mark.eval, requires_judge_llm]
 def test_canonical_alias_reaches_native_intent_judge(alias, heard_form, alias_form):
     configured = unicodedata.normalize(alias_form, alias)
     heard = unicodedata.normalize(heard_form, alias) + ', what time is it?'
-    assert is_wake_word_detected(heard, 'Jarvis', [configured], fuzzy_ratio=1.0)
+    assert is_wake_word_detected(heard, 'ATLAS', [configured], fuzzy_ratio=1.0)
     cfg = voice_config()
-    judge = IntentJudge(IntentJudgeConfig(assistant_name='Jarvis', aliases=[configured],
+    judge = IntentJudge(IntentJudgeConfig(assistant_name='ATLAS', aliases=[configured],
                                         cfg=cfg, model=cfg.fast_model, timeout_sec=10.0))
     segment = TranscriptSegment(heard, 1000.0, 1002.0)
     result = judge.judge(segments=[segment], wake_timestamp=1000.5,
@@ -35,9 +35,9 @@ def test_canonical_alias_reaches_native_intent_judge(alias, heard_form, alias_fo
     ('hey cab, what time is it?', ['hey', 'hey cab']),
 ])
 def test_overlapping_alias_reaches_native_intent_judge(heard, aliases):
-    assert is_wake_word_detected(heard, 'Jarvis', aliases, fuzzy_ratio=1.0)
+    assert is_wake_word_detected(heard, 'ATLAS', aliases, fuzzy_ratio=1.0)
     cfg = voice_config()
-    judge = IntentJudge(IntentJudgeConfig(assistant_name='Jarvis', aliases=aliases,
+    judge = IntentJudge(IntentJudgeConfig(assistant_name='ATLAS', aliases=aliases,
                                         cfg=cfg, model=cfg.fast_model, timeout_sec=10.0))
     segment = TranscriptSegment(heard, 1000.0, 1002.0)
     result = judge.judge(segments=[segment], wake_timestamp=1000.5,

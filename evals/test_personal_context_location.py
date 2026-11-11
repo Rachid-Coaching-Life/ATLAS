@@ -32,11 +32,11 @@ pytestmark = [pytest.mark.eval, requires_judge_llm]
     ('The user lives in London. The user lives in Paris.', None),
 ])
 def test_local_model_extracts_only_grounded_home(eval_db, evidence, expected):
-    from jarvis.reply.personal_context import resolve_missing_context
+    from atlas.reply.personal_context import resolve_missing_context
     cfg = voice_config()
     cfg.memory_enrichment_source = 'diary'
     day = (datetime.now(timezone.utc) - timedelta(days=1)).date().isoformat()
-    eval_db.upsert_conversation_summary(day, evidence, 'personal', 'jarvis')
+    eval_db.upsert_conversation_summary(day, evidence, 'personal', 'atlas')
     value = resolve_missing_context('location', eval_db, cfg, 'weather tomorrow', [])
     assert (value.value if value else None) == expected
 
@@ -48,11 +48,11 @@ def test_local_model_extracts_only_grounded_home(eval_db, evidence, expected):
     ("My partner is in Paris today.", 'London'),
 ])
 def test_active_location_and_travel_override_home(eval_db, dialogue, expected):
-    from jarvis.reply.personal_context import resolve_missing_context
+    from atlas.reply.personal_context import resolve_missing_context
     cfg = voice_config()
     cfg.memory_enrichment_source = 'diary'
     day = datetime.now(timezone.utc).date().isoformat()
-    eval_db.upsert_conversation_summary(day, 'The user lives in London.', 'personal', 'jarvis')
+    eval_db.upsert_conversation_summary(day, 'The user lives in London.', 'personal', 'atlas')
     value = resolve_missing_context('location', eval_db, cfg, 'weather tomorrow',
                                     [{'role': 'user', 'content': dialogue}])
     assert (value.value if value else None) == expected
@@ -60,8 +60,8 @@ def test_active_location_and_travel_override_home(eval_db, dialogue, expected):
 
 @pytest.mark.parametrize("fast_model", [None, "gemma4:e2b"])
 def test_weather_reply_recovers_diary_home_without_planner_recall(eval_db, eval_dialogue_memory, monkeypatch, fast_model):
-    from jarvis.reply import engine
-    from jarvis.tools.builtin import weather
+    from atlas.reply import engine
+    from atlas.tools.builtin import weather
     from evals.memory_tool_grounding import assert_usable_answer
     cfg = voice_config()
     cfg.location_enabled = False
@@ -70,7 +70,7 @@ def test_weather_reply_recovers_diary_home_without_planner_recall(eval_db, eval_
     if fast_model:
         cfg.fast_model = fast_model
     day = datetime.now(timezone.utc).date().isoformat()
-    eval_db.upsert_conversation_summary(day, 'The user lives in London.', 'personal', 'jarvis')
+    eval_db.upsert_conversation_summary(day, 'The user lives in London.', 'personal', 'atlas')
     monkeypatch.setattr(engine, 'plan_query', lambda *a, **k: ['getWeather'])
     monkeypatch.setattr(engine, 'select_tools', lambda *a, **k: ['getWeather', 'stop'])
     monkeypatch.setattr(weather.WeatherTool, '_get_user_location', lambda *a: None)

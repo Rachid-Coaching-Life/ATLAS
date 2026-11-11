@@ -37,7 +37,7 @@ _MANCHESTER_FORECAST = (
 
 
 def _make_runner(capture: ToolCallCapture):
-    from jarvis.tools.types import ToolExecutionResult
+    from atlas.tools.types import ToolExecutionResult
 
     def _runner(db, cfg, tool_name, tool_args, **kwargs):
         capture.record(tool_name, tool_args or {})
@@ -76,7 +76,7 @@ class TestDiarySuppliesMissingToolArg:
     def test_diary_location_grounds_get_weather_call(
         self, eval_db, eval_dialogue_memory,
     ):
-        from jarvis.reply.engine import run_reply_engine
+        from atlas.reply.engine import run_reply_engine
 
         cfg = voice_config()
         # Geoip disabled — the only way the model gets a location is from
@@ -89,12 +89,12 @@ class TestDiarySuppliesMissingToolArg:
         capture = ToolCallCapture()
 
         with patch(
-            "jarvis.reply.engine.run_tool_with_retries",
+            "atlas.reply.engine.run_tool_with_retries",
             side_effect=_make_runner(capture),
         ):
             response = run_reply_engine(
                 db=eval_db, cfg=cfg, tts=None,
-                text="how's the weather, Jarvis?",
+                text="how's the weather, ATLAS?",
                 dialogue_memory=eval_dialogue_memory,
             )
 

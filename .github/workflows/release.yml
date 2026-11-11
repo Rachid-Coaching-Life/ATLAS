@@ -175,7 +175,7 @@ jobs:
             ### 📦 Downloads
             | Platform | File | Notes |
             |----------|------|-------|
-            | **Windows** | `ATLAS-Windows-x64.zip` | Extract → Run `ATLAS.exe` |
+            | **Windows** | `ATLAS-Windows-x64.zip` | Extract → Run `ATLAS-Setup-x64.exe` |
             | **macOS (Apple Silicon)** | `ATLAS-macOS-arm64.zip` | Extract → Move to Applications → Right-click → Open |
             | **macOS (Intel)** | `ATLAS-macOS-x64.zip` | Extract → Move to Applications → Right-click → Open |
             | **Linux** | `ATLAS-Linux-x64.tar.gz` | `tar -xzf` → Run `./ATLAS/ATLAS` |
@@ -321,7 +321,7 @@ jobs:
             ### 📦 Downloads
             | Platform | File | Notes |
             |----------|------|-------|
-            | **Windows** | `ATLAS-Windows-x64.zip` | Extract → Run `ATLAS.exe` |
+            | **Windows** | `ATLAS-Windows-x64.zip` | Extract → Run `ATLAS-Setup-x64.exe` |
             | **macOS (Apple Silicon)** | `ATLAS-macOS-arm64.zip` | Extract → Move to Applications → Right-click → Open |
             | **macOS (Intel)** | `ATLAS-macOS-x64.zip` | Extract → Move to Applications → Right-click → Open |
             | **Linux** | `ATLAS-Linux-x64.tar.gz` | `tar -xzf` → Run `./ATLAS/ATLAS` |

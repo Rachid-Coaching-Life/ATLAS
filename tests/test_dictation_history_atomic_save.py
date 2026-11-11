@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from jarvis.dictation import history as history_module
+from atlas.dictation import history as history_module
 
 pytestmark = pytest.mark.unit
 

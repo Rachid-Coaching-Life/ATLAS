@@ -4,9 +4,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis.memory.db import Database
-from jarvis.tools.builtin.nutrition.delete_meal import DeleteMealTool
-from jarvis.tools.builtin.nutrition.fetch_meals import FetchMealsTool
+from atlas.memory.db import Database
+from atlas.tools.builtin.nutrition.delete_meal import DeleteMealTool
+from atlas.tools.builtin.nutrition.fetch_meals import FetchMealsTool
 
 pytestmark = pytest.mark.unit
 
@@ -95,7 +95,7 @@ def test_description_requires_text(context, reference):
 
 
 def test_literal_description_step_deletes_without_model_resolution(context, monkeypatch):
-    from jarvis.reply import planner
+    from atlas.reply import planner
     keep = insert(context, 'Soup')
     insert(context, 'Big Mac')
     tool = DeleteMealTool()

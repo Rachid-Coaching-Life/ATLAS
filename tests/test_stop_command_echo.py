@@ -3,8 +3,8 @@ from types import SimpleNamespace
 import unicodedata
 from unittest.mock import MagicMock
 import pytest
-from jarvis.listening.listener import VoiceListener
-from jarvis.config import get_default_config
+from atlas.listening.listener import VoiceListener
+from atlas.config import get_default_config
 
 pytestmark=pytest.mark.unit
 

@@ -1,9 +1,9 @@
 """Concrete plan values retain the types declared by their tool schema."""
 import pytest
 from evals.helpers import voice_config
-from jarvis.reply import planner
-from jarvis.tools.builtin.local_files import LocalFilesTool
-from jarvis.tools.base import ToolContext
+from atlas.reply import planner
+from atlas.tools.builtin.local_files import LocalFilesTool
+from atlas.tools.base import ToolContext
 
 pytestmark = pytest.mark.unit
 

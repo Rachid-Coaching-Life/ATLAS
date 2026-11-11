@@ -37,7 +37,7 @@ def _make_get_weather_runner(capture: ToolCallCapture):
     plus the canned forecast.
     Other locations fail. Non-weather tools return their own fixture data.
     """
-    from jarvis.tools.types import ToolExecutionResult
+    from atlas.tools.types import ToolExecutionResult
 
     def _runner(db, cfg, tool_name, tool_args, **kwargs):
         capture.record(tool_name, tool_args or {})
@@ -87,7 +87,7 @@ class TestFollowupSuppliesMissingToolArg:
     def test_short_followup_continues_previous_tool_chain(
         self, eval_db, eval_dialogue_memory, planner_enabled,
     ):
-        from jarvis.reply.engine import run_reply_engine
+        from atlas.reply.engine import run_reply_engine
 
         cfg = voice_config()
         # Geoip disabled — the only way the model gets a location is
@@ -98,12 +98,12 @@ class TestFollowupSuppliesMissingToolArg:
         capture = ToolCallCapture()
 
         with patch(
-            "jarvis.reply.engine.run_tool_with_retries",
+            "atlas.reply.engine.run_tool_with_retries",
             side_effect=_make_get_weather_runner(capture),
         ):
             turn1 = run_reply_engine(
                 db=eval_db, cfg=cfg, tts=None,
-                text="how's the weather tomorrow Jarvis?",
+                text="how's the weather tomorrow ATLAS?",
                 dialogue_memory=eval_dialogue_memory,
             )
             first_turn_calls = len(capture.calls)
@@ -162,12 +162,12 @@ class TestFollowupSuppliesMissingToolArg:
 ])
 def test_unrelated_followup_does_not_resume_failed_lookup(eval_db,eval_dialogue_memory,new_request):
     import re
-    from jarvis.reply import engine
+    from atlas.reply import engine
     cfg=voice_config()
     cfg.location_enabled=False
     cfg.planner_enabled=False
     capture=ToolCallCapture()
-    with patch('jarvis.reply.engine.run_tool_with_retries',
+    with patch('atlas.reply.engine.run_tool_with_retries',
                side_effect=_make_get_weather_runner(capture)):
         first=engine.run_reply_engine(eval_db,cfg,None,"How's the weather tomorrow?",eval_dialogue_memory)
         boundary=len(capture.calls)
@@ -189,8 +189,8 @@ def test_unrelated_followup_does_not_resume_failed_lookup(eval_db,eval_dialogue_
     'Reintenta la búsqueda web para saber a qué hora abre la exposición Saffron Kite.',
 ])
 def test_failed_search_followup_uses_current_tool_result(eval_db, eval_dialogue_memory, query):
-    from jarvis.reply import engine
-    from jarvis.tools.types import ToolExecutionResult
+    from atlas.reply import engine
+    from atlas.tools.types import ToolExecutionResult
 
     cfg = voice_config()
     cfg.planner_enabled = False
@@ -224,7 +224,7 @@ def test_failed_search_followup_uses_current_tool_result(eval_db, eval_dialogue_
 @requires_judge_llm
 def test_corrected_previous_lookup_remains_available(eval_db, eval_dialogue_memory):
     import re
-    from jarvis.reply import engine
+    from atlas.reply import engine
 
     cfg = voice_config()
     cfg.planner_enabled = False
