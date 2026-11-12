@@ -84,7 +84,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          python -m pytest -q tests/test_pocket_tts_bridge.py
+          python -m pytest -q tests/test_pocket_tts_bridge.py tests/test_pocket_tts_reliability.py
       - name: Check official Pocket TTS Windows executable CLI (no model or voice)
         shell: pwsh
         run: |
