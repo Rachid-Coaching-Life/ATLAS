@@ -2982,14 +2982,9 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
             malformed_fallback = False
         elif _is_malformed_json_response(content):
             debug_log(f"  ⚠️ Malformed content — delivering error reply: '{content[:80]}...'", "planning")
-            is_small = detect_model_size(cfg.llm_chat_model) == ModelSize.SMALL
-            candidate_reply = (
-                "I had trouble understanding that request. "
-                "This can happen with smaller AI models. "
-                "You can switch to a more capable model through the Setup Wizard in the menu bar."
-                if is_small else
-                "I had trouble understanding that request. Could you try rephrasing it?"
-            )
+            # A malformed model result is a processing failure, not a reason
+            # to bypass ATLAS's French-only user-facing error policy.
+            candidate_reply = FRENCH_FALLBACK_REPLY
             malformed_fallback = True
         else:
             candidate_reply = content

@@ -58,15 +58,15 @@ def _requested_judge_provider() -> str:
 
 # These fragments are emitted by engine.py and must stay source-pinned.
 ENGINE_FALLBACK_PHRASES = (
-    "i had trouble understanding that request",
     "je n'ai pas réussi à traiter votre demande",
     "je n'ai pas pu effectuer cette action",
     "je n'ai pas de réponse fiable",
 )
 
-# A local model or tool may still return these English fallback phrasings.
-# Detect them as failures even though they are not hard-coded in engine.py.
+# Model output can still contain old English fallbacks, even though ATLAS
+# no longer hard-codes them as replies. Keep them detectable as failures.
 MODEL_ENGLISH_FALLBACK_PHRASES = (
+    "i had trouble understanding that request",
     "i had trouble processing that",
     "sorry, i had trouble",
 )
