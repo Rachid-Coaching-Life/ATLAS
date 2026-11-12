@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import argparse
 import array
+import hashlib
 import math
 import os
+import stat
 from pathlib import Path
 import subprocess
 import sys
@@ -17,11 +19,89 @@ import wave
 
 
 EXPECTED_BINARY_VERSION = 'pocket-tts 3.3.0'  # Rust asset shipped in repo release v4.0.1.
+EXPECTED_BINARY_SHA256 = '813cabfc2f8fc7a4e5310deda6025426b3164610dd9f3c3098a6078e5cc1895a'
 SMOKE_TEXT = 'Bonjour, je suis Atlas et je peux maintenant lire cette phrase en français.'
 
 
 class PreparationError(Exception):
     """Safe error message: never contains a private file path."""
+
+
+def _check_local_path(path: Path) -> None:
+    """Check lexical ancestors before resolution can hide a reparse point."""
+    if not path.is_absolute() or (os.name == 'nt' and path.drive.startswith('\\\\')):
+        raise PreparationError('Utiliser uniquement des chemins absolus locaux non redirigés.')
+    for component in (path, *path.parents):
+        try:
+            info = component.lstat()
+        except FileNotFoundError:
+            continue
+        except OSError:
+            raise PreparationError('Impossible de vérifier le chemin privé.') from None
+        if (stat.S_ISLNK(info.st_mode) or
+                getattr(info, 'st_file_attributes', 0) & 0x400):
+            raise PreparationError('Chemin privé redirigé : lien ou point de réanalyse refusé.')
+
+
+def verify_binary_integrity(binary: Path) -> None:
+    """Admit only the executable from the pinned, verified official archive."""
+    _check_local_path(binary)
+    try:
+        if not binary.is_file() or not 0 < binary.stat().st_size <= 70_000_000:
+            raise PreparationError('Exécutable Pocket TTS non conforme : SHA-256 requis.')
+        digest = hashlib.sha256()
+        with binary.open('rb') as source:
+            for block in iter(lambda: source.read(256 * 1024), b''):
+                digest.update(block)
+        if digest.hexdigest() != EXPECTED_BINARY_SHA256:
+            raise PreparationError('Exécutable Pocket TTS non conforme : empreinte SHA-256 différente.')
+    except OSError:
+        raise PreparationError('Impossible de vérifier le SHA-256 du moteur local.') from None
+
+
+def cleanup_temporary_files(items, *, primary_error: bool) -> None:
+    """Try every owned temporary path and report only static role labels."""
+    retained = []
+    for label, path in items:
+        if path is None:
+            continue
+        try:
+            _check_local_path(path)
+            path.unlink(missing_ok=True)
+        except (OSError, PreparationError):
+            retained.append(label)
+    if retained:
+        message = 'Nettoyage incomplet : fichiers temporaires conservés (' + ', '.join(retained) + ').'
+        if primary_error:
+            try:
+                print('  ⚠️ ' + message, file=sys.stderr)
+            except (OSError, ValueError):
+                # An unavailable diagnostic stream cannot replace the main error.
+                pass
+        else:
+            raise PreparationError(message)
+
+
+def publish_new_file(source: Path, destination: Path) -> None:
+    """Atomically publish without replacing an existing destination."""
+    _check_local_path(source)
+    _check_private_location(destination)
+    if os.name == 'nt':
+        # Windows rename is atomic and refuses an existing destination. Moving
+        # the staged file also avoids a post-publication temporary-file unlink.
+        os.rename(source, destination)
+        return
+    os.link(source, destination)
+    try:
+        source.unlink()
+    except OSError:
+        # Only this invocation's successful link is eligible for rollback.
+        try:
+            if destination.samefile(source):
+                destination.unlink()
+        except OSError:
+            raise PreparationError('Publication incomplète : fichier final conservé, intervention locale requise.') from None
+        raise PreparationError('Publication annulée : suppression du fichier préparatoire impossible.') from None
 
 
 def _offline_env() -> dict[str, str]:
@@ -42,6 +122,7 @@ def _download_env() -> dict[str, str]:
 
 def _check_private_location(path: Path) -> None:
     """Reject Git worktrees so generated identity data cannot be committed."""
+    _check_local_path(path)
     path = path.resolve(strict=False)
     for ancestor in (path.parent, *path.parent.parents):
         if (ancestor / '.git').exists():
@@ -49,6 +130,7 @@ def _check_private_location(path: Path) -> None:
 
 
 def _validate_wav(path: Path) -> None:
+    _check_local_path(path)
     if not path.is_absolute() or path.is_symlink() or not path.is_file():
         raise PreparationError('Référence WAV privée absente ou invalide.')
     try:
@@ -91,6 +173,7 @@ def _validate_generated_wav(path: Path) -> None:
 
 
 def _call(binary: Path, args: list[str], env: dict[str, str], timeout: int) -> subprocess.CompletedProcess:
+    verify_binary_integrity(binary)
     try:
         return subprocess.run([str(binary), *args], capture_output=True,
                               text=True, encoding='utf-8', errors='replace',
@@ -109,13 +192,15 @@ def prepare(binary: Path, reference: Path, output: Path, *, allow_download: bool
         raise PreparationError('Le profil doit être un nouveau fichier .safetensors (aucun écrasement).')
     if output.parent.is_symlink():
         raise PreparationError('Le dossier vocal privé ne doit pas être un lien symbolique.')
+    verify_binary_integrity(binary)
     check = _call(binary, ['--version'], _offline_env(), 10)
     if check.returncode or check.stdout.strip() != EXPECTED_BINARY_VERSION:
         raise PreparationError('La version de l’exécutable Pocket TTS ne correspond pas à la version qualifiée.')
-    output.parent.mkdir(parents=True, exist_ok=True)
     tmp_profile = None
     tmp_wav = None
     try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        _check_private_location(output)
         with tempfile.NamedTemporaryFile(prefix='.atlas-pocket-', suffix='.safetensors',
                                          dir=output.parent, delete=False) as f:
             tmp_profile = Path(f.name)
@@ -135,20 +220,28 @@ def prepare(binary: Path, reference: Path, output: Path, *, allow_download: bool
         if speak.returncode:
             raise PreparationError('Le profil n’a pas pu générer une phrase hors ligne.')
         _validate_generated_wav(tmp_wav)
+        # Finish the fallible WAV cleanup before committing the profile.
+        _check_local_path(tmp_wav)
+        tmp_wav.unlink()
+        tmp_wav = None
         if output.exists():
             raise PreparationError('Profil déjà présent : aucun écrasement autorisé.')
         # Atomic publication that cannot replace an existing private profile,
         # even if another process created it after the existence check.
         try:
-            os.link(tmp_profile, output)
+            publish_new_file(tmp_profile, output)
+            tmp_profile = None
         except FileExistsError:
             raise PreparationError('Profil déjà présent : aucun écrasement autorisé.') from None
         except OSError:
             raise PreparationError('Impossible de publier le profil vocal en lieu privé.') from None
+    except OSError:
+        raise PreparationError('Préparation locale interrompue : écriture ou nettoyage privé impossible.') from None
     finally:
-        for item in (tmp_profile, tmp_wav):
-            if item is not None:
-                item.unlink(missing_ok=True)
+        cleanup_temporary_files(
+            [('profil temporaire', tmp_profile), ('WAV de contrôle', tmp_wav)],
+            primary_error=sys.exc_info()[0] is not None,
+        )
 
 
 def main(argv=None) -> int:
@@ -164,6 +257,9 @@ def main(argv=None) -> int:
                 allow_download=args.allow_initial_download)
     except PreparationError as exc:
         print(f'Préparation refusée : {exc}', file=sys.stderr)
+        return 1
+    except OSError:
+        print('Préparation refusée : accès aux fichiers privés impossible.', file=sys.stderr)
         return 1
     print('Profil français créé localement. WAV de contrôle vérifié hors ligne.')
     print('Fidélité au timbre et latence sur GTR7 : non vérifiées.')

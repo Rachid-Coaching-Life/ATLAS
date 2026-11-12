@@ -1,4 +1,5 @@
 @echo off
+setlocal
 chcp 65001 > nul
 cd /d "%~dp0"
 set "SETUP=%~dp0scripts\atlas_voice_setup.py"
@@ -14,6 +15,8 @@ if not errorlevel 1 (
 ) else (
   python "%SETUP%"
 )
+set "RESULT=%ERRORLEVEL%"
 echo.
 echo Appuyez sur une touche pour fermer cette fenetre.
 pause > nul
+exit /b %RESULT%

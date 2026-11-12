@@ -5,6 +5,8 @@ import hashlib
 import importlib.util
 import io
 import os
+import shutil
+import subprocess
 from pathlib import Path
 import sys
 import zipfile
@@ -39,12 +41,14 @@ class Download(io.BytesIO):
 def test_pinned_archive_extracts_expected_binary(tmp_path, monkeypatch):
     data = fake_release()
     monkeypatch.setattr(setup, "SHA256", hashlib.sha256(data).hexdigest())
+    monkeypatch.setattr(sys.modules['prepare_pocket_voice'], 'EXPECTED_BINARY_SHA256',
+                        hashlib.sha256(b'x' * 1_000_100).hexdigest())
     monkeypatch.setattr(setup, "urlopen", lambda *args, **kwargs: Download(data))
     monkeypatch.setattr(setup, "_binary_version", lambda _: setup.EXPECTED_BINARY_VERSION)
     binary = setup.install_official_binary(tmp_path)
     assert binary.read_bytes() == b"x" * 1_000_100
     assert not list(tmp_path.glob("*.zip"))
-    assert not list((tmp_path / "engine").glob("*.tmp"))
+    assert list((tmp_path / "engine").iterdir()) == [binary]
 
 
 def test_checksum_mismatch_never_publishes_binary(tmp_path, monkeypatch):
@@ -140,3 +144,128 @@ def test_requires_windows_localappdata(monkeypatch):
     monkeypatch.delenv("LOCALAPPDATA", raising=False)
     with pytest.raises(setup.SetupError, match="Windows"):
         setup.private_dir()
+
+
+def test_unknown_existing_binary_is_never_executed(tmp_path, monkeypatch):
+    binary = tmp_path / 'engine' / 'pocket-tts.exe'
+    binary.parent.mkdir()
+    binary.write_bytes(b'unknown executable')
+    monkeypatch.setattr(setup, '_binary_version', lambda _: pytest.fail('unknown binary executed'))
+    with pytest.raises(setup.SetupError, match='SHA-256'):
+        setup.install_official_binary(tmp_path)
+    assert binary.read_bytes() == b'unknown executable'
+
+
+def test_failed_staged_execution_never_installs_binary(tmp_path, monkeypatch):
+    data = fake_release()
+    monkeypatch.setattr(setup, 'SHA256', hashlib.sha256(data).hexdigest())
+    shared = sys.modules['prepare_pocket_voice']
+    monkeypatch.setattr(shared, 'EXPECTED_BINARY_SHA256',
+                        hashlib.sha256(b'x' * 1_000_100).hexdigest(), raising=False)
+    monkeypatch.setattr(setup, 'urlopen', lambda *a, **kw: Download(data))
+    def fail(binary):
+        raise setup.SetupError('Synthetic execution failure')
+    monkeypatch.setattr(setup, '_binary_version', fail)
+    with pytest.raises(setup.SetupError, match='Synthetic execution failure'):
+        setup.install_official_binary(tmp_path)
+    assert not (tmp_path / 'engine' / 'pocket-tts.exe').exists()
+
+
+def test_cached_verified_binary_is_reused_without_download(tmp_path, monkeypatch):
+    binary = tmp_path / 'engine' / 'pocket-tts.exe'; binary.parent.mkdir()
+    binary.write_bytes(b'trusted synthetic executable')
+    monkeypatch.setattr(sys.modules['prepare_pocket_voice'], 'EXPECTED_BINARY_SHA256',
+                        hashlib.sha256(binary.read_bytes()).hexdigest())
+    monkeypatch.setattr(setup, '_binary_version', lambda _: setup.EXPECTED_BINARY_VERSION)
+    monkeypatch.setattr(setup, 'urlopen', lambda *a, **kw: pytest.fail('unexpected download'))
+    assert setup.install_official_binary(tmp_path) == binary
+
+
+def test_installer_cleanup_preserves_primary_error(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(setup, 'urlopen', lambda *a, **kw: Download(fake_release()))
+    monkeypatch.setattr(setup, 'SHA256', '0' * 64)
+    unlink = Path.unlink
+    def locked(path, *a, **kw):
+        if path.suffix == '.zip':
+            raise PermissionError('must not leak secret path')
+        return unlink(path, *a, **kw)
+    monkeypatch.setattr(Path, 'unlink', locked)
+    with pytest.raises(setup.SetupError, match='SHA-256'):
+        setup.install_official_binary(tmp_path)
+    message = capsys.readouterr().err
+    assert 'temporaires conservés' in message
+    assert str(tmp_path) not in message
+    assert 'secret path' not in message
+
+
+def test_installer_refuses_redirected_ancestor_before_download(tmp_path, monkeypatch):
+    real = tmp_path / 'real'; real.mkdir()
+    alias = tmp_path / 'alias'
+    if os.name == 'nt':
+        subprocess.run(['cmd.exe', '/d', '/c', 'mklink', '/J', str(alias), str(real)],
+                       check=True, capture_output=True)
+    else:
+        alias.symlink_to(real, target_is_directory=True)
+    monkeypatch.setattr(setup, 'urlopen', lambda *a, **kw: pytest.fail('unexpected download'))
+    try:
+        with pytest.raises(setup.SetupError):
+            setup.install_official_binary(alias / 'private')
+        assert not list(real.iterdir())
+    finally:
+        alias.rmdir() if os.name == 'nt' else alias.unlink()
+
+
+def test_bootstrap_io_error_is_sanitised(tmp_path, monkeypatch, capsys):
+    def denied(root):
+        raise PermissionError('do not print this sensitive path')
+    monkeypatch.setattr(setup, 'provision', denied)
+    assert setup.main(['--bundle-root', str(tmp_path)]) == 1
+    error = capsys.readouterr().err
+    assert 'Préparation interrompue' in error
+    assert 'sensitive path' not in error
+    assert str(tmp_path) not in error
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Actual cmd.exe execution required')
+@pytest.mark.parametrize('layout', ['scripts', 'flat'])
+@pytest.mark.parametrize('exit_code', [0, 7])
+@pytest.mark.parametrize('launcher_kind', ['python', 'py'])
+def test_windows_cmd_launch_and_exit_code(tmp_path, layout, exit_code, launcher_kind):
+    bundle = tmp_path / 'synthetic voice bundle'; bundle.mkdir()
+    launcher = bundle / 'PREPARER_MA_VOIX_ATLAS.cmd'
+    shutil.copyfile(MODULE.parent / launcher.name, launcher)
+    scripts = bundle / 'scripts' if layout == 'scripts' else bundle
+    scripts.mkdir(exist_ok=True)
+    # Deliberately no model, reference, token or downloads: test the real CMD
+    # boundary using a synthetic Python child with a known terminal outcome.
+    (scripts / 'atlas_voice_setup.py').write_text(
+        f'import sys\nprint("SYNTHETIC_CHILD", file=sys.stderr)\nsys.exit({exit_code})\n',
+        encoding='utf-8',
+    )
+    env = os.environ.copy()
+    env['PATH'] = str(Path(sys.executable).parent) + os.pathsep + str(Path(env['SystemRoot']) / 'System32')
+    env['PYTHONUTF8'] = '1'
+    if launcher_kind == 'python':
+        assert shutil.which('py', path=env['PATH']) is None
+    else:
+        py = shutil.which('py')
+        assert py, 'Native py launcher required to exercise py -3'
+        env['PATH'] = str(Path(py).parent) + os.pathsep + env['PATH']
+        assert shutil.which('py', path=env['PATH'])
+    result = subprocess.run(['cmd.exe', '/d', '/c', str(launcher)], input='\n',
+                            capture_output=True, text=True, encoding='utf-8',
+                            errors='replace', timeout=20, env=env)
+    assert result.returncode == exit_code
+    assert 'SYNTHETIC_CHILD' in result.stderr
+    assert 'Appuyez sur une touche' in result.stdout
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Actual cmd.exe execution required')
+def test_windows_cmd_missing_script_reports_failure(tmp_path):
+    launcher = tmp_path / 'PREPARER_MA_VOIX_ATLAS.cmd'
+    shutil.copyfile(MODULE.parent / launcher.name, launcher)
+    result = subprocess.run(['cmd.exe', '/d', '/c', str(launcher)], input='\n',
+                            capture_output=True, text=True, encoding='utf-8',
+                            errors='replace', timeout=20)
+    assert result.returncode == 1
+    assert 'programme Python absent' in result.stdout

@@ -16,7 +16,10 @@ from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 import zipfile
 
-from prepare_pocket_voice import PreparationError, prepare, EXPECTED_BINARY_VERSION
+from prepare_pocket_voice import (
+    PreparationError, prepare, EXPECTED_BINARY_VERSION, verify_binary_integrity,
+    _check_private_location, cleanup_temporary_files, publish_new_file,
+)
 
 RELEASE = "https://github.com/kyutai-labs/pocket-tts/releases/download/v4.0.1/pocket-tts-3.3.0-x86_64-pc-windows-msvc.zip"
 SHA256 = "98753041f2e65744b989776f87bccb93f1f574a08afe1890c5427ec94cd6309c"
@@ -35,6 +38,7 @@ def private_dir() -> Path:
 
 
 def _binary_version(binary: Path) -> str:
+    verify_binary_integrity(binary)
     try:
         proc = subprocess.run(
             [str(binary), "--version"], capture_output=True,
@@ -49,12 +53,24 @@ def _binary_version(binary: Path) -> str:
 
 
 def install_official_binary(directory: Path) -> Path:
+    try:
+        return _install_official_binary(directory)
+    except PreparationError as exc:
+        raise SetupError(str(exc)) from None
+    except OSError:
+        raise SetupError('Installation interrompue : accès aux fichiers locaux impossible.') from None
+
+
+def _install_official_binary(directory: Path) -> Path:
     binary = directory / "engine" / "pocket-tts.exe"
+    _check_private_location(binary)
     if binary.is_file():
-        if binary.is_symlink() or _binary_version(binary) != EXPECTED_BINARY_VERSION:
+        verify_binary_integrity(binary)
+        if _binary_version(binary) != EXPECTED_BINARY_VERSION:
             raise SetupError("Exécutable local non conforme. Aucun fichier existant n’a été remplacé.")
         return binary
     binary.parent.mkdir(parents=True, exist_ok=True)
+    _check_private_location(binary)
     downloaded = None
     staged = None
     try:
@@ -89,7 +105,7 @@ def install_official_binary(directory: Path) -> Path:
             if len(candidates) != 1 or not 1_000_000 <= candidates[0].file_size <= 70_000_000:
                 raise SetupError("Exécutable attendu absent de l’archive vérifiée.")
             with tempfile.NamedTemporaryFile(
-                prefix=".atlas-pocket-exe-", suffix=".tmp",
+                prefix=".atlas-pocket-exe-", suffix=".exe",
                 dir=binary.parent, delete=False,
             ) as temp:
                 staged = Path(temp.name)
@@ -99,22 +115,28 @@ def install_official_binary(directory: Path) -> Path:
                         if not block:
                             break
                         temp.write(block)
+        verify_binary_integrity(staged)
+        if _binary_version(staged) != EXPECTED_BINARY_VERSION:
+            raise SetupError("Version effective du moteur non conforme.")
+        # Remove the archive before commit; failure cannot leave an installed
+        # binary. Publication moves the verified Windows staging file atomically.
+        cleanup_temporary_files([('archive officielle', downloaded)], primary_error=False)
+        downloaded = None
         if binary.exists():
             raise SetupError("Un exécutable existe déjà. Aucun écrasement autorisé.")
         try:
-            os.link(staged, binary)
+            publish_new_file(staged, binary)
+            staged = None
         except OSError:
             raise SetupError("Impossible de publier l’exécutable local vérifié.") from None
-        if _binary_version(binary) != EXPECTED_BINARY_VERSION:
-            binary.unlink(missing_ok=True)
-            raise SetupError("Version effective du moteur non conforme.")
         return binary
     except zipfile.BadZipFile:
         raise SetupError("L’archive officielle téléchargée est invalide.") from None
     finally:
-        for path in (downloaded, staged):
-            if path is not None:
-                path.unlink(missing_ok=True)
+        cleanup_temporary_files(
+            [('archive officielle', downloaded), ('exécutable temporaire', staged)],
+            primary_error=sys.exc_info()[0] is not None,
+        )
 
 
 def _has_local_hf_auth() -> bool:
@@ -140,6 +162,7 @@ def provision(bundle_root: Path) -> Path:
         raise SetupError("Enregistrement vocal inclus dans l’archive introuvable.")
     target_dir = private_dir()
     output = target_dir / "voice_french.safetensors"
+    _check_private_location(output)
     if output.exists():
         raise SetupError("Le profil vocal existe déjà. Aucun écrasement autorisé.")
     print("Étape 1 : vérification du moteur officiel Windows et de son empreinte SHA-256.")
@@ -177,8 +200,11 @@ def main(argv=None) -> int:
     try:
         provision(args.bundle_root.resolve())
         return 0
-    except SetupError as exc:
+    except (SetupError, PreparationError) as exc:
         print(f"\nPréparation interrompue : {exc}", file=sys.stderr)
+        return 1
+    except OSError:
+        print('\nPréparation interrompue : accès aux fichiers privés impossible.', file=sys.stderr)
         return 1
 
 
