@@ -869,10 +869,26 @@ class VoiceListener(threading.Thread):
                     text_lower, tts_reference)):
                 debug_log("rejected TTS echo during active query collection", "voice")
                 return
-            self._transcript_buffer.mark_segment_processed(text_lower)
-            self.state_manager.add_to_collection(accepted_text, language=language)
-            debug_log("wake follow-up added directly to active collection", "voice")
-            return
+            # An explicit fresh address starts a new request even while a
+            # previous multi-segment command is still being collected.
+            wake_word = getattr(self.cfg, "wake_word", "atlas")
+            wake_aliases = getattr(self.cfg, "wake_aliases", []) or []
+            if is_explicit_wake_address(accepted_text, wake_word, wake_aliases):
+                self._transcript_buffer.mark_segment_processed(text_lower)
+                self.state_manager.start_collection(accepted_text, language=language)
+                self._start_thinking_tune()
+                debug_log("explicit readdress replaced pending voice collection", "voice")
+                return
+
+            # An assistant-name mention needs the ordinary intent gate. Only
+            # an unaddressed continuation may bypass it while collecting.
+            if not is_wake_word_detected(
+                    text_lower, wake_word, wake_aliases,
+                    float(getattr(self.cfg, "wake_fuzzy_ratio", 0.78))):
+                self._transcript_buffer.mark_segment_processed(text_lower)
+                self.state_manager.add_to_collection(accepted_text, language=language)
+                debug_log("wake follow-up added directly to active collection", "voice")
+                return
 
         # Intent judge — the single decision-maker for all post-TTS input.
         # Gets full transcript context, last TTS text, and hot window state.
