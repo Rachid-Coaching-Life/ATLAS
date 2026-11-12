@@ -198,6 +198,26 @@ def test_direct_cli_unknown_binary_never_reaches_version(tmp_path, monkeypatch):
         prep.prepare(binary, reference, tmp_path / 'voice.safetensors')
 
 
+def test_temporary_creation_does_not_retry_acl_refusal(tmp_path, monkeypatch):
+    attempts = []
+    def denied(*args, **kwargs):
+        attempts.append(True)
+        raise PermissionError('synthetic ACL refusal')
+    monkeypatch.setattr(prep.os, 'open', denied)
+    with pytest.raises(prep.PreparationError, match='accès refusé'):
+        prep.new_private_temp(tmp_path, '.synthetic-', '.wav')
+    assert len(attempts) == 1
+
+
+def test_temporary_creation_retries_collision_without_overwriting(tmp_path, monkeypatch):
+    existing = tmp_path / '.synthetic-collision.wav'; existing.write_bytes(b'original')
+    names = iter(['collision', 'unique'])
+    monkeypatch.setattr(prep.secrets, 'token_hex', lambda size: next(names))
+    created = prep.new_private_temp(tmp_path, '.synthetic-', '.wav')
+    assert created.name == '.synthetic-unique.wav'
+    assert existing.read_bytes() == b'original'
+
+
 def test_cleanup_diagnostic_failure_cannot_replace_primary_error(tmp_path, monkeypatch):
     target = tmp_path / 'synthetic.wav'; target.write_bytes(b'fake')
     def denied(*args, **kwargs):

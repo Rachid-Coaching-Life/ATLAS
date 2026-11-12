@@ -52,6 +52,10 @@ catégories de temporaires conservés sont signalées sans chemin ni contenu
 privé. Aucun fichier préexistant n'est supprimé pour réparer un échec. Un
 verrouillage persistant peut nécessiter un nettoyage local ultérieur ; le
 programme ne prétend pas avoir effacé un fichier qu'il n'a pas pu supprimer.
+La réservation temporaire utilise une création exclusive avec permissions 0600
+sur POSIX et droits hérités du dossier privé sur Windows. Seules les collisions
+de noms sont réessayées, au plus huit fois ; un refus d'écriture par ACL échoue
+immédiatement, sans la longue boucle de réessai possible de `tempfile` Windows.
 
 Les tests Python du script utilisent seulement des WAV et des poids fictifs. Ils vérifient les contrats techniques, la confidentialité des sorties, le refus d'écrasement, la suppression en cas d'échec, le respect du hors ligne et le refus d'export dans Git.
 

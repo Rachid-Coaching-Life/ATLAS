@@ -10,11 +10,11 @@ import array
 import hashlib
 import math
 import os
+import secrets
 import stat
 from pathlib import Path
 import subprocess
 import sys
-import tempfile
 import wave
 
 
@@ -57,6 +57,26 @@ def verify_binary_integrity(binary: Path) -> None:
             raise PreparationError('Exécutable Pocket TTS non conforme : empreinte SHA-256 différente.')
     except OSError:
         raise PreparationError('Impossible de vérifier le SHA-256 du moteur local.') from None
+
+
+def new_private_temp(directory: Path, prefix: str, suffix: str) -> Path:
+    """Reserve an owned 0600 file; retry collisions, never permission refusals.
+
+    Windows tempfile may mistake an ACL refusal for a name collision because
+    os.access does not evaluate the ACL. Use the actual exclusive create result.
+    """
+    for _ in range(8):
+        path = directory / (prefix + secrets.token_hex(16) + suffix)
+        _check_private_location(path)
+        try:
+            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, 'O_BINARY', 0), 0o600)
+        except FileExistsError:
+            continue
+        except OSError:
+            raise PreparationError('Création temporaire privée impossible : accès refusé.') from None
+        os.close(fd)
+        return path
+    raise PreparationError('Création temporaire privée impossible : collisions répétées.')
 
 
 def cleanup_temporary_files(items, *, primary_error: bool) -> None:
@@ -201,12 +221,8 @@ def prepare(binary: Path, reference: Path, output: Path, *, allow_download: bool
     try:
         output.parent.mkdir(parents=True, exist_ok=True)
         _check_private_location(output)
-        with tempfile.NamedTemporaryFile(prefix='.atlas-pocket-', suffix='.safetensors',
-                                         dir=output.parent, delete=False) as f:
-            tmp_profile = Path(f.name)
-        with tempfile.NamedTemporaryFile(prefix='.atlas-pocket-test-', suffix='.wav',
-                                         dir=output.parent, delete=False) as f:
-            tmp_wav = Path(f.name)
+        tmp_profile = new_private_temp(output.parent, '.atlas-pocket-', '.safetensors')
+        tmp_wav = new_private_temp(output.parent, '.atlas-pocket-test-', '.wav')
         env = _download_env() if allow_download else _offline_env()
         export = _call(binary, ['export-voice', str(reference), str(tmp_profile),
                                 '--language', 'french', '--quiet'], env, 600)

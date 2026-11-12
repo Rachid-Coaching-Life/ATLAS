@@ -11,14 +11,13 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-import tempfile
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 import zipfile
 
 from prepare_pocket_voice import (
     PreparationError, prepare, EXPECTED_BINARY_VERSION, verify_binary_integrity,
-    _check_private_location, cleanup_temporary_files, publish_new_file,
+    _check_private_location, cleanup_temporary_files, publish_new_file, new_private_temp,
 )
 
 RELEASE = "https://github.com/kyutai-labs/pocket-tts/releases/download/v4.0.1/pocket-tts-3.3.0-x86_64-pc-windows-msvc.zip"
@@ -74,11 +73,8 @@ def _install_official_binary(directory: Path) -> Path:
     downloaded = None
     staged = None
     try:
-        with tempfile.NamedTemporaryFile(
-            prefix=".atlas-pocket-official-", suffix=".zip",
-            dir=directory, delete=False,
-        ) as temp:
-            downloaded = Path(temp.name)
+        downloaded = new_private_temp(directory, '.atlas-pocket-official-', '.zip')
+        with downloaded.open('wb') as temp:
             digest = hashlib.sha256()
             try:
                 with urlopen(RELEASE, timeout=50) as response:
@@ -104,11 +100,8 @@ def _install_official_binary(directory: Path) -> Path:
             ]
             if len(candidates) != 1 or not 1_000_000 <= candidates[0].file_size <= 70_000_000:
                 raise SetupError("Exécutable attendu absent de l’archive vérifiée.")
-            with tempfile.NamedTemporaryFile(
-                prefix=".atlas-pocket-exe-", suffix=".exe",
-                dir=binary.parent, delete=False,
-            ) as temp:
-                staged = Path(temp.name)
+            staged = new_private_temp(binary.parent, '.atlas-pocket-exe-', '.exe')
+            with staged.open('wb') as temp:
                 with archive.open(candidates[0]) as source:
                     while True:
                         block = source.read(1024 * 256)
