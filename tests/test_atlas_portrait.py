@@ -1,5 +1,6 @@
 """Regression checks for the installed ATLAS face image and its Qt host."""
 
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
@@ -7,6 +8,70 @@ import pytest
 ASSET = Path(__file__).resolve().parents[1] / (
     "src/desktop_app/desktop_assets/atlas_portrait.png"
 )
+
+# Provisional technical baseline only, not a definitive approved visual reference.
+# A deliberate asset replacement requires explicit review of this fingerprint.
+PROVISIONAL_PORTRAIT_SHA256 = (
+    "3d0e831e38dfff46bc93a006e92eb03b03eb8a404e915a7984415800e52b59f9"
+)
+
+
+@pytest.mark.unit
+def test_atlas_portrait_matches_provisional_technical_fingerprint():
+    assert sha256(ASSET.read_bytes()).hexdigest() == PROVISIONAL_PORTRAIT_SHA256, (
+        "Portrait PNG bytes differ from the provisional technical baseline; "
+        "review the asset change explicitly. This baseline is not visual approval."
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "canvas_size", [(240, 280), (400, 240), None],
+    ids=["tall-canvas", "wide-canvas", "source-size"],
+)
+def test_neutral_portrait_matches_source_without_destructive_changes(qapp, canvas_size):
+    """Neutral pixels equal a centred, uniformly scaled source, including alpha."""
+    from PyQt6.QtCore import QRectF
+    from PyQt6.QtGui import QImage, QPainter, QPixmap
+    from desktop_app.face_widget import FaceWidget
+
+    original_bytes = ASSET.read_bytes()
+    source = QPixmap(str(ASSET))
+    assert not source.isNull()
+    width, height = canvas_size or (source.width(), source.height())
+    image_format = QImage.Format.Format_ARGB32_Premultiplied
+    source_pixels = source.toImage().convertToFormat(image_format)
+
+    # Build the reference independently of FaceWidget's bounds and cached image.
+    scale = min(width / source.width(), height / source.height())
+    scaled_width, scaled_height = source.width() * scale, source.height() * scale
+    target = QRectF((width - scaled_width) / 2, (height - scaled_height) / 2,
+                    scaled_width, scaled_height)
+    expected = QImage(width, height, image_format)
+    expected.fill(0)
+    painter = QPainter(expected)
+    try:
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        painter.drawPixmap(target, source, QRectF(source.rect()))
+    finally:
+        painter.end()
+
+    face = FaceWidget()
+    try:
+        face.resize(width, height)
+        # Keep the neutral state independent of animation time and event delivery.
+        face._animation_timer.stop()
+        face._elapsed = 1.37
+        actual = QImage(width, height, image_format)
+        actual.fill(0)
+        face.render(actual)
+
+        assert actual == expected
+        assert face._portrait.toImage().convertToFormat(image_format) == source_pixels
+        assert ASSET.read_bytes() == original_bytes
+    finally:
+        face.close()
 
 
 @pytest.mark.unit
