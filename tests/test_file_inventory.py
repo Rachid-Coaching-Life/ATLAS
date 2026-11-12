@@ -1,5 +1,6 @@
 """ATLAS read-only file inventory tasks, isolated from the user's files."""
 
+from threading import Event, Thread
 from types import SimpleNamespace
 
 import pytest
@@ -672,4 +673,82 @@ def test_spoken_pdf_missing_returns_failed_not_fabricated(isolated_profile, monk
         assert "Aucun PDF correspondant" in result.error
         assert launches == []
     finally:
+        manager.shutdown()
+
+
+
+@pytest.mark.parametrize("prompt", [
+    "Ouvre mon certificat médical",
+    "Ouvre le PDF Bureau/Certificat-Medical.pdf",
+])
+def test_cancellation_during_pdf_resolution_never_launches(
+    isolated_profile, monkeypatch, prompt,
+):
+    """A confirmed cancellation must prevent a later OS file launch."""
+    from atlas import tasks
+
+    desktop = isolated_profile / "Desktop"
+    desktop.mkdir()
+    (desktop / "Certificat-Medical.pdf").write_bytes(b"%PDF-1.7\n")
+    resolving, release = Event(), Event()
+    original = tasks._local_inventory_directory
+
+    def delayed_folder(folder):
+        resolving.set()
+        assert release.wait(5), "File lookup remained blocked"
+        return original(folder)
+
+    monkeypatch.setattr(tasks, "_local_inventory_directory", delayed_folder)
+    launches = []
+    monkeypatch.setattr(tasks.os, "startfile", launches.append, raising=False)
+    manager = tasks.TaskManager(
+        db=object(), cfg=SimpleNamespace(), dialogue_memory=None,
+    )
+    try:
+        task_id = manager.submit(prompt)
+        assert resolving.wait(3), "File lookup did not start"
+        assert manager.cancel(task_id) is True
+        release.set()
+        outcome = manager.wait_for_task(task_id, timeout=5)
+        assert outcome.status is tasks.TaskStatus.CANCELLED
+        assert launches == []
+    finally:
+        release.set()
+        manager.shutdown()
+
+
+def test_cancel_after_windows_pdf_launch_started_cannot_claim_it_was_stopped(
+    isolated_profile, monkeypatch,
+):
+    """Cancelling after an irreversible hand-off is not reported as success."""
+    from atlas import tasks
+
+    desktop = isolated_profile / "Desktop"
+    desktop.mkdir()
+    pdf = desktop / "Certificat-Medical.pdf"
+    pdf.write_bytes(b"%PDF-1.7\n")
+    launched, release = Event(), Event()
+
+    def held_launcher(path):
+        assert path == str(pdf.resolve())
+        launched.set()
+        assert release.wait(5), "Windows launch did not finish"
+
+    monkeypatch.setattr(tasks.os, "startfile", held_launcher, raising=False)
+    manager = tasks.TaskManager(
+        db=object(), cfg=SimpleNamespace(), dialogue_memory=None,
+    )
+    try:
+        task_id = manager.submit("Ouvre mon certificat médical")
+        assert launched.wait(3), "Windows launch was not reached"
+        result = []
+        requester = Thread(target=lambda: result.append(manager.cancel(task_id)))
+        requester.start()
+        release.set()
+        requester.join(5)
+        assert not requester.is_alive()
+        assert result == [False]
+        assert manager.wait_for_task(task_id, timeout=5).status is tasks.TaskStatus.COMPLETED
+    finally:
+        release.set()
         manager.shutdown()

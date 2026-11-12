@@ -165,7 +165,10 @@ def _direct_pdf_open_request(prompt: str) -> Optional[tuple[str, tuple[str, ...]
     return folder, tuple(parts[1:])
 
 
-def _open_explicit_local_pdf(folder: str, relative_parts: tuple[str, ...]) -> str:
+def _open_explicit_local_pdf(
+    folder: str, relative_parts: tuple[str, ...],
+    *, launch: Optional[Callable[[str], None]] = None,
+) -> str:
     """Ask Windows to open one validated PDF; never alter it or execute shell."""
     root = _local_inventory_directory(folder)
     current = root
@@ -187,7 +190,7 @@ def _open_explicit_local_pdf(folder: str, relative_parts: tuple[str, ...]) -> st
     launcher = getattr(os, "startfile", None)
     if launcher is None:
         raise RuntimeError("L'ouverture directe est disponible uniquement sous Windows.")
-    launcher(str(resolved))  # OS file association, never a shell command.
+    (launch or launcher)(str(resolved))  # OS file association, never a shell command.
     return (
         "Demande d'ouverture transmise à Windows : "
         + str(Path(folder).joinpath(*relative_parts))
@@ -298,9 +301,12 @@ def _find_spoken_named_pdf(title: str, folder_hint: Optional[str] = None) -> tup
     return folder, parts
 
 
-def _open_spoken_named_pdf(title: str, folder_hint: Optional[str] = None) -> str:
+def _open_spoken_named_pdf(
+    title: str, folder_hint: Optional[str] = None,
+    *, launch: Optional[Callable[[str], None]] = None,
+) -> str:
     folder, parts = _find_spoken_named_pdf(title, folder_hint)
-    return _open_explicit_local_pdf(folder, parts)
+    return _open_explicit_local_pdf(folder, parts, launch=launch)
 
 
 _READ_PDF_PREFIX = re.compile(
@@ -410,6 +416,8 @@ class Task:
     created_at: float = field(default_factory=time.time)
     started_at: Optional[float] = None
     completed_at: Optional[float] = None
+    # Internal, not persisted: an OS launch cannot be undone by cancellation.
+    _file_launch_started: bool = field(default=False, repr=False)
 
     def as_dict(self) -> dict:
         return {
@@ -504,7 +512,8 @@ class TaskManager:
             task = self._tasks.get(task_id)
             if task is None or task.status in {
                 TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED,
-            }:
+            } or task._file_launch_started:
+                # Once handed to Windows, an opening cannot be cancelled.
                 return False
             self._cancel_events.setdefault(task.id, threading.Event()).set()
             task.status = TaskStatus.CANCELLED
@@ -527,7 +536,8 @@ class TaskManager:
         with self._lock:
             self._closed = True
             for task_id, task in self._tasks.items():
-                if task.status in {TaskStatus.QUEUED, TaskStatus.RUNNING}:
+                if (task.status in {TaskStatus.QUEUED, TaskStatus.RUNNING}
+                        and not task._file_launch_started):
                     self._cancel_events.setdefault(task_id, threading.Event()).set()
                     task.status = TaskStatus.CANCELLED
                     task.completed_at = time.time()
@@ -548,6 +558,19 @@ class TaskManager:
             cancel_event = self._cancel_events.setdefault(task.id, threading.Event())
             self._persist(task)
             self._emit(task)
+
+        def launch_pdf_if_active(target: str) -> None:
+            # Serialize cancellation with the irreversible Windows launch.
+            # A cancellation accepted before this lock must prevent opening.
+            with self._lock:
+                if cancel_event.is_set() or task.status is TaskStatus.CANCELLED:
+                    raise RuntimeError("Ouverture annulée avant transmission à Windows.")
+                launcher = getattr(os, "startfile", None)
+                if launcher is None:
+                    raise RuntimeError("L'ouverture directe est disponible uniquement sous Windows.")
+                task._file_launch_started = True
+                launcher(target)
+
         try:
             if _is_direct_system_status_task(task.prompt):
                 # A read-only, deterministic action: no tool router,
@@ -616,7 +639,9 @@ class TaskManager:
                         "dans Documents, Téléchargements ou Bureau."
                     )
                 folder, relative_parts = requested_pdf
-                result = _open_explicit_local_pdf(folder, relative_parts)
+                result = _open_explicit_local_pdf(
+                    folder, relative_parts, launch=launch_pdf_if_active,
+                )
             elif _has_spoken_pdf_read_intent(task.prompt):
                 requested_pdf = _direct_spoken_pdf_read_request(task.prompt)
                 if requested_pdf is None:
@@ -628,7 +653,9 @@ class TaskManager:
                 if requested_pdf is None:
                     raise ValueError("Demande d'ouverture ambiguë : précisez uniquement le nom du PDF.")
                 title, folder_hint = requested_pdf
-                result = _open_spoken_named_pdf(title, folder_hint)
+                result = _open_spoken_named_pdf(
+                    title, folder_hint, launch=launch_pdf_if_active,
+                )
             else:
                 from .daemon import query_lock
                 with query_lock():
