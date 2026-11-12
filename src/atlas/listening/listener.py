@@ -885,11 +885,12 @@ class VoiceListener(threading.Thread):
             utterance_start_time, utterance_end_time
         )
 
-        # A clean follow-up inside the active hot window is already addressed
-        # to ATLAS. Avoid a synchronous LLM judge on the listening thread.
+        # Accept a clean hot-window follow-up directly only without an available
+        # intent judge; otherwise let the judge determine whether it is addressed to ATLAS.
         # The echo guards above still run first; keep a final text echo check.
         if (could_be_hot_window and not received_during_tts
                 and not active_tts_overlapped
+                and (self._intent_judge is None or not self._intent_judge.available)
                 and not self.echo_detector.is_hot_window_echo(
                     text_lower,
                     (self.echo_detector._last_tts_text or "") if same_tts_context else "",
