@@ -995,10 +995,14 @@ class PocketTTS(_QueuedSpeech):
                             "http://127.0.0.1:%d/health" % port,
                             timeout=0.5,
                         )
-                        if r.status_code == 200:
+                        # A foreign listener can win the ephemeral-port race.
+                        # Require Pocket's documented JSON health signature,
+                        # not an arbitrary HTTP 200 response.
+                        if (r.status_code == 200
+                                and r.json() == {"status": "healthy"}):
                             ready = True
                             return True, None
-                    except requests.RequestException:
+                    except (requests.RequestException, ValueError, TypeError):
                         pass
                     time.sleep(0.25)
             finally:

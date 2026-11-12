@@ -71,7 +71,9 @@ def test_startup_uses_french_loopback_private_state_and_offline(tmp_path, monkey
         trust_env = True
         def get(self, url, timeout):
             assert url.startswith("http://127.0.0.1:")
-            return SimpleNamespace(status_code=200)
+            return SimpleNamespace(
+                status_code=200, json=lambda: {"status": "healthy"},
+            )
         def close(self):
             pass
 
@@ -192,3 +194,42 @@ def test_real_wav_length_controls_playback_callbacks(tmp_path, monkeypatch):
     assert durations == pytest.approx([0.1, 0.1])
     assert ("pcm", 2048) in played
     assert played[-1] == "close"
+
+
+def test_unrelated_loopback_http_200_cannot_claim_pocket_ready(tmp_path, monkeypatch):
+    """A wrong health payload is not proof that our child owns this port."""
+    import atlas.output.tts as speech
+
+    binary, profile = private_fixtures(tmp_path)
+    calls = []
+    class Process:
+        def __init__(self):
+            self.checks = 0
+        def poll(self):
+            self.checks += 1
+            return None if self.checks == 1 else 1
+        def terminate(self):
+            calls.append("terminated")
+        def wait(self, timeout=None):
+            return 0
+
+    monkeypatch.setattr(speech.subprocess, "Popen", lambda *a, **kw: Process())
+    monkeypatch.setattr(speech.time, "sleep", lambda secs: None)
+
+    class ForeignSession:
+        trust_env = True
+        def get(self, url, timeout):
+            return SimpleNamespace(
+                status_code=200, json=lambda: {"status": "unrelated"},
+            )
+        def close(self):
+            pass
+
+    monkeypatch.setitem(sys.modules, "requests", SimpleNamespace(
+        Session=ForeignSession, RequestException=OSError,
+    ))
+    engine = PocketTTS(binary_path=str(binary), voice_profile=str(profile))
+    ready, explanation = engine._prepare_speech()
+    assert ready is False
+    assert explanation and "Pocket TTS" in explanation
+    assert engine._server is None

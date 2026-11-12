@@ -36,3 +36,5 @@ Le tag [v4.0.1](https://github.com/kyutai-labs/pocket-tts/releases/tag/v4.0.1) c
 Le workflow Windows télécharge uniquement cet exécutable public, vérifie son empreinte SHA256 et contrôle les sorties --version et serve --help sans télécharger de modèle, sans voix privée et sans modifier le GTR7.
 
 Attention : le tag du dépôt est v4.0.1 mais Cargo et l'archive Windows de ce même tag indiquent 3.3.0. La sortie effective de --version permet de constater la version binaire, pas d'inférer la prise en charge fonctionnelle du modèle français sans essai de synthèse. Le contrôle CLI ne démontre ni clonage ni latence.
+
+Le contrôle de démarrage vérifie aussi la réponse JSON officielle {"status":"healthy"} et non le seul HTTP 200 ; ceci limite les faux positifs si un autre processus local occupe le port sélectionné. Le mécanisme de port dynamique et les conditions de concurrence réelles restent à valider.
