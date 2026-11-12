@@ -1,26 +1,59 @@
+<div align="center">
+
 # ATLAS
 
-**ATLAS** est un assistant personnel local, francophone, destiné en priorité au mini-PC GTR7 sous Windows. Le dépôt de développement est [Rachid-Coaching-Life/ATLAS](https://github.com/Rachid-Coaching-Life/ATLAS).
+### Assistant personnel local, vocal et francophone
 
-## État du projet
+**Projet en cours de développement pour Windows 11, sur mini-PC GTR7.**
 
-ATLAS est en développement. **Il n'existe pas encore de version Windows entièrement validée pour le GTR7.** Les correctifs de sécurité, l'interface de bureau PyQt6, le démarrage vocal et les tests multi-plateformes font l'objet de validations progressives.
+<img src="src/desktop_app/desktop_assets/atlas_portrait.png" alt="Portrait du robot ATLAS approuvé" width="420">
 
-## Objectif de livraison
+*Portrait de travail validé visuellement par le propriétaire le 12 novembre 2026.*
 
-L'application finale doit pouvoir être installée et démarrée depuis Windows, avec une interface ATLAS, des interactions vocales en français, des fonctions locales et des confirmations explicites avant les actions sensibles, sans terminal requis pour l'usage quotidien.
+</div>
 
-## Développement
+---
 
-- Branche de référence : `develop-atlas`. Les changements sont préparés sur des branches dédiées et examinés en pull requests.
-- Python 3.11 ou ultérieur est nécessaire au développement depuis les sources.
-- Les dépendances et les commandes de démarrage restent celles du dépôt pendant la migration technique. Ne pas renommer manuellement les packages ou chemins d'import avant leur adaptation et leur validation.
-- Les tests Linux CI ne remplacent pas les essais sur le GTR7 Windows.
+## Présentation
 
-## Migration de l'identité
+ATLAS est un assistant personnel dont l'objectif est de fonctionner localement, avec reconnaissance de la voix, conversation en français, mémoire, outils et interface de bureau PyQt6.
 
-**ATLAS est le nom unique du produit.** Les anciens identifiants internes, variables et chemins encore présents dans le code sont en cours de migration contrôlée. Les renommages doivent préserver les imports, la configuration utilisateur, les données locales, les exécutables et l'installation Windows. La migration n'est terminée qu'après tests et vérification de l'absence de références héritées dans les interfaces et les livrables.
+Le développement est encore en cours. Les composants présents dans le dépôt ne constituent pas une garantie que toutes les fonctionnalités sont déjà opérationnelles ou testées de bout en bout.
 
-## Licences
+## Statut technique
 
-Consulter les fichiers de licence et les notices de tiers inclus dans ce dépôt. Le changement de nom du produit ne supprime aucune obligation d'attribution des composants d'origine ou tiers.
+| Élément | Situation actuelle |
+| --- | --- |
+| Identité visuelle | Portrait de travail approuvé et versionné sur cette branche |
+| Affichage | Code PyQt6 existant ; contrôle réel Windows/GTR7 non effectué |
+| Animation faciale articulée | Non implémentée dans le rendu de production |
+| Tests du portrait | 15 tests réussis sous Linux/Qt hors écran, selon le rapport Codex ; non reproduits sous Windows |
+| Moteur Python | Moteur renommé sous `src/atlas` dans cette branche candidate ; intégration et vérification des régressions en attente |
+| Voix, outils et mémoire | Développement et validations fonctionnelles encore en cours |
+| Installateur Windows | Ne pas considérer cette branche comme une version finale prête à déployer |
+
+### Organisation des développements
+
+- **Branche d'intégration autorisée :** `develop-atlas`.
+- **Portrait approuvé :** issu de la branche `chore/lot5-approved-portrait`.
+- **Protection de l'asset :** [PR n°18](https://github.com/Rachid-Coaching-Life/ATLAS/pull/18).
+- **Audit de l'animation du robot :** [PR n°17](https://github.com/Rachid-Coaching-Life/ATLAS/pull/17).
+- **Migration du moteur Python :** [PR n°12](https://github.com/Rachid-Coaching-Life/ATLAS/pull/12), à réconcilier avec les développements récents avant toute intégration.
+
+### Priorité : animation fidèle du robot
+
+La version approuvée du portrait doit conserver les traits, les cheveux, la barbe, les proportions et l'armure du robot. Les prochaines étapes concernent la déformation du visage, le clignement, la synchronisation de la bouche avec la lecture audio et l'intégration de ces animations dans ATLAS.
+
+Aucun ancien dessin géométrique ou portrait alternatif ne doit remplacer l'identité visuelle approuvée.
+
+## Installation et tests
+
+**Aucun téléchargement public ni installateur définitif n'est annoncé par ce README.** L'installation et le fonctionnement doivent être validés pour Windows 11 et le GTR7 avant publication.
+
+Les tests de l'environnement cloud peuvent vérifier du code et des rendus hors écran, mais ils ne remplacent pas la validation finale de l'interface et du son sur la machine cible.
+
+## Respect des données et du code d'origine
+
+Le logiciel vise un fonctionnement local, avec traitement des données personnelles sur l'ordinateur de l'utilisateur.
+
+Les mentions de licence, droits d'auteur et attributions applicables au code repris sont conservées dans [LICENSE](LICENSE). La migration des noms internes doit préserver la compatibilité des données et configurations existantes.
