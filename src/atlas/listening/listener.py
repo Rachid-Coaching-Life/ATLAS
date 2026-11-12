@@ -1614,12 +1614,16 @@ class VoiceListener(threading.Thread):
             and pending.endswith((".", "?", "!"))
             and not pending.endswith("...")
         )
+        # A final French "et" explicitly introduces an unfinished clause.
+        # Do not apply the short silence timeout to that pending continuation.
+        waiting_for_continuation = pending.casefold().endswith(" et")
         if idle_and_drained and pending and complete_sentence:
             timed_out = self.state_manager.check_collection_timeout(
                 silence_override_sec=0.7,
             )
         elif (idle_and_drained and len(pending.split()) >= 3
-              and not pending.endswith("...")):
+              and not pending.endswith("...")
+              and not waiting_for_continuation):
             # Unpunctuated Whisper output is common in voice commands.
             # A slightly longer pause protects multipart utterances.
             timed_out = self.state_manager.check_collection_timeout(
