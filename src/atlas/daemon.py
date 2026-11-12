@@ -1061,6 +1061,8 @@ def _run_daemon(smoke_test: bool = False) -> None:
         piper_noise_scale=cfg.tts_piper_noise_scale,
         piper_noise_w=cfg.tts_piper_noise_w,
         piper_sentence_silence=cfg.tts_piper_sentence_silence,
+        pocket_binary_path=os.environ.get("ATLAS_POCKET_TTS_BINARY"),
+        pocket_voice_profile=os.environ.get("ATLAS_POCKET_TTS_PROFILE"),
     )
     _global_tts_engine = tts  # Expose for face widget speaking animation
     _start_tts_engine(tts)

@@ -80,6 +80,11 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: |
           python -m pytest -q tests/test_chatterbox_private_reference.py
+      - name: Check Pocket TTS bridge on Windows (synthetic test data only)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python -m pytest -q tests/test_pocket_tts_bridge.py
 
 
   daemon-lock:
