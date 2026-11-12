@@ -1,5 +1,6 @@
 """Only accepted query segments choose the reply's locale."""
 from dataclasses import replace
+from threading import Event
 from types import SimpleNamespace
 
 import pytest
@@ -51,14 +52,17 @@ def test_pending_reply_language_tracks_accepted_request(mock_config, monkeypatch
     expected = following if kind in ("accepted", "unknown") else first
     assert obj.state_manager.get_pending_query() == expected.text
     observed = []
+    reply_received = Event()
 
     def reply(*args, language, **kwargs):
         observed.append((args[3], language))
+        reply_received.set()
         return None
 
     monkeypatch.setattr(engine, "run_reply_engine", reply)
     clock["now"] += 100
     obj._check_query_timeout()
+    assert reply_received.wait(timeout=5), "Voice dispatch did not reach the reply engine"
     assert observed == [(expected.text, expected.language)]
 
 
