@@ -112,7 +112,10 @@ def test_only_successful_voice_reply_opens_follow_up(playback, monkeypatch, outc
         while not listener.state_manager.is_hot_window_active() and time.monotonic() < deadline:
             time.sleep(.001)
     assert listener.state_manager.is_hot_window_active() is (outcome == 'completed')
-    assert activity.get_atlas_state().state is activity.AtlasState.IDLE
+    # An active hot window is explicitly a LISTENING state, not IDLE.
+    expected_state = (activity.AtlasState.LISTENING if outcome == 'completed'
+                      else activity.AtlasState.IDLE)
+    assert activity.get_atlas_state().state is expected_state
 
 
 def test_rejected_acknowledgement_releases_presence_without_a_thinking_tune(playback):
