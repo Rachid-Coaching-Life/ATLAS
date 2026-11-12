@@ -96,6 +96,21 @@ def test_thinking_only_continuation_remains_available(reply_config, db, dialogue
     assert not operations
 
 
+@pytest.mark.parametrize("bad_content", [
+    '{"truncated": true',
+    "<unused88>",
+])
+def test_malformed_model_output_is_never_replied_in_english(
+    reply_config, db, dialogue_memory, bad_content,
+):
+    """Both model-size paths return the French processing fallback."""
+    reply, operations = _reply(reply_config, db, dialogue_memory, [
+        {"message": {"role": "assistant", "content": bad_content}},
+    ])
+    assert reply == engine.FRENCH_FALLBACK_REPLY
+    assert not operations
+
+
 def test_fallback_replies_to_user_are_in_french():
     """A failed model reply or action must not bypass the French-only persona."""
     assert engine.FRENCH_FALLBACK_REPLY == (
