@@ -135,3 +135,35 @@ initial model load, even when no worker exists yet. Finishing that preparation
 cannot start a cancelled request or enqueue it onto a newer worker. A fresh
 submission after stopping can use the prepared model. Model preparation itself
 is not forcibly terminated.
+
+## Optional Pocket TTS bridge
+
+Pocket TTS is an explicitly selected local backend; Piper remains the default
+and the configurable fallback. A pre-provisioned executable and a private
+absolute `.safetensors` profile path are required. The profile is read by the
+owned child process, never included in HTTP requests or diagnostics. Model
+repository lookups are redirected to closed loopback; missing cached weights
+fail startup. This is not an operating-system network sandbox for the child.
+
+Startup is serialised and bound to the shared lifecycle generation. Stopping
+during startup invalidates the load and reaps the owned child. A fresh start
+after a completed stop can prepare a new server. Health requests do not follow
+redirects and require the Pocket JSON signature. Shutdown terminates the child,
+then kills and waits for it if termination times out.
+
+Speech text is form-encoded to `/tts` over a direct loopback connection with
+no proxy or redirect handling. Interruption shuts down the active HTTP socket
+to wake pending header or body reads without terminating the model server.
+Cancelled synthesis never starts playback or emits successful completion.
+
+The complete response is buffered before playback, bounded to 32 MiB. Only
+mono 16-bit PCM WAV at 8–48 kHz is admitted. Finite WAV frame counts must match
+the received PCM; the official unseekable WAV header's billion-frame sentinel
+uses the actual received frame count. Incomplete HTTP bodies and partial PCM
+samples are rejected. Duration, playback observers and activity use actual PCM
+length. Audio streams close before terminal release. This buffered path does
+not promise streaming latency or device-measured lip synchronisation.
+
+Windows compatibility follow-up: interruption explicitly shuts down **and closes** the owned HTTP socket to attempt to release Winsock's blocked header/body receive; the GitHub Windows tests are authoritative for whether this suffices. No claim is made before the corresponding run.
+
+Pocket local HTTP reads use a bounded 200 ms socket receive poll, not a blocking buffered HTTPResponse. The reader accepts Content-Length and HTTP/1.1 chunked WAV (as emitted by the official Rust server), checks a 32 MiB cap, refuses redirects, encodings and truncated framing, and checks request cancellation during stalled headers and body reads on Windows. No user text leaves loopback.

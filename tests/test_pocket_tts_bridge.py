@@ -69,8 +69,9 @@ def test_startup_uses_french_loopback_private_state_and_offline(tmp_path, monkey
 
     class Session:
         trust_env = True
-        def get(self, url, timeout):
+        def get(self, url, timeout, allow_redirects):
             assert url.startswith("http://127.0.0.1:")
+            assert allow_redirects is False
             return SimpleNamespace(
                 status_code=200, json=lambda: {"status": "healthy"},
             )
@@ -95,66 +96,68 @@ def test_startup_uses_french_loopback_private_state_and_offline(tmp_path, monkey
     assert calls[-1] == "terminated"
 
 
-def test_http_uses_only_text_and_cannot_upload_private_voice(tmp_path, monkeypatch):
-    import requests
+@pytest.mark.parametrize("framing", ["length", "chunked"])
+def test_http_uses_only_text_and_cannot_upload_private_voice(
+        tmp_path, monkeypatch, framing):
+    import socket
     binary, profile = private_fixtures(tmp_path)
     engine = PocketTTS(binary_path=str(binary), voice_profile=str(profile))
     engine._port = 8765
     engine._server = SimpleNamespace(poll=lambda: None)
-    calls = []
+    wav = b"RIFFdata"
+    if framing == "length":
+        response = (b"HTTP/1.1 200 OK\r\nContent-Type: audio/wav\r\n"
+                    b"Content-Length: 8\r\n\r\n" + wav)
+    else:
+        response = (b"HTTP/1.1 200 OK\r\nContent-Type: audio/wav\r\n"
+                    b"Transfer-Encoding: chunked\r\n\r\n8\r\n"
+                    + wav + b"\r\n0\r\n\r\n")
+    sent = []
 
-    class Response:
-        status_code = 200
-        headers = {"Content-Type": "audio/wav"}
-        def __enter__(self):
-            return self
-        def __exit__(self, *args):
-            return False
-        def iter_content(self, chunk_size):
-            yield b"RIFFdata"
-
-    class Session:
-        trust_env = True
-        def post(self, url, data, stream, timeout):
-            calls.append((url, data, stream, timeout, self.trust_env))
-            return Response()
+    class Transport:
+        def __init__(self):
+            self.chunks = [response]
+        def settimeout(self, duration):
+            pass
+        def recv(self, size):
+            return self.chunks.pop(0) if self.chunks else b""
+        def sendall(self, data):
+            sent.append(data)
         def close(self):
             pass
+        def shutdown(self, mode):
+            pass
 
-    monkeypatch.setattr(requests, "Session", Session)
-    assert engine._request_audio("Bonjour ATLAS") == b"RIFFdata"
-    assert calls[0][0] == "http://127.0.0.1:8765/tts"
-    assert calls[0][1] == {"text": "Bonjour ATLAS"}
-    assert calls[0][-1] is False
-    assert str(profile) not in str(calls)
+    monkeypatch.setattr(socket, "create_connection",
+                        lambda address, timeout: Transport())
+    assert engine._request_audio("Bonjour ATLAS") == wav
+    assert len(sent) == 1
+    assert b"POST /tts HTTP/1.1" in sent[0]
+    assert sent[0].endswith(b"text=Bonjour+ATLAS")
+    assert str(profile).encode() not in sent[0]
 
 
 def test_cancelled_transfer_never_returns_audio(tmp_path, monkeypatch):
-    import requests
+    import socket
     binary, profile = private_fixtures(tmp_path)
     engine = PocketTTS(binary_path=str(binary), voice_profile=str(profile))
     engine._port = 8765
     engine._server = SimpleNamespace(poll=lambda: None)
 
-    class Response:
-        status_code = 200
-        headers = {"Content-Type": "audio/wav"}
-        def __enter__(self):
-            return self
-        def __exit__(self, *args):
-            return False
-        def iter_content(self, chunk_size):
+    class Transport:
+        def settimeout(self, duration):
+            pass
+        def sendall(self, data):
+            pass
+        def recv(self, size):
             engine._should_interrupt.set()
-            yield b"RIFFdata"
-
-    class Session:
-        trust_env = True
-        def post(self, *args, **kwargs):
-            return Response()
+            return (b"HTTP/1.1 200 OK\r\nContent-Type: audio/wav\r\n"
+                    b"Content-Length: 8\r\n\r\nRIFFdata")
         def close(self):
             pass
 
-    monkeypatch.setattr(requests, "Session", Session)
+    monkeypatch.setattr(socket, "create_connection",
+                        lambda address, timeout: Transport())
     assert engine._request_audio("Bonjour ATLAS") is None
 
 
@@ -218,7 +221,8 @@ def test_unrelated_loopback_http_200_cannot_claim_pocket_ready(tmp_path, monkeyp
 
     class ForeignSession:
         trust_env = True
-        def get(self, url, timeout):
+        def get(self, url, timeout, allow_redirects):
+            assert allow_redirects is False
             return SimpleNamespace(
                 status_code=200, json=lambda: {"status": "unrelated"},
             )

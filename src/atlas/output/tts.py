@@ -917,6 +917,10 @@ class PocketTTS(_QueuedSpeech):
         self.voice_profile = voice_profile
         self._server = None
         self._port = None
+        self._server_lock = threading.RLock()
+        self._startup_generation = None
+        self._http_lock = threading.Lock()
+        self._http_socket = None
         self._audio_lock = threading.RLock()
         self._audio_stream = None
         super().__init__()
@@ -939,7 +943,21 @@ class PocketTTS(_QueuedSpeech):
         except (OSError, ValueError, TypeError):
             return None, None
 
+    def _start_if_current(self, generation):
+        # Only one startup may publish a child process. Shutdown invalidates
+        # its generation before waiting for this lock to reap that child.
+        with self._server_lock:
+            self._startup_generation = generation
+            try:
+                super()._start_if_current(generation)
+            finally:
+                self._startup_generation = None
+
     def _terminate_server(self):
+        with self._server_lock:
+            self._terminate_owned_server()
+
+    def _terminate_owned_server(self):
         proc = self._server
         self._server = None
         self._port = None
@@ -957,6 +975,10 @@ class PocketTTS(_QueuedSpeech):
             pass
 
     def _prepare_speech(self):
+        generation = (self._lifecycle_generation if self._startup_generation is None
+                      else self._startup_generation)
+        if generation != self._lifecycle_generation:
+            return False, "Pocket TTS : démarrage local annulé."
         binary, profile = self._private_files()
         if binary is None:
             return False, "Pocket TTS : exécutable ou profil vocal local manquant."
@@ -988,12 +1010,13 @@ class PocketTTS(_QueuedSpeech):
             session.trust_env = False
             try:
                 for _ in range(180):
-                    if self._stop.is_set() or self._server.poll() is not None:
+                    if (generation != self._lifecycle_generation
+                            or self._server.poll() is not None):
                         break
                     try:
                         r = session.get(
                             "http://127.0.0.1:%d/health" % port,
-                            timeout=0.5,
+                            timeout=0.5, allow_redirects=False,
                         )
                         # A foreign listener can win the ephemeral-port race.
                         # Require Pocket's documented JSON health signature,
@@ -1015,35 +1038,61 @@ class PocketTTS(_QueuedSpeech):
                 self._terminate_server()
 
     def _request_audio(self, text):
-        import requests
+        import socket
+        from .pocket_http import (
+            PocketHttpCancelled, PocketHttpError, make_local_request,
+            read_local_wav,
+        )
+
         if (self._server is None or self._server.poll() is not None
                 or self._port is None):
             return None
-        session = requests.Session()
-        session.trust_env = False
+        transport = None
         try:
-            with session.post(
-                "http://127.0.0.1:%d/tts" % self._port,
-                data={"text": text}, stream=True, timeout=(3, 60),
-            ) as response:
-                if (response.status_code != 200 or
-                        "audio/wav" not in response.headers.get("Content-Type", "")):
+            transport = socket.create_connection(("127.0.0.1", self._port), timeout=3)
+            transport.settimeout(0.2)
+            with self._http_lock:
+                if self._should_interrupt.is_set() or self._stop.is_set():
                     return None
-                result = bytearray()
-                for piece in response.iter_content(chunk_size=8192):
-                    if self._should_interrupt.is_set() or self._stop.is_set():
-                        return None
-                    result.extend(piece)
-                    if len(result) > self.MAX_WAV_BYTES:
-                        return None
-                return bytes(result) if result else None
-        except requests.RequestException:
+                self._http_socket = transport
+            transport.sendall(make_local_request(text))
+            result = read_local_wav(
+                transport,
+                cancelled=lambda: (self._should_interrupt.is_set()
+                                   or self._stop.is_set()),
+                max_bytes=self.MAX_WAV_BYTES,
+            )
+            return result if result and not (self._should_interrupt.is_set()
+                                             or self._stop.is_set()) else None
+        except (OSError, PocketHttpCancelled, PocketHttpError):
             return None
         finally:
-            session.close()
+            with self._http_lock:
+                if self._http_socket is transport:
+                    self._http_socket = None
+            if transport is not None:
+                try:
+                    transport.close()
+                except OSError:
+                    pass
 
     def interrupt(self):
         self._interrupt_active_request()
+        import socket
+        with self._http_lock:
+            transport = self._http_socket
+        if transport is not None:
+            try:
+                transport.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            # Closing too is important for Winsock pending http.client reads.
+            # Keep the owner reference; the request's finally closes its
+            # HTTPConnection separately and clears it by identity.
+            try:
+                transport.close()
+            except OSError:
+                pass
         with self._audio_lock:
             if self._audio_stream is not None:
                 try:
@@ -1082,6 +1131,12 @@ class PocketTTS(_QueuedSpeech):
                         or not 8000 <= rate <= 48000):
                     return False
                 pcm = wav.readframes(self.MAX_WAV_BYTES // 2)
+                # Pocket's official unseekable HTTP WAV declares a billion
+                # frames. Ordinary finite WAVs must contain every declared
+                # frame; neither format may end with a partial PCM sample.
+                if (len(pcm) % 2 or (wav.getnframes() != 1_000_000_000
+                                    and len(pcm) != wav.getnframes() * 2)):
+                    return False
             if not pcm or self._should_interrupt.is_set():
                 return False
             samples = np.frombuffer(pcm, dtype=np.int16)
