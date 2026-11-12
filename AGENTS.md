@@ -1,6 +1,14 @@
+# Contrat de travail ATLAS
+
+Product identity: **ATLAS**. Language: French. Target runtime: **Windows 11 on the GTR7 mini-PC**, local-first.
+Never replace or regenerate the user-approved robot portrait without explicit validation. The active portrait asset is `src/desktop_app/desktop_assets/atlas_portrait.png`.
+Some internal paths still use historical package names. Their migration is tracked in PR #12; treat them as compatibility/implementation details until the migration is integrated and tested. **Do not blindly search-and-replace Python module names.**
+Do not touch Révision-TSSR or `main` during ATLAS development. Use `develop-atlas` as the integration target.
+
+---
 Data privacy comes first, always.
 
-Jarvis is offline-first by principle. Do not add integrations that depend on a specific proprietary cloud vendor (e.g. ElevenLabs TTS, or any SaaS that requires shipping user audio/text/data to a third party's servers), not even as an opt-in feature. The line is the offline path: a backend is acceptable only if it can run fully locally. Generic, self-hostable protocols where the user points at their own endpoint (Ollama, OpenAI-compatible servers, LM Studio) are fine precisely because they can be local; a vendor-locked cloud service with no local option is not. When a feature request asks for such a service, decline it on principle and redirect to the offline equivalent (e.g. better local TTS voices rather than cloud TTS).
+ATLAS is offline-first by principle. Do not add integrations that depend on a specific proprietary cloud vendor (e.g. ElevenLabs TTS, or any SaaS that requires shipping user audio/text/data to a third party's servers), not even as an opt-in feature. The line is the offline path: a backend is acceptable only if it can run fully locally. Generic, self-hostable protocols where the user points at their own endpoint (Ollama, OpenAI-compatible servers, LM Studio) are fine precisely because they can be local; a vendor-locked cloud service with no local option is not. When a feature request asks for such a service, decline it on principle and redirect to the offline equivalent (e.g. better local TTS voices rather than cloud TTS).
 
 All user-facing command line output should make use of emojis. Especially an initial emoji to start off the lines that depict what the line is about. Output should make use of indentation spacing to establish a visual hierarchy and aim to make output as easy to sift through as possible. Exception: Windows .bat scripts cannot use emojis (cmd.exe doesn't render Unicode properly).
 
@@ -46,17 +54,17 @@ Tools define when/how to be used and return raw data without LLM processing. The
 
 ## Git Workflow
 
-The default branch is `develop`. All PRs and feature branches must target `develop`, not `main`.
+ATLAS development targets `develop-atlas`. All ATLAS feature branches and PRs must target `develop-atlas`, never `main`. Preserve `main`.
 
 Use [Conventional Commits](https://www.conventionalcommits.org/) for all commit messages and PR titles (e.g. `fix:`, `feat:`, `refactor:`, `docs:`, `test:`, `chore:`).
 
-Reserve `feat:` and `fix:` for the Jarvis CLI and desktop product. Website-only changes use `docs:` for content or `chore:` for build and deployment work. GitHub Pages deploys only from `main`, including manual dispatch; website PRs still target `develop`.
+Reserve `feat:` and `fix:` for the ATLAS CLI and desktop product. Website-only changes use `docs:` for content or `chore:` for build and deployment work. GitHub Pages deploys only from `main`, including manual dispatch; website PRs must follow their own approved workflow and must not be merged into `main` as part of ATLAS work.
 
 When pushing commits to a PR, always update the PR title and body to cover the entire changeset.
 
 After creating a PR, run the `/review-pr` skill on it before considering the task complete.
 
-Squash-merged commits on `develop` should only carry the PR number in the title (e.g. `(#171)`), never the originating issue number. Issue references belong in the commit body as `Closes #NNN` so that they auto-close when the commit reaches `main` on release.
+Squash-merged commits on `develop-atlas` should only carry the PR number in the title (e.g. `(#171)`), never the originating issue number. Issue references belong in the commit body as `Closes #NNN` so that they auto-close when the commit reaches `main` on release.
 
 Use real line breaks in commit messages and GitHub text. For multiline `gh` bodies, write UTF-8 text to a file and pass `--body-file`; do not encode line breaks as literal `\n` sequences. Put each closing reference on its own body line. After publishing a release, verify closure of referenced issues before marking the triage work complete.
 
@@ -66,19 +74,15 @@ Use the `/triage` skill for triaging open issues and discussions. It owns the fu
 
 ## Releases
 
-Batch routine stable releases around meaningful user-visible improvements, allowing time to validate the accumulated changes. Keep fixes flowing into `develop` between releases. Do not publish multiple routine stable versions in one day. An additional same-day stable release is reserved for an urgent regression, security or data-loss fix.
+Batch routine stable releases around meaningful user-visible improvements, allowing time to validate the accumulated changes. Keep ATLAS fixes flowing into `develop-atlas` between releases. Do not publish multiple routine stable versions in one day. An additional same-day stable release is reserved for an urgent regression, security or data-loss fix.
 
-"Release" means fast-forwarding `main` to the current tip of `develop` and pushing it. First sync local `develop` with `origin/develop` so you ship the real head. No merge commit, no force push — just `git checkout main && git merge --ff-only develop && git push origin main`. This is what triggers the release workflow and the auto-close of issues referenced by `Closes #NNN` in the develop commits.
+ATLAS is under development. Do not merge into, fast-forward, or publish from `main` without explicit project-owner approval. Prepare releases only after targeted CI, Windows packaging and GTR7 checks.
 
 ## Development Environment
 
-The project uses a micromamba environment at `.mamba_env/`. Always activate it before running builds, tests, or the app:
+The target platform is Windows 11 on the GTR7 mini-PC. Use an isolated, repository-local Python environment when testing; do not assume any previous developer machine path. Linux Qt-offscreen checks are preliminary and are not a substitute for eventual Windows/GTR7 validation.
 
-```bash
-eval "$(micromamba.exe shell hook --shell bash)" && micromamba activate "C:/Users/baris/projects/jarvis/.mamba_env"
-```
-
-Frontend rendering tests require Node.js 22 or later to execute the viewer JavaScript. Node.js is a development test dependency; Jarvis does not require it at runtime.
+Frontend rendering tests require Node.js 22 or later to execute the viewer JavaScript. Node.js is a development test dependency; ATLAS does not require it at runtime.
 
 ## README Maintenance
 
@@ -101,7 +105,7 @@ README priorities (in order of importance):
 Keep sections concise. Use collapsible `<details>` for lengthy content. Avoid documenting internal implementation details - the README is for end users, not developers.
 
 README style:
-- Lead with what Jarvis lets people do. Keep wording direct, clear and brief.
+- Lead with what ATLAS lets people do. Keep wording direct, clear and brief.
 - Cover the useful capabilities and show what makes them impressive through concrete examples, without hype or repeated claims.
 - Explain user-visible outcomes. Keep prompt rules, extraction stages, source attribution mechanics and other internal details in specs or technical docs.
 - A fix does not need another README sentence when the existing description already covers the capability. Prefer tightening or replacing text over adding more.
