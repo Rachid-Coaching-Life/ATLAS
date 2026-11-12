@@ -17,7 +17,8 @@ pytestmark = pytest.mark.unit
 @pytest.fixture
 def synthetic_listener(monkeypatch, silent_thinking_tunes):
     cfg = replace(load_settings(), voice_debug=False, vad_enabled=False,
-                  whisper_backend='faster-whisper', whisper_device='cpu')
+                  whisper_backend='faster-whisper', whisper_device='cpu',
+                  wake_word='atlas', wake_aliases=['atlasse'])
     monkeypatch.setattr(capture, 'create_intent_judge', lambda _cfg: None)
     monkeypatch.setattr(capture, 'FASTER_WHISPER_AVAILABLE', True)
     monkeypatch.setattr(capture, '_load_faster_whisper_model', lambda *a, **kw: MagicMock())
@@ -417,8 +418,10 @@ def test_direct_address_and_inconclusive_fallback_remain_usable(synthetic_listen
 @pytest.mark.parametrize('text,accepted', [
     ("Doesn't matter if her oppresses A, first joins", False),
     ('the first person joins the game', False),
-    ('Jairus what time is it', True),
-    ('Jarvas what time is it', True),
+    ('ATLAS what time is it', True),
+    ('Atlasse what time is it', True),
+    ('Jairus what time is it', False),
+    ('Jarvas what time is it', False),
 ])
 def test_whole_alias_gate_keeps_ambient_words_out_of_reply_collection(synthetic_listener, text, accepted):
     from atlas.listening.intent_judge import IntentJudgment
