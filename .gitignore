@@ -26,3 +26,8 @@ src/atlas/_version.py
 
 # Public site build output
 _site/
+
+# Private ATLAS voice states and user-supplied WAV references (never commit)
+*.safetensors
+ATLAS_reference_vocale_*.wav
+C.0[1-6].wav
