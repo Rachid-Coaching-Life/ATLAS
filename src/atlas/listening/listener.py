@@ -885,11 +885,12 @@ class VoiceListener(threading.Thread):
             utterance_start_time, utterance_end_time
         )
 
-        # A clean follow-up inside the active hot window is already addressed
-        # to ATLAS. Avoid a synchronous LLM judge on the listening thread.
+        # Accept a clean hot-window follow-up directly only without an available
+        # intent judge; otherwise let the judge determine whether it is addressed to ATLAS.
         # The echo guards above still run first; keep a final text echo check.
         if (could_be_hot_window and not received_during_tts
                 and not active_tts_overlapped
+                and (self._intent_judge is None or not self._intent_judge.available)
                 and not self.echo_detector.is_hot_window_echo(
                     text_lower,
                     (self.echo_detector._last_tts_text or "") if same_tts_context else "",
@@ -1613,12 +1614,16 @@ class VoiceListener(threading.Thread):
             and pending.endswith((".", "?", "!"))
             and not pending.endswith("...")
         )
+        # A final French "et" explicitly introduces an unfinished clause.
+        # Do not apply the short silence timeout to that pending continuation.
+        waiting_for_continuation = pending.casefold().endswith(" et")
         if idle_and_drained and pending and complete_sentence:
             timed_out = self.state_manager.check_collection_timeout(
                 silence_override_sec=0.7,
             )
         elif (idle_and_drained and len(pending.split()) >= 3
-              and not pending.endswith("...")):
+              and not pending.endswith("...")
+              and not waiting_for_continuation):
             # Unpunctuated Whisper output is common in voice commands.
             # A slightly longer pause protects multipart utterances.
             timed_out = self.state_manager.check_collection_timeout(
