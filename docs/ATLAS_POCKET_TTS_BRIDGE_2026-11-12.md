@@ -26,3 +26,13 @@ Le prototype reçoit le WAV complet avant de commencer à le lire : cette versio
 D'abord vérifier la CI et les contraintes du binaire, ensuite décider des améliorations de streaming nécessaires avant un déploiement. Aucun essai utilisateur n'est requis pendant cette étape de développement.
 
 Retour arrière : rechoisir tts_engine=piper. Aucune donnée personnelle ni préférence existante ne sont modifiées par cette PR.
+
+## Contrôle officiel de l'exécutable Windows (CI)
+
+Le tag [v4.0.1](https://github.com/kyutai-labs/pocket-tts/releases/tag/v4.0.1) contient l'archive Windows pocket-tts-3.3.0-x86_64-pc-windows-msvc.zip, SHA256 public :
+
+98753041f2e65744b989776f87bccb93f1f574a08afe1890c5427ec94cd6309c
+
+Le workflow Windows télécharge uniquement cet exécutable public, vérifie son empreinte SHA256 et contrôle les sorties --version et serve --help sans télécharger de modèle, sans voix privée et sans modifier le GTR7.
+
+Attention : le tag du dépôt est v4.0.1 mais Cargo et l'archive Windows de ce même tag indiquent 3.3.0. La sortie effective de --version permet de constater la version binaire, pas d'inférer la prise en charge fonctionnelle du modèle français sans essai de synthèse. Le contrôle CLI ne démontre ni clonage ni latence.

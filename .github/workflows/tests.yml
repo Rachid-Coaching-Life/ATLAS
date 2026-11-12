@@ -85,6 +85,28 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: |
           python -m pytest -q tests/test_pocket_tts_bridge.py
+      - name: Check official Pocket TTS Windows executable CLI (no model or voice)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $release = 'https://github.com/kyutai-labs/pocket-tts/releases/download/v4.0.1/pocket-tts-3.3.0-x86_64-pc-windows-msvc.zip'
+          $expected = '98753041f2e65744b989776f87bccb93f1f574a08afe1890c5427ec94cd6309c'
+          $zip = Join-Path $env:RUNNER_TEMP 'pocket-tts-official.zip'
+          $folder = Join-Path $env:RUNNER_TEMP 'pocket-tts-official'
+          Invoke-WebRequest -Uri $release -OutFile $zip
+          $checksum = (Get-FileHash -Path $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($checksum -ne $expected) { throw 'Official Pocket TTS archive checksum mismatch' }
+          Expand-Archive -Path $zip -DestinationPath $folder -Force
+          $binary = Get-ChildItem -Path $folder -Recurse -File -Filter 'pocket-tts.exe' | Select-Object -First 1
+          if ($null -eq $binary) { throw 'Pocket TTS executable absent from verified archive' }
+          & $binary.FullName --version
+          if ($LASTEXITCODE -ne 0) { throw 'Pocket TTS --version failed' }
+          $serveHelp = (& $binary.FullName serve --help) -join [Environment]::NewLine
+          if ($LASTEXITCODE -ne 0) { throw 'Pocket TTS serve --help failed' }
+          foreach ($flag in @('--language', '--default-voice', '--host', '--port')) {
+            if (-not $serveHelp.Contains($flag)) { throw "Pocket TTS CLI missing required flag: $flag" }
+          }
+          Write-Output 'Verified release SHA256 and local serve CLI arguments; no weights loaded.'
 
 
   daemon-lock:
