@@ -970,6 +970,10 @@ class PocketTTS(_QueuedSpeech):
             env = os.environ.copy()
             env["HF_HUB_OFFLINE"] = "1"
             env["HF_DATASETS_OFFLINE"] = "1"
+            # The Rust HF client reads HF_ENDPOINT and may not honour the
+            # Python-only offline flag. Force any missing-weight lookup to
+            # loopback rather than contacting a remote model repository.
+            env["HF_ENDPOINT"] = "http://127.0.0.1:9"
             self._server = subprocess.Popen(
                 [str(binary), "serve", "--host", "127.0.0.1",
                  "--port", str(port), "--language", "french",

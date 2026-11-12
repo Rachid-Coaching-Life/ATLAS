@@ -15,7 +15,7 @@ Piper reste le moteur par défaut. Pour sélectionner Pocket TTS de façon réve
 - ATLAS_POCKET_TTS_BINARY : exécutable provenant d'une source officielle dont la provenance et la version ont été vérifiées.
 - ATLAS_POCKET_TTS_PROFILE : profil local privé .safetensors exporté depuis la référence WAV de Rachid (non inclus au dépôt).
 
-Au démarrage seulement, ATLAS vérifie les deux chemins, démarre l'exécutable dans son propre processus sur un port loopback disponible, demande le modèle french, définit le profil en tant que default-voice et interdit le téléchargement des poids par variables HF_HUB_OFFLINE. Pas d'installation automatique, pas de création de profil et aucun transfert de WAV privé dans HTTP ou sur GitHub. Les messages d'erreur masquent les chemins privés.
+Au démarrage seulement, ATLAS vérifie les deux chemins, démarre l'exécutable dans son propre processus sur un port loopback disponible, demande le modèle french, définit le profil en tant que default-voice et force le client Hugging Face Rust vers une adresse locale inaccessible (HF_ENDPOINT) et configure HF_HUB_OFFLINE. Sans poids français préinstallés, le service échoue au lieu de joindre le dépôt distant. Pas d'installation automatique, pas de création de profil et aucun transfert de WAV privé dans HTTP ou sur GitHub. Les messages d'erreur masquent les chemins privés.
 
 Chaque réponse est envoyée par POST /tts, avec le texte uniquement, sans champ de voix. Le WAV est validé avant lecture audio, le moteur reste propriétaire des callbacks d'activité et du signal de durée, avec suivi d'énergie acoustique pour la bouche. L'arrêt du moteur arrête également le processus local qu'il possède.
 

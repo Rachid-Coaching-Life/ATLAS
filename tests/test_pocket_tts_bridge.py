@@ -87,6 +87,7 @@ def test_startup_uses_french_loopback_private_state_and_offline(tmp_path, monkey
     assert argv[argv.index("--host")+1] == "127.0.0.1"
     assert argv[argv.index("--default-voice")+1] == str(profile)
     assert opts["env"]["HF_HUB_OFFLINE"] == "1"
+    assert opts["env"]["HF_ENDPOINT"] == "http://127.0.0.1:9"
     assert opts["stdout"] == speech.subprocess.DEVNULL
     engine._terminate_server()
     assert calls[-1] == "terminated"
