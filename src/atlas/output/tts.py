@@ -1092,11 +1092,19 @@ class PocketTTS(_QueuedSpeech):
         self._interrupt_active_request()
         import socket
         with self._http_lock:
-            if self._http_socket is not None:
-                try:
-                    self._http_socket.shutdown(socket.SHUT_RDWR)
-                except OSError:
-                    pass
+            transport = self._http_socket
+        if transport is not None:
+            try:
+                transport.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            # Closing too is important for Winsock pending http.client reads.
+            # Keep the owner reference; the request's finally closes its
+            # HTTPConnection separately and clears it by identity.
+            try:
+                transport.close()
+            except OSError:
+                pass
         with self._audio_lock:
             if self._audio_stream is not None:
                 try:

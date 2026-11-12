@@ -163,3 +163,5 @@ uses the actual received frame count. Incomplete HTTP bodies and partial PCM
 samples are rejected. Duration, playback observers and activity use actual PCM
 length. Audio streams close before terminal release. This buffered path does
 not promise streaming latency or device-measured lip synchronisation.
+
+Windows compatibility follow-up: interruption explicitly shuts down **and closes** the owned HTTP socket to attempt to release Winsock's blocked header/body receive; the GitHub Windows tests are authoritative for whether this suffices. No claim is made before the corresponding run.
