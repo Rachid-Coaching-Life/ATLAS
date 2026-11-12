@@ -91,6 +91,12 @@ jobs:
         run: |
           python -m pytest -q tests/test_prepare_pocket_voice.py
 
+      - name: Check one-run private voice launcher on Windows (synthetic only)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python -m pytest -q tests/test_atlas_voice_setup.py
+
       - name: Check official Pocket TTS Windows executable CLI (no model or voice)
         if: success() || failure()
         shell: pwsh

@@ -37,3 +37,19 @@ Les tests Python du script utilisent seulement des WAV et des poids fictifs. Ils
 L'accès effectif aux poids français avec clonage depuis le GTR7, la création du profil privé, la fidélité du timbre et la latence restent NON VÉRIFIÉS. Piper reste le moteur par défaut et aucune configuration personnelle du GTR7 n'est modifiée par cette PR.
 
 Il est interdit de committer un WAV de Rachid, une empreinte vocale, un profil safetensors ou un identifiant de Hugging Face.
+
+
+## Simplification : lanceur Windows sans chemins à saisir
+
+Une fois la CI validée, un **paquet privé hors GitHub** pourra contenir uniquement :
+- la référence WAV de Rachid déjà fournie (15 secondes), jamais committée ;
+- `scripts/prepare_pocket_voice.py` et `scripts/atlas_voice_setup.py` ;
+- `PREPARER_MA_VOIX_ATLAS.cmd` et une courte notice.
+
+Il suffira de décompresser le paquet sur le GTR7 et de double-cliquer sur `PREPARER_MA_VOIX_ATLAS.cmd`. Le lanceur vérifie la présence de Python, télécharge **uniquement** l'archive officielle Kyutai depuis GitHub, vérifie le SHA-256 connu, extrait le binaire dans `%LOCALAPPDATA%\ATLAS\private\pocket\engine` puis crée un nouveau profil dans `%LOCALAPPDATA%\ATLAS\private\pocket\voice_french.safetensors`. Les chemins sont déterminés automatiquement ; aucun fichier préexistant n'est écrasé.
+
+La **connexion au navigateur Hugging Face n'est pas automatiquement une connexion pour le binaire Rust**. Si aucun jeton local de lecture n'est disponible, le lanceur demandera de saisir un token Hugging Face **uniquement dans la console locale**, saisie masquée. Le token n'est pas sauvegardé dans un fichier ATLAS ni affiché dans les logs. Il n'est transmis qu'au client Hugging Face officiel pour récupérer les poids de clonage autorisés. Aucun token ne doit être transmis par chat.
+
+Ce lanceur et sa procédure sont couverts par `tests/test_atlas_voice_setup.py` avec des archives, fichiers et tokens simulés. Ils n'exécutent ni vrai clonage, ni traitement de la voix personnelle sur GitHub Actions.
+
+**Attention :** le paquet contenant la vraie voix est personnel et ne doit pas être diffusé ; la PR et GitHub CI n'en contiennent pas la moindre copie. La ressemblance et la latence restent à valider sur le GTR7 après création réelle du profil. Piper demeure le moteur actif tant que cette vérification n'a pas été faite.
