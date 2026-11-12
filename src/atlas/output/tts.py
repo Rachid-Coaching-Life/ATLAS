@@ -691,6 +691,30 @@ class _QueuedSpeech:
                     del request
 
 
+def _chatterbox_audio_prompt_error(reference: Optional[str]) -> Optional[str]:
+    """Check a local private WAV without publishing its path in diagnostics.
+
+    Admission only: Chatterbox still performs the actual audio decoding.
+    """
+    if reference is None:
+        return None
+    if not isinstance(reference, str) or not reference.strip():
+        return "Référence vocale invalide : chemin WAV local requis."
+    try:
+        path = Path(reference).expanduser()
+        if not path.is_absolute():
+            return "Référence vocale invalide : chemin absolu local requis."
+        if path.suffix.casefold() != ".wav" or path.is_symlink() or not path.is_file():
+            return "Référence vocale invalide : fichier WAV local introuvable ou non autorisé."
+        with path.open("rb") as handle:
+            header = handle.read(12)
+        if len(header) != 12 or header[:4] != b"RIFF" or header[8:] != b"WAVE":
+            return "Référence vocale invalide : en-tête WAV non reconnu."
+    except (OSError, ValueError):
+        return "Référence vocale indisponible : lecture locale impossible."
+    return None
+
+
 class ChatterboxTTS(_QueuedSpeech):
     """Experimental TTS implementation using Resemble AI's Chatterbox model."""
 
@@ -772,6 +796,9 @@ class ChatterboxTTS(_QueuedSpeech):
         return False
 
     def _prepare_speech(self) -> tuple[bool, Optional[str]]:
+        issue = _chatterbox_audio_prompt_error(self.audio_prompt_path)
+        if issue:
+            return False, issue
         return self._ensure_model(), self._model_error
 
     def interrupt(self) -> None:
@@ -787,6 +814,10 @@ class ChatterboxTTS(_QueuedSpeech):
         
 
         try:
+            # Also guard direct synthesis calls, outside normal worker admission.
+            if _chatterbox_audio_prompt_error(self.audio_prompt_path):
+                warnings.warn("Référence vocale Chatterbox indisponible ou invalide.")
+                return False
             # Check if model is available
             if not self._ensure_model():
                 # Fall back to system TTS if Chatterbox fails
