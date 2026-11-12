@@ -900,6 +900,240 @@ class ChatterboxTTS(_QueuedSpeech):
         return self._last_spoken_text
 
 
+
+class PocketTTS(_QueuedSpeech):
+    """Opt-in French voice using an offline local Pocket TTS process.
+
+    ATLAS sends only response text to loopback. The local Pocket process
+    preloads the private .safetensors voice state from its own filesystem.
+    No models or voice samples are downloaded by this integration.
+    """
+
+    MAX_WAV_BYTES = 32 * 1024 * 1024
+
+    def __init__(self, enabled=True, binary_path=None, voice_profile=None):
+        self.enabled = enabled
+        self.binary_path = binary_path
+        self.voice_profile = voice_profile
+        self._server = None
+        self._port = None
+        self._audio_lock = threading.RLock()
+        self._audio_stream = None
+        super().__init__()
+
+    def _private_files(self):
+        try:
+            if not self.binary_path or not self.voice_profile:
+                return None, None
+            binary = Path(self.binary_path).expanduser()
+            profile = Path(self.voice_profile).expanduser()
+            if not binary.is_absolute() or not profile.is_absolute():
+                return None, None
+            if binary.is_symlink() or profile.is_symlink():
+                return None, None
+            if (not binary.is_file() or not profile.is_file()
+                    or profile.suffix.casefold() != ".safetensors"
+                    or profile.stat().st_size == 0):
+                return None, None
+            return binary, profile
+        except (OSError, ValueError, TypeError):
+            return None, None
+
+    def _terminate_server(self):
+        proc = self._server
+        self._server = None
+        self._port = None
+        if proc is None:
+            return
+        try:
+            if proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait(timeout=1)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+
+    def _prepare_speech(self):
+        binary, profile = self._private_files()
+        if binary is None:
+            return False, "Pocket TTS : exécutable ou profil vocal local manquant."
+        ready = False
+        try:
+            import socket
+            import requests
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.bind(("127.0.0.1", 0))
+                port = sock.getsockname()[1]
+            env = os.environ.copy()
+            env["HF_HUB_OFFLINE"] = "1"
+            env["HF_DATASETS_OFFLINE"] = "1"
+            # The Rust HF client reads HF_ENDPOINT and may not honour the
+            # Python-only offline flag. Force any missing-weight lookup to
+            # loopback rather than contacting a remote model repository.
+            env["HF_ENDPOINT"] = "http://127.0.0.1:9"
+            self._server = subprocess.Popen(
+                [str(binary), "serve", "--host", "127.0.0.1",
+                 "--port", str(port), "--language", "french",
+                 "--default-voice", str(profile)],
+                cwd=str(binary.parent), env=env,
+                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+            self._port = port
+            session = requests.Session()
+            session.trust_env = False
+            try:
+                for _ in range(180):
+                    if self._stop.is_set() or self._server.poll() is not None:
+                        break
+                    try:
+                        r = session.get(
+                            "http://127.0.0.1:%d/health" % port,
+                            timeout=0.5,
+                        )
+                        # A foreign listener can win the ephemeral-port race.
+                        # Require Pocket's documented JSON health signature,
+                        # not an arbitrary HTTP 200 response.
+                        if (r.status_code == 200
+                                and r.json() == {"status": "healthy"}):
+                            ready = True
+                            return True, None
+                    except (requests.RequestException, ValueError, TypeError):
+                        pass
+                    time.sleep(0.25)
+            finally:
+                session.close()
+            return False, "Pocket TTS : démarrage local impossible."
+        except (OSError, ValueError, ImportError):
+            return False, "Pocket TTS : service local indisponible."
+        finally:
+            if not ready:
+                self._terminate_server()
+
+    def _request_audio(self, text):
+        import requests
+        if (self._server is None or self._server.poll() is not None
+                or self._port is None):
+            return None
+        session = requests.Session()
+        session.trust_env = False
+        try:
+            with session.post(
+                "http://127.0.0.1:%d/tts" % self._port,
+                data={"text": text}, stream=True, timeout=(3, 60),
+            ) as response:
+                if (response.status_code != 200 or
+                        "audio/wav" not in response.headers.get("Content-Type", "")):
+                    return None
+                result = bytearray()
+                for piece in response.iter_content(chunk_size=8192):
+                    if self._should_interrupt.is_set() or self._stop.is_set():
+                        return None
+                    result.extend(piece)
+                    if len(result) > self.MAX_WAV_BYTES:
+                        return None
+                return bytes(result) if result else None
+        except requests.RequestException:
+            return None
+        finally:
+            session.close()
+
+    def interrupt(self):
+        self._interrupt_active_request()
+        with self._audio_lock:
+            if self._audio_stream is not None:
+                try:
+                    with portaudio_lock:
+                        self._audio_stream.abort()
+                except Exception:
+                    pass
+
+    def stop(self):
+        super().stop()
+        self._terminate_server()
+
+    def is_speaking(self):
+        return self._is_speaking.is_set()
+
+    def get_last_spoken_text(self):
+        return self._last_spoken_text
+
+    def _speak_once(self, request):
+        with self._lifecycle_lock:
+            if self._stop.is_set() or request.abandoned:
+                return False
+            self._should_interrupt.clear()
+        stream = None
+        try:
+            import io
+            import wave
+            import numpy as np
+            import sounddevice as sd
+            wav_bytes = self._request_audio(request.text)
+            if not wav_bytes or self._stop.is_set() or request.abandoned:
+                return False
+            with wave.open(io.BytesIO(wav_bytes), "rb") as wav:
+                rate = wav.getframerate()
+                if (wav.getnchannels() != 1 or wav.getsampwidth() != 2
+                        or not 8000 <= rate <= 48000):
+                    return False
+                pcm = wav.readframes(self.MAX_WAV_BYTES // 2)
+            if not pcm or self._should_interrupt.is_set():
+                return False
+            samples = np.frombuffer(pcm, dtype=np.int16)
+            duration = len(samples) / rate
+            if request.duration_callback:
+                _call_speech_callback(request.duration_callback, (duration,), "duration")
+            with portaudio_lock:
+                stream = sd.RawOutputStream(
+                    samplerate=rate, channels=1, dtype="int16",
+                    blocksize=1024,
+                )
+            if not self._begin_playback(request, duration):
+                return False
+            with self._lifecycle_lock, self._audio_lock:
+                if self._stop.is_set() or request.abandoned:
+                    return False
+                self._audio_stream = stream
+                with portaudio_lock:
+                    stream.start()
+            from .lip_sync import make_envelope, publish_envelope
+            try:
+                publish_envelope(
+                    make_envelope(samples, rate), start_time=time.time(),
+                )
+            except OSError:
+                pass
+            for offset in range(0, len(pcm), 2048):
+                if (self._should_interrupt.is_set() or self._stop.is_set()
+                        or request.abandoned):
+                    return False
+                stream.write(pcm[offset:offset + 2048])
+            with portaudio_lock:
+                stream.stop()
+            return not self._stop.is_set() and not request.abandoned
+        except Exception as exc:
+            debug_log("Pocket TTS playback failed (%s)" % type(exc).__name__, "tts")
+            return False
+        finally:
+            from .lip_sync import clear_envelope
+            clear_envelope()
+            with self._audio_lock:
+                if self._audio_stream is stream:
+                    self._audio_stream = None
+            if stream is not None:
+                try:
+                    with portaudio_lock:
+                        stream.close()
+                except Exception:
+                    pass
+            self._is_speaking.clear()
+
+
 class PiperTTS(_QueuedSpeech):
     """TTS implementation using Piper (local neural TTS with exact duration).
 
@@ -1239,6 +1473,8 @@ def create_tts_engine(
     piper_noise_scale: float = 0.667,
     piper_noise_w: float = 0.8,
     piper_sentence_silence: float = 0.2,
+    pocket_binary_path: Optional[str] = None,
+    pocket_voice_profile: Optional[str] = None,
 ):
     """Factory function to create the appropriate TTS engine.
 
@@ -1246,6 +1482,9 @@ def create_tts_engine(
     - "piper" (default): Neural TTS with auto-download, exact duration tracking
     - "chatterbox": AI voice with emotion control (requires PyTorch)
     """
+    if engine.lower() == "pocket":
+        return PocketTTS(enabled=enabled, binary_path=pocket_binary_path,
+                         voice_profile=pocket_voice_profile)
     if engine.lower() == "chatterbox":
         return ChatterboxTTS(
             enabled=enabled,
