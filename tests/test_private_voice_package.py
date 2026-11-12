@@ -150,7 +150,7 @@ def snapshot(directory):
 
 
 @pytest.mark.skipif(os.name != 'nt', reason='Native Windows and real cmd.exe required')
-def test_final_zip_native_windows_without_wav(tmp_path):
+def test_final_zip_native_windows_without_wav(tmp_path, record_property):
     root = tmp_path / 'Qualification finale avec espaces'
     root.mkdir()
     archive = rebuild_exact_zip(root / ZIP_NAME)
@@ -211,7 +211,19 @@ def test_final_zip_native_windows_without_wav(tmp_path):
     for name, expected in expected_hashes.items():
         assert sha256((extracted / name).read_bytes()) == expected
     assert sha256(archive.read_bytes()) == ZIP_SHA256
-    print('::notice title=ATLAS final Windows ZIP::SHA256=' + ZIP_SHA256
+    record_property('atlas_final_windows_zip', json.dumps({
+        'sha256': sha256(archive.read_bytes()), 'manifest_files': len(expected_hashes),
+        'exit_code': completed.returncode, 'windows_native': os.name == 'nt',
+        'audit_guard_ready': events.count('GUARD_READY'),
+        'network_attempts': events.count('NETWORK_ATTEMPT'),
+        'token_prompts': events.count('TOKEN_PROMPT_ATTEMPT'),
+        'engine_processes': events.count('ENGINE_PROCESS_ATTEMPT'),
+        'outside_python_write_attempts': sum(e.startswith('OUTSIDE_WRITE') for e in events),
+        'protected_ATLAS_HF_unchanged': snapshot(controlled) == before,
+        'packaged_files_unchanged': all(sha256((extracted / n).read_bytes()) == h
+                                      for n, h in expected_hashes.items()),
+    }, sort_keys=True))
+    print('\n::notice title=ATLAS final Windows ZIP::SHA256=' + ZIP_SHA256
           + '; manifest=6/6; real_CMD_exit=1; missing_WAV_refused=yes; '
           'network_attempts=0; token_prompts=0; engine_processes=0; '
           'audited_outside_Python_writes=0; protected_ATLAS_HF_changes=0; '
