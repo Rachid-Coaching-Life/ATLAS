@@ -1248,6 +1248,31 @@ class TestEchoCaughtBeforeBeepAndIntentJudge:
         listener.state_manager.stop()
 
     @patch("builtins.print")
+    def test_recognised_echo_is_not_appended_during_active_collection(self, _print):
+        """Reject a later TTS echo without swallowing a genuine query continuation."""
+        listener, _ = _create_listener(echo_tolerance=0.02, hot_window_seconds=3.0)
+        tts_text = "Tbilisi is a must-see. For breathtaking scenery explore Svaneti."
+        listener.echo_detector.track_tts_start(tts_text)
+        _simulate_tts_finish(listener)
+        _wait_for_hot_window_state(listener)
+        _install_intent_judge(listener, _make_judgment(directed=True))
+
+        _process_transcript(
+            listener, "Merci, parle-moi de Paris demain", utterance_energy=0.01,
+        )
+        initial = "Merci, parle-moi de Paris demain"
+        assert _accepted_query(listener) == initial
+
+        echoed = "For breathtaking scenery you should explore Steneti"
+        assert listener.echo_detector.is_hot_window_echo(echoed, tts_text)
+        _process_transcript(listener, echoed, utterance_energy=0.01)
+        assert _accepted_query(listener) == initial
+
+        _process_transcript(listener, "et samedi aussi", utterance_energy=0.01)
+        assert _accepted_query(listener) == initial + " et samedi aussi"
+        listener.state_manager.stop()
+
+    @patch("builtins.print")
     def test_multiple_echo_chunks_do_not_stack_window_extensions(self, _print):
         """Multiple echo chunks should not extend the hot window repeatedly.
 
