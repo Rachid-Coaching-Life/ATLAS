@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
@@ -100,6 +102,10 @@ jobs:
           Expand-Archive -Path $zip -DestinationPath $folder -Force
           $binary = Get-ChildItem -Path $folder -Recurse -File -Filter 'pocket-tts.exe' | Select-Object -First 1
           if ($null -eq $binary) { throw 'Pocket TTS executable absent from verified archive' }
+          $env:ATLAS_PUBLIC_POCKET_EXECUTABLE = $binary.FullName
+          python -c "import hashlib, os, runpy; from pathlib import Path; m = runpy.run_path('scripts/prepare_pocket_voice.py'); assert hashlib.sha256(Path(os.environ['ATLAS_PUBLIC_POCKET_EXECUTABLE']).read_bytes()).hexdigest() == m['EXPECTED_BINARY_SHA256']"
+          if ($LASTEXITCODE -ne 0) { throw 'Official executable does not match the preparation pin' }
+          Write-Output '::notice title=ATLAS official Pocket executable::Extracted executable SHA256 matches preparation pin after archive checksum verification.'
           & $binary.FullName --version
           if ($LASTEXITCODE -ne 0) { throw 'Pocket TTS --version failed' }
           $serveHelp = (& $binary.FullName serve --help) -join [Environment]::NewLine
@@ -108,6 +114,28 @@ jobs:
             if (-not $serveHelp.Contains($flag)) { throw "Pocket TTS CLI missing required flag: $flag" }
           }
           Write-Output 'Verified release SHA256 and local serve CLI arguments; no weights loaded.'
+          $env:ATLAS_PUBLIC_POCKET_ARCHIVE = $zip
+          @'
+          import os
+          from pathlib import Path
+          import sys
+          import tempfile
+          from unittest.mock import patch
+          sys.path.insert(0, 'scripts')
+          import atlas_voice_setup as setup
+          # Real verified executable, real Windows staging and process launch;
+          # replace only the network transfer with the already verified archive.
+          archive = Path(os.environ['ATLAS_PUBLIC_POCKET_ARCHIVE'])
+          with tempfile.TemporaryDirectory(prefix='atlas-official-probe-', dir=os.environ['RUNNER_TEMP']) as folder:
+              with patch.object(setup, 'urlopen', side_effect=lambda *a, **kw: archive.open('rb')):
+                  installed = setup.install_official_binary(Path(folder))
+              assert installed.is_file()
+              assert list(installed.parent.iterdir()) == [installed]
+              with patch.object(setup, 'urlopen', side_effect=AssertionError('unexpected download')):
+                  assert setup.install_official_binary(Path(folder)) == installed
+          print('::notice title=ATLAS official Pocket installation::Real Windows staged executable validation, atomic installation and verified cache reuse succeeded; no model or private voice.')
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw 'Official Windows staged installation probe failed' }
       - name: Generate real French WAV on Windows with public Estelle (no personal voice)
         if: success() || failure()
         shell: pwsh
@@ -151,6 +179,100 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Public French WAV structural validation failed' }
           # Artifacts stay on the temporary runner and are never uploaded.
 
+
+  private-voice-windows:
+    name: Private voice preparation (Windows, synthetic)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Install isolated preparation test dependencies
+        run: python -m pip install pytest==8.3.2 python-dotenv==1.0.1
+      - name: Validate local Pocket voice profile preparation on Windows (synthetic only)
+        timeout-minutes: 3
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python -m pytest -q tests/test_prepare_pocket_voice.py --junitxml="$env:RUNNER_TEMP/atlas-private-voice.xml"
+
+      - name: Check one-run private voice launcher on Windows (synthetic only)
+        if: success() || failure()
+        timeout-minutes: 3
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python -m pytest -q tests/test_atlas_voice_setup.py --junitxml="$env:RUNNER_TEMP/atlas-voice-launcher.xml"
+
+      - name: Report private voice Windows synthetic results
+        if: success() || failure()
+        shell: python
+        run: |
+          import os
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          for filename in ('atlas-private-voice.xml', 'atlas-voice-launcher.xml'):
+              report = Path(os.environ['RUNNER_TEMP']) / filename
+              if not report.is_file():
+                  raise SystemExit('Missing Windows synthetic test report: ' + filename)
+              root = ET.parse(report).getroot()
+              suites = list(root.iter('testsuite'))
+              counts = {key: sum(int(s.get(key, '0')) for s in suites)
+                        for key in ('tests', 'failures', 'errors', 'skipped')}
+              passed = counts['tests'] - counts['failures'] - counts['errors'] - counts['skipped']
+              print('::notice title=ATLAS private voice Windows::' + filename
+                    + ': passed=' + str(passed) + ', failures=' + str(counts['failures'])
+                    + ', errors=' + str(counts['errors']) + ', skipped=' + str(counts['skipped']))
+              for case in root.iter('testcase'):
+                  failure = case.find('failure')
+                  if failure is not None:
+                      message = failure.get('message', '')[:3000]
+                      for key in ('RUNNER_TEMP', 'USERPROFILE', 'GITHUB_WORKSPACE'):
+                          value = os.environ.get(key)
+                          if value:
+                              message = message.replace(value, '<' + key + '>')
+                      message = message.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                      print('::notice title=ATLAS synthetic Windows failure::' + case.get('name', '') + ': ' + message)
+              if counts['failures'] or counts['errors'] or counts['skipped']:
+                  raise SystemExit('Windows private voice checks did not all execute successfully')
+
+
+  private-voice-package-windows:
+    name: Final code-only voice ZIP qualification (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Install qualification test dependencies
+        run: python -m pip install pytest==8.3.2 python-dotenv==1.0.1
+      - name: Qualify exact ZIP and real CMD without a WAV
+        timeout-minutes: 3
+        run: python -m pytest -q -s -o junit_family=xunit1 tests/test_private_voice_package.py --junitxml="$env:RUNNER_TEMP/atlas-final-windows-zip.xml"
+      - name: Report final Windows ZIP qualification evidence
+        if: success() || failure()
+        shell: python
+        run: |
+          import json
+          import os
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          root = ET.parse(Path(os.environ['RUNNER_TEMP']) / 'atlas-final-windows-zip.xml').getroot()
+          suites = list(root.iter('testsuite'))
+          counts = {k: sum(int(s.get(k, '0')) for s in suites)
+                    for k in ('tests', 'failures', 'errors', 'skipped')}
+          assert counts == {'tests': 2, 'failures': 0, 'errors': 0, 'skipped': 0}, counts
+          evidence = [p.get('value') for p in root.iter('property')
+                      if p.get('name') == 'atlas_final_windows_zip']
+          assert len(evidence) == 1, 'Missing native Windows execution evidence'
+          proof = json.loads(evidence[0])
+          assert proof['sha256'] == '210c54d8669f73ee415fa4d89c1def2e3fa27e3671ef3a5d5fa3c3ea85edfc76'
+          assert proof['windows_native'] and proof['manifest_files'] == 6 and proof['exit_code'] == 1
+          print('::notice title=ATLAS final ZIP qualification::tests=2 passed, 0 failed, 0 skipped; ' + json.dumps(proof, sort_keys=True))
 
   daemon-lock:
     name: Daemon lock (${{ matrix.os }})

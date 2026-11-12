@@ -1,0 +1,57 @@
+{
+  "repository": "Rachid-Coaching-Life/ATLAS",
+  "pull_request": 38,
+  "source_commit": "19e0d47ddb58c4ffaa0d70dae12518ad2ffe3946",
+  "package_kind": "Windows scripts only, personal WAV omitted",
+  "previous_private_zip": "Not available; no comparison possible",
+  "personal_voice_included": false,
+  "profile_included": false,
+  "token_included": false,
+  "executable_or_weights_included": false,
+  "files": [
+    "PREPARER_MA_VOIX_ATLAS.cmd",
+    "scripts/atlas_voice_setup.py",
+    "scripts/prepare_pocket_voice.py",
+    "LIRE_AVANT_UTILISATION.md",
+    "CONTENU.json",
+    "SHA256SUMS.txt"
+  ],
+  "scripts": [
+    {
+      "package_path": "PREPARER_MA_VOIX_ATLAS.cmd",
+      "git_path": "scripts/PREPARER_MA_VOIX_ATLAS.cmd",
+      "git_blob_sha256": "aa66911bc471b5619018679f062933ecc37214eaa80272764821c63316420178",
+      "package_sha256": "34ffe43ec6ad93f5b6fd1bd6af0ae0788f5d4bce679ba89b23f49db88f8ceae3",
+      "size_bytes": 490,
+      "transformation": "LF vers CRLF selon .gitattributes du commit"
+    },
+    {
+      "package_path": "scripts/atlas_voice_setup.py",
+      "git_path": "scripts/atlas_voice_setup.py",
+      "git_blob_sha256": "406ea8b2f5935aa8eb9ba7e1045c21f44af14f53b1135574ac2fda090fcd523d",
+      "package_sha256": "406ea8b2f5935aa8eb9ba7e1045c21f44af14f53b1135574ac2fda090fcd523d",
+      "size_bytes": 8666,
+      "transformation": "Aucune, octets identiques au blob Git"
+    },
+    {
+      "package_path": "scripts/prepare_pocket_voice.py",
+      "git_path": "scripts/prepare_pocket_voice.py",
+      "git_blob_sha256": "8c6c448c1f1eac17b07349a25305fca410aa06301c1ae6de984172fc86caced1",
+      "package_sha256": "8c6c448c1f1eac17b07349a25305fca410aa06301c1ae6de984172fc86caced1",
+      "size_bytes": 13473,
+      "transformation": "Aucune, octets identiques au blob Git"
+    }
+  ],
+  "reference_to_add_locally": "ATLAS_reference_vocale_C04_15s_candidate.wav",
+  "notice_sha256": "56b56d5e8d9cef8abdd8ce221a039c4d670f580beed3934f9eabee3f4c18a287",
+  "upstream_official_archive_sha256": "98753041f2e65744b989776f87bccb93f1f574a08afe1890c5427ec94cd6309c",
+  "upstream_executable_sha256": "813cabfc2f8fc7a4e5310deda6025426b3164610dd9f3c3098a6078e5cc1895a",
+  "unverified": [
+    "Old private archive comparison",
+    "Personal WAV and voice fidelity",
+    "Windows/GTR7 execution of this ZIP",
+    "Private filesystem ACLs and paths",
+    "Private HF cloning access",
+    "Latency and personal offline synthesis"
+  ]
+}
