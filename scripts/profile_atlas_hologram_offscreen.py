@@ -109,8 +109,8 @@ def profile(*, samples: int, warmup: int) -> dict:
             app.processEvents()
             results["portrait_idle"] = measure(face, warmup=warmup, samples=samples)
             # Voice/speaking paint cost only; do not start an audio daemon.
-            from jarvis.activity import JarvisState
-            face._jarvis_state = JarvisState.SPEAKING
+            from atlas.activity import AtlasState
+            face._atlas_state = AtlasState.SPEAKING
             face._speaking = 1.0
             face._elapsed = 1.3
             results["portrait_speaking"] = measure(face, warmup=warmup, samples=samples)

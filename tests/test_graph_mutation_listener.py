@@ -13,8 +13,8 @@ from contextlib import closing
 
 import pytest
 
-from jarvis.memory.conversation import DialogueMemory
-from jarvis.memory.graph import (
+from atlas.memory.conversation import DialogueMemory
+from atlas.memory.graph import (
     BRANCH_DIRECTIVES,
     BRANCH_USER,
     BRANCH_WORLD,
@@ -33,7 +33,7 @@ def graph_store(tmp_path):
 @pytest.mark.unit
 class TestMutationListenerRegistry:
     def test_fixture_write_notifies_runtime_subscriber(self, graph_store):
-        from jarvis.memory import graph as runtime
+        from atlas.memory import graph as runtime
         events = []
         def subscriber(**event):
             events.append(event)
@@ -126,7 +126,7 @@ class TestMutationListenerRegistry:
         rather than spin. Returns ``None`` — listener treats that as
         "unknown branch" and skips invalidation.
         """
-        from jarvis.memory.graph import MAX_TRAVERSAL_DEPTH
+        from atlas.memory.graph import MAX_TRAVERSAL_DEPTH
 
         # Build a chain of MAX_TRAVERSAL_DEPTH + 2 nodes under user; the
         # tail node should still resolve because the walk can finish

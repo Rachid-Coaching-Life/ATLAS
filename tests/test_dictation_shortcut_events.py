@@ -10,8 +10,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 
 @pytest.fixture
 def shortcut_factory(monkeypatch, tmp_path):
-    from jarvis.dictation import dictation_engine
-    from jarvis.dictation.history import DictationHistory
+    from atlas.dictation import dictation_engine
+    from atlas.dictation.history import DictationHistory
 
     class Key(Enum):
         ctrl = 'control'
@@ -73,7 +73,7 @@ def shortcut_engine(shortcut_factory):
 @pytest.fixture
 def listener_factory(monkeypatch):
     from unittest.mock import Mock
-    from jarvis.dictation import dictation_engine
+    from atlas.dictation import dictation_engine
 
     class Listener:
         def __init__(self, on_press, on_release):
@@ -177,7 +177,7 @@ def test_capture_continues_while_the_other_modifier_side_is_held(
 @pytest.fixture
 def timed_shortcut(shortcut_factory, listener_factory, monkeypatch):
     from unittest.mock import Mock
-    from jarvis.dictation import dictation_engine
+    from atlas.dictation import dictation_engine
 
     clock = {'wall': 1700000000.0, 'steady': 100.0}
     monkeypatch.setattr(dictation_engine.time, 'time', lambda: clock['wall'])

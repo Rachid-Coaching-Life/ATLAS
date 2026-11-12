@@ -8,23 +8,23 @@ import pytest
 pytestmark = pytest.mark.eval
 
 PHRASES = [
-    ("How is the weather tomorrow, Jarvis?", ratio) for ratio in (8, 2, 1.05)
+    ("How is the weather tomorrow, ATLAS?", ratio) for ratio in (8, 2, 1.05)
 ] + [("Stop speaking.", ratio) for ratio in (8, 2, 1.05)] + [
-    ("Jarvis.", ratio) for ratio in (8, 2, 1.05)
+    ("ATLAS.", ratio) for ratio in (8, 2, 1.05)
 ] + [("Yes.", ratio) for ratio in (8, 2, 1.05)] + [("No.", ratio) for ratio in (8, 2)]
 
 
 @pytest.fixture(scope="module")
 def generated_audio():
-    if os.environ.get("JARVIS_RUN_WHISPER_AUDIO_EVAL") != "1":
+    if os.environ.get("ATLAS_RUN_WHISPER_AUDIO_EVAL") != "1":
         pytest.skip("Explicit offline speech qualification required")
     import numpy as np
     from piper import PiperVoice
     from piper.config import SynthesisConfig
-    from jarvis.output.tts import PIPER_DEFAULT_VOICE
-    from jarvis.listening.listener import _resample
+    from atlas.output.tts import PIPER_DEFAULT_VOICE
+    from atlas.listening.listener import _resample
 
-    path = Path.home()/".local/share/jarvis/models/piper"/(PIPER_DEFAULT_VOICE+".onnx")
+    path = Path.home()/".local/share/atlas/models/piper"/(PIPER_DEFAULT_VOICE+".onnx")
     assert path.is_file(), "Cache the local default Piper voice before this eval"
     voice = PiperVoice.load(path)
     samples = {}
@@ -39,7 +39,7 @@ def generated_audio():
 
 def calibrated(samples, ratio):
     import numpy as np
-    from jarvis.config import get_default_config
+    from atlas.config import get_default_config
 
     frames = samples[:len(samples)//320*320].reshape(-1, 320)
     peak = float(np.sqrt(np.mean(frames*frames, axis=1)).max())
@@ -50,8 +50,8 @@ def calibrated(samples, ratio):
 def cpu_model(generated_audio):
     from faster_whisper import WhisperModel
 
-    path = os.environ.get("JARVIS_FW_EVAL_MODEL_DIR")
-    assert path and Path(path).is_dir(), "Select a cached CPU model with JARVIS_FW_EVAL_MODEL_DIR"
+    path = os.environ.get("ATLAS_FW_EVAL_MODEL_DIR")
+    assert path and Path(path).is_dir(), "Select a cached CPU model with ATLAS_FW_EVAL_MODEL_DIR"
     return WhisperModel(path, device="cpu", compute_type="int8", cpu_threads=2)
 
 
@@ -77,7 +77,7 @@ def test_local_detector_retains_speech_presence(generated_audio, phrase, ratio):
 def test_local_detector_rejects_non_speech(generated_audio, kind):
     import numpy as np
     from faster_whisper.vad import get_speech_timestamps
-    from jarvis.config import get_default_config
+    from atlas.config import get_default_config
 
     floor = get_default_config()["voice_min_energy"]
     audio = (floor*4*np.sin(2*np.pi*220*np.arange(32000)/16000)).astype(np.float32)

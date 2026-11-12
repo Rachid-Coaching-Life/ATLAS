@@ -5,8 +5,8 @@ import pytest
 
 from helpers import judge_pass_fail, voice_config
 from conftest import requires_judge_llm
-from jarvis.reply import engine
-from jarvis.utils.redact import redact
+from atlas.reply import engine
+from atlas.utils.redact import redact
 
 
 @pytest.mark.eval

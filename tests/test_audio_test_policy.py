@@ -130,7 +130,7 @@ raise SystemExit(pytest.main(arguments))
 '''
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', QT_QPA_PLATFORM='offscreen',
                TMPDIR=str(runtime), TEMP=str(runtime), TMP=str(runtime),
-               JARVIS_CONFIG_PATH=str(config), XDG_CONFIG_HOME=str(tmp_path / 'xdg'),
+               ATLAS_CONFIG_PATH=str(config), XDG_CONFIG_HOME=str(tmp_path / 'xdg'),
                NATIVE_MARKER=str(native_marker), FAKE_MARKER=str(fake_marker),
                PROBE_MODE=mode, PYTHONPATH=str(repo / 'src'))
     result = subprocess.run(

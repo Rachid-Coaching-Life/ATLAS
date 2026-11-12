@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from jarvis.output import tts as speech
+from atlas.output import tts as speech
 
 pytestmark = pytest.mark.unit
 
@@ -735,9 +735,9 @@ def test_failed_audio_start_closes_stream_before_terminal_release(voice, monkeyp
 
 
 def test_playback_callbacks_and_activity_follow_actual_queued_output(voice):
-    from jarvis import activity
-    state = activity.get_jarvis_state()
-    state.set_state(activity.JarvisState.THINKING)
+    from atlas import activity
+    state = activity.get_atlas_state()
+    state.set_state(activity.AtlasState.THINKING)
     events = []
 
     def started(request, duration):
@@ -750,22 +750,22 @@ def test_playback_callbacks_and_activity_follow_actual_queued_output(voice):
     voice.speak('first')
     voice.speak('second')
     assert events == []
-    assert state.state is activity.JarvisState.THINKING
+    assert state.state is activity.AtlasState.THINKING
     assert not voice.is_speaking()
     voice._run()
     assert events == [
-        ('start', 'first', 1.0, activity.JarvisState.SPEAKING, True),
+        ('start', 'first', 1.0, activity.AtlasState.SPEAKING, True),
         ('end', 'first', 'completed', False),
-        ('start', 'second', 2.0, activity.JarvisState.SPEAKING, True),
+        ('start', 'second', 2.0, activity.AtlasState.SPEAKING, True),
         ('end', 'second', 'completed', False),
     ]
-    assert state.state is activity.JarvisState.IDLE
+    assert state.state is activity.AtlasState.IDLE
 
 
 def test_synthesis_does_not_publish_speaking_or_replace_last_playback(voice):
-    from jarvis import activity
-    state = activity.get_jarvis_state()
-    state.set_state(activity.JarvisState.THINKING)
+    from atlas import activity
+    state = activity.get_atlas_state()
+    state.set_state(activity.AtlasState.THINKING)
     observations = []
     if isinstance(voice, speech.PiperTTS):
         original = voice._voice.synthesize
@@ -781,16 +781,16 @@ def test_synthesis_does_not_publish_speaking_or_replace_last_playback(voice):
         voice._model.generate = generate
     voice.speak('first')
     voice._run()
-    assert observations == [(False, '', activity.JarvisState.THINKING)]
+    assert observations == [(False, '', activity.AtlasState.THINKING)]
     assert voice.get_last_spoken_text() == 'first'
-    assert state.state is activity.JarvisState.IDLE
+    assert state.state is activity.AtlasState.IDLE
 
 
 @pytest.mark.parametrize('protected', ['DICTATING', 'DICTATION_PROCESSING'])
 def test_playback_keeps_protected_dictation_presence(voice, protected):
-    from jarvis import activity
-    state = activity.get_jarvis_state()
-    value = activity.JarvisState[protected]
+    from atlas import activity
+    state = activity.get_atlas_state()
+    value = activity.AtlasState[protected]
     state.set_state(value)
     completed = []
     voice.speak('first', completion_callback=lambda: completed.append(True))
@@ -801,9 +801,9 @@ def test_playback_keeps_protected_dictation_presence(voice, protected):
 
 @pytest.mark.parametrize('newer', ['LISTENING', 'THINKING', 'DICTATING', 'DICTATION_PROCESSING', 'SPEAKING'])
 def test_playback_cleanup_preserves_a_newer_presence(voice, newer):
-    from jarvis import activity
-    state = activity.get_jarvis_state()
-    value = activity.JarvisState[newer]
+    from atlas import activity
+    state = activity.get_atlas_state()
+    value = activity.AtlasState[newer]
     voice.set_playback_callbacks(lambda request, duration: state.set_state(value), None)
     voice.speak('first')
     voice._run()
@@ -840,7 +840,7 @@ def test_playback_observer_binding_is_current_at_start_and_owned_until_finish(vo
 
 
 def test_pending_cancellation_never_publishes_playback_or_speech_presence(voice):
-    from jarvis import activity
+    from atlas import activity
     events = []
     voice.set_playback_callbacks(lambda *args: events.append('start'), lambda *args: events.append('finish'))
     request = voice.speak('first')
@@ -849,14 +849,14 @@ def test_pending_cancellation_never_publishes_playback_or_speech_presence(voice)
     assert events == []
     assert not voice.is_speaking()
     assert voice.get_last_spoken_text() == ''
-    assert activity.get_jarvis_state().state is activity.JarvisState.IDLE
+    assert activity.get_atlas_state().state is activity.AtlasState.IDLE
 
 
 @pytest.mark.parametrize('stage', ['duration', 'start', 'finish', 'completion', 'terminal'])
 @pytest.mark.parametrize('cancelled_callback', [False, True], ids=['exception', 'cancelled-error'])
 def test_failed_callback_does_not_skip_cleanup_or_abandon_the_next_utterance(voice, stage, cancelled_callback):
     import asyncio
-    from jarvis import activity
+    from atlas import activity
     outcomes = []
     completed = []
 
@@ -882,5 +882,5 @@ def test_failed_callback_does_not_skip_cleanup_or_abandon_the_next_utterance(voi
     voice._run()
     assert outcomes == ['completed', 'completed']
     assert completed == ['first', 'second']
-    assert activity.get_jarvis_state().state is activity.JarvisState.IDLE
+    assert activity.get_atlas_state().state is activity.AtlasState.IDLE
     assert not voice.is_speaking()

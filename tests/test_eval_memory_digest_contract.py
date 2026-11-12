@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from jarvis.reply import enrichment
+from atlas.reply import enrichment
 
 pytestmark = pytest.mark.unit
 IDENTITY = 'TestMemoryDigestSurfacesIdentityFacts'
@@ -30,7 +30,7 @@ def load_case(monkeypatch, case):
     module, cls, method, _, _ = case
     path = Path(__file__).resolve().parents[1] / 'evals' / f'test_memory_digest_{module}.py'
     monkeypatch.syspath_prepend(str(path.parent))
-    monkeypatch.setattr('jarvis.llm.http.get', lambda *args, **kwargs: nullcontext(SimpleNamespace(status_code=404)))
+    monkeypatch.setattr('atlas.llm.http.get', lambda *args, **kwargs: nullcontext(SimpleNamespace(status_code=404)))
     with monkeypatch.context() as scope:
         scope.setitem(sys.modules, 'conftest', importlib.import_module('evals.conftest'))
         namespace = runpy.run_path(str(path))
@@ -55,7 +55,7 @@ def test_digest_eval_reaches_selected_transport(monkeypatch, case, provider):
                                      'choices': [{'message': {'content': case[3]}}]}
         return response
 
-    monkeypatch.setattr('jarvis.llm.http.post', post)
+    monkeypatch.setattr('atlas.llm.http.post', post)
     run()
     endpoint = base + ('/api/chat' if provider == 'ollama' else '/v1/chat/completions')
     assert observed and set(observed) == {(endpoint, model)}
@@ -68,7 +68,7 @@ def test_positive_digest_eval_rejects_missing_output(monkeypatch, case, missing)
     monkeypatch.setattr(enrichment, 'digest_memory_for_query', lambda **kwargs: missing)
     def unexpected_post(*args, **kwargs):
         pytest.fail('🧠 Missing-output guards must not contact a live model')
-    monkeypatch.setattr('jarvis.llm.http.post', unexpected_post)
+    monkeypatch.setattr('atlas.llm.http.post', unexpected_post)
     try:
         with pytest.raises(AssertionError):
             run()

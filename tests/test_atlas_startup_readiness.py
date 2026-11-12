@@ -16,7 +16,7 @@ def test_ready_greeting_holds_capture_until_tts_completes(capsys):
 
         tts.speak.assert_called_once()
         args, kwargs = tts.speak.call_args
-        assert args == ("Je suis ATLAS, à votre service.",)
+        assert args == ("Bonjour, je suis ATLAS. Je suis prêt à exécuter vos tâches.",)
         assert listener.capture_paused
         assert listener.is_capture_paused("startup_greeting")
         assert "écoute active" not in capsys.readouterr().out

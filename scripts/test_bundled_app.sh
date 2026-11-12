@@ -3,7 +3,7 @@
 
 set -e
 
-echo "🔨 Building Jarvis Desktop App with PyInstaller..."
+echo "🔨 Building ATLAS Desktop App with PyInstaller..."
 echo ""
 
 # Get to project root
@@ -16,37 +16,37 @@ echo ""
 
 # Build with PyInstaller
 echo "📦 Building app bundle..."
-python -m PyInstaller jarvis_desktop.spec
+python -m PyInstaller atlas_desktop.spec
 echo ""
 
 # Check if build succeeded
-if [ -d "dist/Jarvis.app" ]; then
+if [ -d "dist/ATLAS.app" ]; then
     echo "✅ Build successful!"
     echo ""
-    echo "📍 App location: $(pwd)/dist/Jarvis.app"
+    echo "📍 App location: $(pwd)/dist/ATLAS.app"
     echo ""
 
     # Show app contents for debugging
     echo "📂 App structure:"
-    ls -lh dist/Jarvis.app/Contents/MacOS/
+    ls -lh dist/ATLAS.app/Contents/MacOS/
     echo ""
 
     # Make the app executable
-    chmod +x dist/Jarvis.app/Contents/MacOS/Jarvis
+    chmod +x dist/ATLAS.app/Contents/MacOS/ATLAS
 
     # Run the app in terminal to see output
     echo "🚀 Launching app (console mode enabled for debugging)..."
     echo "   This should open a Terminal window showing the app's output"
-    echo "   If successful, you'll see the Jarvis icon in the menu bar"
+    echo "   If successful, you'll see the ATLAS icon in the menu bar"
     echo ""
 
-    open -a Terminal dist/Jarvis.app
+    open -a Terminal dist/ATLAS.app
 
     echo ""
     echo "📝 If the app crashes or fails:"
     echo "   1. Check the Terminal window that opened for error messages"
-    echo "   2. Check ~/Library/Logs/jarvis_desktop_crash.log"
-    echo "   3. Run manually: ./dist/Jarvis.app/Contents/MacOS/Jarvis"
+    echo "   2. Check ~/Library/Logs/atlas_desktop_crash.log"
+    echo "   3. Run manually: ./dist/ATLAS.app/Contents/MacOS/ATLAS"
     echo ""
 else
     echo "❌ Build failed! Check the output above for errors."

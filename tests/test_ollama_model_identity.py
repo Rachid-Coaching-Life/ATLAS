@@ -83,7 +83,7 @@ def test_wizard_keeps_registry_ports_and_required_model_names(monkeypatch):
 ])
 def test_missing_models_preserve_complete_identity_and_required_names(
         required, available, missing):
-    from jarvis.llm.model_names import missing_ollama_models
+    from atlas.llm.model_names import missing_ollama_models
 
     original_required, original_available = required[:], available[:]
     assert missing_ollama_models(iter(required), iter(available)) == missing

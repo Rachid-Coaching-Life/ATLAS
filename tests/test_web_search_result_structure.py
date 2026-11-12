@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from jarvis.tools.builtin import web_search
+from atlas.tools.builtin import web_search
 
 pytestmark = pytest.mark.unit
 

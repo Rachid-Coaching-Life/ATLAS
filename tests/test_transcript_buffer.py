@@ -6,7 +6,7 @@ import pytest
 
 pytestmark = pytest.mark.unit
 
-from jarvis.listening.transcript_buffer import TranscriptBuffer, TranscriptSegment
+from atlas.listening.transcript_buffer import TranscriptBuffer, TranscriptSegment
 
 
 def _now():
@@ -252,7 +252,7 @@ class TestTranscriptBuffer:
         """Format marks wake word segment."""
         buf = TranscriptBuffer()
         now = _now()
-        buf.add("jarvis what time", now - 2, now)
+        buf.add("atlas what time", now - 2, now)
 
         formatted = buf.format_for_llm(wake_timestamp=now - 1)
         assert "WAKE WORD" in formatted
@@ -389,11 +389,11 @@ class TestTranscriptBuffer:
         """Can mark a segment as processed by text match."""
         buf = TranscriptBuffer()
         now = _now()
-        buf.add("jarvis whats the weather", now - 3, now - 2)
-        buf.add("jarvis tell me a joke", now - 1, now)
+        buf.add("atlas whats the weather", now - 3, now - 2)
+        buf.add("atlas tell me a joke", now - 1, now)
 
         # Mark first segment as processed
-        result = buf.mark_segment_processed("jarvis whats the weather")
+        result = buf.mark_segment_processed("atlas whats the weather")
         assert result is True
 
         segments = buf.get_all()
@@ -404,10 +404,10 @@ class TestTranscriptBuffer:
         """Marking processed is case-insensitive."""
         buf = TranscriptBuffer()
         now = _now()
-        buf.add("Jarvis What's The Weather", now - 1, now)
+        buf.add("ATLAS What's The Weather", now - 1, now)
 
         # Match with different case
-        result = buf.mark_segment_processed("jarvis what's the weather")
+        result = buf.mark_segment_processed("atlas what's the weather")
         assert result is True
 
         segments = buf.get_all()
@@ -417,9 +417,9 @@ class TestTranscriptBuffer:
         """Marking processed ignores leading/trailing whitespace."""
         buf = TranscriptBuffer()
         now = _now()
-        buf.add("jarvis hello", now - 1, now)
+        buf.add("atlas hello", now - 1, now)
 
-        result = buf.mark_segment_processed("  jarvis hello  ")
+        result = buf.mark_segment_processed("  atlas hello  ")
         assert result is True
 
         segments = buf.get_all()
@@ -430,30 +430,30 @@ class TestTranscriptBuffer:
         buf = TranscriptBuffer()
         now = _now()
         # Add same text twice
-        buf.add("jarvis hello", now - 3, now - 2)
+        buf.add("atlas hello", now - 3, now - 2)
         buf.add("other segment", now - 2, now - 1)
-        buf.add("jarvis hello", now - 1, now)
+        buf.add("atlas hello", now - 1, now)
 
-        result = buf.mark_segment_processed("jarvis hello")
+        result = buf.mark_segment_processed("atlas hello")
         assert result is True
 
         segments = buf.get_all()
-        # First "jarvis hello" (index 0) should NOT be marked
+        # First "atlas hello" (index 0) should NOT be marked
         assert segments[0].processed is False
         # "other segment" (index 1) should NOT be marked
         assert segments[1].processed is False
-        # Second "jarvis hello" (index 2) should be marked
+        # Second "atlas hello" (index 2) should be marked
         assert segments[2].processed is True
 
     def test_mark_segment_processed_skips_already_processed(self):
         """When searching for match, skips segments already marked."""
         buf = TranscriptBuffer()
         now = _now()
-        buf.add("jarvis hello", now - 2, now - 1)
-        buf.add("jarvis hello", now - 1, now)
+        buf.add("atlas hello", now - 2, now - 1)
+        buf.add("atlas hello", now - 1, now)
 
         # Mark first call - should mark the most recent (index 1)
-        result1 = buf.mark_segment_processed("jarvis hello")
+        result1 = buf.mark_segment_processed("atlas hello")
         assert result1 is True
 
         segments = buf.get_all()
@@ -461,7 +461,7 @@ class TestTranscriptBuffer:
         assert segments[1].processed is True
 
         # Mark second call - should now mark the older one (index 0)
-        result2 = buf.mark_segment_processed("jarvis hello")
+        result2 = buf.mark_segment_processed("atlas hello")
         assert result2 is True
 
         segments = buf.get_all()
@@ -472,9 +472,9 @@ class TestTranscriptBuffer:
         """Returns False when no matching segment found."""
         buf = TranscriptBuffer()
         now = _now()
-        buf.add("jarvis hello", now - 1, now)
+        buf.add("atlas hello", now - 1, now)
 
-        result = buf.mark_segment_processed("jarvis goodbye")
+        result = buf.mark_segment_processed("atlas goodbye")
         assert result is False
 
     def test_mark_segment_processed_empty_buffer(self):

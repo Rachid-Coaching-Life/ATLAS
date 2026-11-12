@@ -1,6 +1,6 @@
 # Chat Window Specification
 
-A text chat interface for Jarvis, alongside the existing voice path. Voice
+A text chat interface for ATLAS, alongside the existing voice path. Voice
 remains the primary modality; text is a first-class sibling that shares the
 same conversation, memory, and tools.
 
@@ -15,7 +15,7 @@ split in storage.
 
 ## Daemon contract
 
-The core `jarvis` package exposes a text-submission entry point with no
+The core `atlas` package exposes a text-submission entry point with no
 knowledge of the desktop app. It mirrors the diary-callbacks pattern already
 used for end-of-session UI updates.
 
@@ -26,7 +26,7 @@ microphone capture, array processing, VAD or Whisper.
 Pausing voice listening keeps text submission and its daemon lifecycle state
 available. User and dictation capture pauses do not stop or restart text chat.
 
-### `submit_text_query(text: str) -> None` (in `jarvis.daemon`)
+### `submit_text_query(text: str) -> None` (in `atlas.daemon`)
 
 - Fire-and-forget: spawns a worker thread and returns immediately so the
   caller (the Qt main thread) never blocks. The final reply is delivered via
@@ -48,9 +48,9 @@ available. User and dictation capture pauses do not stop or restart text chat.
 A single `_chat_query_lock` guards the reply engine. The text path acquires
 it non-blocking: if a query is already running (voice or text), a new text
 submission is **rejected**, not queued, and the caller is notified via the
-`busy` event so the UI can show "Jarvis is busy" rather than silently
+`busy` event so the UI can show "ATLAS is busy" rather than silently
 dropping the message. The voice path acquires the same lock blocking (via
-`jarvis.daemon.query_lock`) so a voice query waits for an in-flight text
+`atlas.daemon.query_lock`) so a voice query waits for an in-flight text
 query to finish rather than being dropped. Voice and text therefore cannot
 run `run_reply_engine` concurrently against the shared dialogue memory.
 
@@ -164,7 +164,7 @@ rewind lines are swallowed (consumed, ignored), mirroring
 Chat IPC lines are routed to the chat window and excluded from the general
 log viewer. The daemon emits separate readable activity lines in both bundled
 and subprocess modes: `⌨️ Typed:` with the redacted accepted query, followed by
-`🤖 Jarvis` and the delivered reply with structural secrets scrubbed and
+`🤖 ATLAS` and the delivered reply with structural secrets scrubbed and
 multiline formatting preserved. The quiet engine leaves reply logging to the
 worker, after the cancellation check. Busy or invalid submissions do not create
 accepted-query entries; cancelled and empty replies do not create reply entries.
@@ -189,11 +189,11 @@ A `QMainWindow` styled as a futuristic phone with a single contact:
 - An empty conversation shows an introductory panel, never a fabricated message.
   It disappears as soon as a typed, seeded, assistant or local notice arrives.
 
-- A contact header (avatar, "Jarvis", and a presence line such as "Online" or
+- A contact header (avatar, "ATLAS", and a presence line such as "Online" or
   "Typing…" while a query is in flight).
 - A read-only transcript area: a scrollable stack of speech bubbles (theme
   colours from `themes.py`). The user's messages are right-aligned accent
-  bubbles, Jarvis's replies are left-aligned dark bubbles, and local notices
+  bubbles, ATLAS's replies are left-aligned dark bubbles, and local notices
   are small centred lines. Each bubble carries a small muted timestamp. Sent
   messages additionally carry a subtle `⟲` rewind button (see **Rewind**
   below) to the left of the bubble. Whenever any user, assistant, or local
@@ -212,7 +212,7 @@ A `QMainWindow` styled as a futuristic phone with a single contact:
   and resets the thinking indicator immediately. It is distinct from `request_stop` (full
   daemon shutdown) and never tears down the voice listener. Visible only
   while a query is in flight.
-- A status indicator label that shows "Jarvis is thinking…" while a query is
+- A status indicator label that shows "ATLAS is thinking…" while a query is
   running. When the daemon is starting, stopping, stopped, or has exited
   unexpectedly, the same area stays visible as a local lifecycle banner and
   explains whether the user should wait or start listening again.
@@ -263,7 +263,7 @@ cannot write to a dead pipe.
 
 ### Theme
 
-All styling uses `JARVIS_THEME_STYLESHEET`, `CHAT_THEME_STYLESHEET` and the shared
+All styling uses `ATLAS_THEME_STYLESHEET`, `CHAT_THEME_STYLESHEET` and the shared
 palette from `desktop_app.themes`. No
 hardcoded colours. The window is dark-themed and consistent with the rest of
 the app.
@@ -272,7 +272,7 @@ the app.
 
 - Created lazily on first tray open.
 - First show seeds the transcript from the daemon's current hot window
-  (`jarvis.daemon.get_hot_window_messages()`), so a user who has been talking
+  (`atlas.daemon.get_hot_window_messages()`), so a user who has been talking
   by voice sees their recent turns instead of a blank panel. Seeding runs once
   per instance: re-showing (from the tray or after a hide) never duplicates
   turns. The hot-window content is already redacted (redaction runs before a

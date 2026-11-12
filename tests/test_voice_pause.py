@@ -5,14 +5,14 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 
-from jarvis.listening.listener import VoiceListener
+from atlas.listening.listener import VoiceListener
 
 pytestmark = pytest.mark.unit
 
 
 @pytest.fixture
 def voice(mock_config):
-    with patch('jarvis.listening.listener.create_intent_judge', return_value=None):
+    with patch('atlas.listening.listener.create_intent_judge', return_value=None):
         subject = VoiceListener(None, mock_config, None, None)
     yield subject
     subject.stop()
@@ -59,7 +59,7 @@ def test_resume_discards_old_follow_up_context(voice):
 @pytest.fixture
 def running_voice(voice, monkeypatch):
     import threading
-    from jarvis import daemon
+    from atlas import daemon
     started = threading.Event()
     finish = threading.Event()
     def run_fixture():
@@ -77,7 +77,7 @@ def running_voice(voice, monkeypatch):
 
 
 def test_core_pause_preserves_running_daemon_and_resumes(running_voice):
-    from jarvis import daemon
+    from atlas import daemon
     assert daemon.set_voice_listening_paused(True) is True
     assert running_voice.is_alive()
     assert not daemon.is_stop_requested()
@@ -87,7 +87,7 @@ def test_core_pause_preserves_running_daemon_and_resumes(running_voice):
 
 def test_subprocess_pause_acknowledges_applied_state(running_voice, capsys):
     import json
-    from jarvis import daemon
+    from atlas import daemon
     request = {'paused': True, 'request_id': 'request-1'}
     assert daemon.handle_voice_pause_stdin_line(daemon.VOICE_PAUSE_IPC_PREFIX + json.dumps(request))
     lines = capsys.readouterr().out.splitlines()
@@ -99,7 +99,7 @@ def test_subprocess_pause_acknowledges_applied_state(running_voice, capsys):
 @pytest.mark.parametrize('invalid', ['true', 1, None])
 def test_subprocess_pause_requires_a_boolean(running_voice, invalid, capsys):
     import json
-    from jarvis import daemon
+    from atlas import daemon
     request = {'paused': invalid, 'request_id': 'invalid-request'}
     assert daemon.handle_voice_pause_stdin_line(daemon.VOICE_PAUSE_IPC_PREFIX + json.dumps(request))
     assert not running_voice.capture_paused
@@ -107,15 +107,15 @@ def test_subprocess_pause_requires_a_boolean(running_voice, invalid, capsys):
 
 
 def test_pause_without_live_voice_does_not_claim_success(monkeypatch):
-    from jarvis import daemon
+    from atlas import daemon
     monkeypatch.setattr(daemon, '_global_voice_listener', None, raising=False)
     assert daemon.set_voice_listening_paused(True) is None
 
 
 def test_typed_reply_remains_available_while_voice_is_paused(running_voice, mock_config, monkeypatch):
     import threading
-    from jarvis import daemon
-    from jarvis.memory.conversation import DialogueMemory
+    from atlas import daemon
+    from atlas.memory.conversation import DialogueMemory
     monkeypatch.setattr(daemon, '_global_cfg', mock_config)
     monkeypatch.setattr(daemon, '_global_db', object())
     monkeypatch.setattr(daemon, '_global_dialogue_memory', DialogueMemory(inactivity_timeout=300, max_interactions=20))
@@ -125,7 +125,7 @@ def test_typed_reply_remains_available_while_voice_is_paused(running_voice, mock
         replies.append(reply)
         complete.set()
     assert daemon.set_voice_listening_paused(True) is True
-    with patch('jarvis.reply.engine.run_reply_engine', return_value='Typed answer'):
+    with patch('atlas.reply.engine.run_reply_engine', return_value='Typed answer'):
         daemon.submit_text_query('hello', on_complete=on_complete)
         assert complete.wait(2)
     assert replies == ['Typed answer']
@@ -133,7 +133,7 @@ def test_typed_reply_remains_available_while_voice_is_paused(running_voice, mock
 
 @pytest.mark.parametrize('entry', ['timer', 'empty_transcript'])
 def test_pause_resume_during_collection_timeout_discards_old_query(voice, monkeypatch, entry):
-    from jarvis.reply import engine
+    from atlas.reply import engine
     voice.state_manager.start_collection('old query', language=None)
     original_clear = voice.state_manager.clear_collection
     def clear_with_pause():
@@ -154,7 +154,7 @@ def test_pause_resume_during_collection_timeout_discards_old_query(voice, monkey
 
 
 def test_old_speech_completion_cannot_reopen_follow_up_after_resume(voice, monkeypatch):
-    from jarvis.reply import engine
+    from atlas.reply import engine
     from types import SimpleNamespace
     callbacks = []
     voice.cfg.hot_window_enabled = True

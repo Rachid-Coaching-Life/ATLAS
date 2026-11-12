@@ -1,6 +1,6 @@
 import pytest
 
-from jarvis.tools.registry import run_tool_with_retries, ToolExecutionResult
+from atlas.tools.registry import run_tool_with_retries, ToolExecutionResult
 
 
 class DummyCfg:
@@ -25,7 +25,18 @@ class DummyDB:
         return mid == 1
 
 
+@pytest.fixture
+def approve_sensitive():
+    """These tests exercise tool behaviour, not the confirmation gate."""
+    from atlas.tools import confirmation
+
+    confirmation.set_provider(lambda request: True)
+    yield
+    confirmation.set_provider(None)
+
+
 @pytest.mark.unit
+@pytest.mark.usefixtures("approve_sensitive")
 def test_delete_meal_success():
     db = DummyDB()
     cfg = DummyCfg()
@@ -45,6 +56,7 @@ def test_delete_meal_success():
 
 
 @pytest.mark.unit
+@pytest.mark.usefixtures("approve_sensitive")
 def test_delete_meal_failure():
     db = DummyDB()
     cfg = DummyCfg()
@@ -64,7 +76,7 @@ def test_delete_meal_failure():
 @pytest.fixture
 def local_files_home(tmp_path, monkeypatch):
     """Confine tool filesystem operations to an isolated home directory."""
-    from jarvis.tools.builtin import local_files
+    from atlas.tools.builtin import local_files
 
     expanduser = local_files.os.path.expanduser
     monkeypatch.setattr(
@@ -117,7 +129,7 @@ def test_local_files_list_and_read(tmp_path):
 
 
 @pytest.mark.unit
-@pytest.mark.usefixtures("local_files_home")
+@pytest.mark.usefixtures("local_files_home", "approve_sensitive")
 def test_local_files_write_append_delete():
     db = DummyDB()
     cfg = DummyCfg()
@@ -178,7 +190,7 @@ def test_local_files_write_append_delete():
 @pytest.mark.unit
 def test_fetch_web_page_success(monkeypatch):
     """Test fetchWebPage tool with a mocked successful response."""
-    from jarvis.tools.builtin import fetch_web_page
+    from atlas.tools.builtin import fetch_web_page
     
     # Mock a successful HTTP response
     class MockResponse:

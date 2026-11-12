@@ -15,10 +15,10 @@ running it:
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `JARVIS_PERF_OLLAMA_URL` | `http://localhost:11434` | Local Ollama endpoint |
-| `JARVIS_PERF_MODEL` | `gemma4:e2b` | Installed model |
-| `JARVIS_PERF_RUNS` | `3` | Measured repetitions per query |
-| `JARVIS_PERF_REPORT_DIR` | `tests/performance/reports/` | JSON output directory |
+| `ATLAS_PERF_OLLAMA_URL` | `http://localhost:11434` | Local Ollama endpoint |
+| `ATLAS_PERF_MODEL` | `gemma4:e2b` | Installed model |
+| `ATLAS_PERF_RUNS` | `3` | Measured repetitions per query |
+| `ATLAS_PERF_REPORT_DIR` | `tests/performance/reports/` | JSON output directory |
 
 The micro-benchmark includes a warmup call. Pipeline runs use three small queries.
 Three repetitions provide smoke evidence; sample p50/p95 values do not establish

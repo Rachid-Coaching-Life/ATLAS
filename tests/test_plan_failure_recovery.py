@@ -3,8 +3,8 @@ from unittest.mock import patch
 
 import pytest
 
-from jarvis.reply import engine
-from jarvis.tools.types import ToolExecutionResult
+from atlas.reply import engine
+from atlas.tools.types import ToolExecutionResult
 
 pytestmark = pytest.mark.unit
 PLAN = [

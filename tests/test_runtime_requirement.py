@@ -9,7 +9,7 @@ import pytest
 pytestmark = pytest.mark.unit
 
 
-@pytest.mark.parametrize('module', ['jarvis.daemon', 'jarvis.memory.graph', 'desktop_app'])
+@pytest.mark.parametrize('module', ['atlas.daemon', 'atlas.memory.graph', 'desktop_app'])
 @pytest.mark.parametrize('version', [(3, 10, 9), (3, 11, 0), (3, 12, 0)])
 def test_runtime_floor_precedes_application_initialisation(tmp_path, module, version):
     runtime = tmp_path / 'runtime'
@@ -22,7 +22,7 @@ import sys
 
 class ApplicationBoundary(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
-        if fullname in ('jarvis.config', 'desktop_app.app'):
+        if fullname in ('atlas.config', 'desktop_app.app'):
             print('application boundary reached', flush=True)
             raise SystemExit(0)
         if fullname.startswith(('sounddevice', 'PyQt6', 'numpy')):
@@ -38,7 +38,7 @@ raise RuntimeError('application boundary was not reached')
         'PYTHONPATH': str(Path(__file__).resolve().parents[1] / 'src'),
         'PYTHONDONTWRITEBYTECODE': '1',
         'PYTHONIOENCODING': 'utf-8',
-        'JARVIS_CONFIG_PATH': str(config), 'XDG_CONFIG_HOME': str(runtime / 'xdg'),
+        'ATLAS_CONFIG_PATH': str(config), 'XDG_CONFIG_HOME': str(runtime / 'xdg'),
         'TMPDIR': str(runtime), 'TMP': str(runtime), 'TEMP': str(runtime),
     }
     result = subprocess.run([sys.executable, '-c', code], env=env, cwd=tmp_path,

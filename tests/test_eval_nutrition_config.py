@@ -35,7 +35,7 @@ def test_nutrition_eval_uses_selected_transport_and_production_fence(monkeypatch
         response.json.return_value = ({'message': message} if provider == 'ollama'
                                      else {'choices': [{'message': message}]})
         return response
-    monkeypatch.setattr('jarvis.llm.http.post', post)
+    monkeypatch.setattr('atlas.llm.http.post', post)
 
     result = call_nutrition_extraction(cfg, 'I had eggs')
     assert observed, 'Extraction did not reach the selected backend'
@@ -59,7 +59,7 @@ def test_empty_inference_is_not_successful_non_food_rejection(monkeypatch):
     response = MagicMock()
     response.__enter__.return_value = response
     response.json.return_value = {'message': {'content': ''}}
-    monkeypatch.setattr('jarvis.llm.http.post', lambda *args, **kwargs: response)
+    monkeypatch.setattr('atlas.llm.http.post', lambda *args, **kwargs: response)
     cfg = MockConfig(llm_provider='ollama', llm_chat_model='local-model')
     with pytest.raises(AssertionError, match='Empty'):
         call_nutrition_extraction(cfg, 'I went for a walk')
@@ -71,7 +71,7 @@ def test_invalid_inference_is_not_successful_non_food_rejection(monkeypatch, ans
     response = MagicMock()
     response.__enter__.return_value = response
     response.json.return_value = {'message': {'content': answer}}
-    monkeypatch.setattr('jarvis.llm.http.post', lambda *args, **kwargs: response)
+    monkeypatch.setattr('atlas.llm.http.post', lambda *args, **kwargs: response)
     cfg = MockConfig(llm_provider='ollama', llm_chat_model='local-model')
     with pytest.raises(AssertionError, match='Invalid'):
         call_nutrition_extraction(cfg, 'I went for a walk')

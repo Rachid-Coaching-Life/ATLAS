@@ -1,7 +1,7 @@
 """
-Jarvis Desktop App - System Tray Application
+ATLAS Desktop App - System Tray Application
 
-A cross-platform system tray app for controlling the Jarvis voice assistant.
+A cross-platform system tray app for controlling the ATLAS voice assistant.
 Supports Windows, Ubuntu (Linux), and macOS.
 """
 
@@ -16,7 +16,7 @@ os.environ.setdefault('MKL_NUM_THREADS', '1')
 os.environ.setdefault('OMP_NUM_THREADS', '1')
 
 # Validate the shared runtime requirement before importing desktop dependencies.
-import jarvis
+import atlas
 
 # Re-export main for entry point
 from desktop_app.app import main
@@ -32,7 +32,7 @@ from desktop_app.app import (
     check_model_support,
     show_unsupported_model_dialog,
     acquire_single_instance_lock,
-    JarvisSystemTray,
+    AtlasSystemTray,
     LogViewerWindow,
     MemoryViewerWindow,
     LogSignals,
@@ -49,7 +49,7 @@ __all__ = [
     'check_model_support',
     'show_unsupported_model_dialog',
     'acquire_single_instance_lock',
-    'JarvisSystemTray',
+    'AtlasSystemTray',
     'LogViewerWindow',
     'MemoryViewerWindow',
     'LogSignals',

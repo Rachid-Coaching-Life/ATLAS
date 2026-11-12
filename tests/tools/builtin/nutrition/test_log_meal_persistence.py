@@ -5,8 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis.memory.db import Database
-from jarvis.tools.builtin.nutrition import log_meal
+from atlas.memory.db import Database
+from atlas.tools.builtin.nutrition import log_meal
 
 pytestmark = pytest.mark.unit
 

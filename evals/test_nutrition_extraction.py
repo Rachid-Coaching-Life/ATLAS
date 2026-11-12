@@ -92,7 +92,7 @@ def call_nutrition_extraction(
     """
     from types import SimpleNamespace
     from unittest.mock import patch
-    from jarvis.tools.builtin.nutrition import log_meal
+    from atlas.tools.builtin.nutrition import log_meal
 
     rows = []
     answers = []
@@ -331,8 +331,8 @@ class TestNutritionToolIntegration:
         """
         Test that LogMealTool properly extracts and stores macros.
         """
-        from jarvis.tools.builtin.nutrition.log_meal import LogMealTool
-        from jarvis.tools.base import ToolContext
+        from atlas.tools.builtin.nutrition.log_meal import LogMealTool
+        from atlas.tools.base import ToolContext
 
         mock_config = voice_config()
         mock_config.use_stdin = True
@@ -474,7 +474,7 @@ class TestNutritionModelComparison:
 @pytest.mark.parametrize("summary", ["~300 kcal, 35g protein", "nutrition estimates unavailable"])
 def test_logged_meal_has_non_empty_follow_ups(summary):
     """Coaching must emit useful text after its reasoning budget."""
-    from jarvis.tools.builtin.nutrition.log_meal import generate_followups_for_meal
+    from atlas.tools.builtin.nutrition.log_meal import generate_followups_for_meal
     followups = generate_followups_for_meal(
         voice_config(), 'grilled chicken with broccoli', summary,
     )
@@ -518,8 +518,8 @@ def test_meal_recording_respects_actual_user_request(user_text, meal, record):
     from datetime import datetime, timedelta, timezone
     from types import SimpleNamespace
     from unittest.mock import patch
-    from jarvis.memory.db import Database
-    from jarvis.tools.builtin.nutrition import log_meal
+    from atlas.memory.db import Database
+    from atlas.tools.builtin.nutrition import log_meal
 
     db = Database(':memory:', sqlite_vss_path=None)
     context = SimpleNamespace(db=db, cfg=voice_config(), redacted_text=user_text,

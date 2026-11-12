@@ -3,16 +3,16 @@ import pytest
 
 from evals.conftest import requires_judge_llm
 from evals.helpers import JUDGE_MODEL
-from jarvis.memory.graph import BRANCH_DIRECTIVES, BRANCH_USER, BRANCH_WORLD
-from jarvis.memory.graph_ops import extract_graph_memories, _review_graph_facts
+from atlas.memory.graph import BRANCH_DIRECTIVES, BRANCH_USER, BRANCH_WORLD
+from atlas.memory.graph_ops import extract_graph_memories, _review_graph_facts
 
 
 STYLE_SOURCES = [
     pytest.param(
-        'The user asked Jarvis to talk to them like a pirate. They clarified '
+        'The user asked ATLAS to talk to them like a pirate. They clarified '
         'that they wanted its speech style to be like a pirate and corrected '
-        'it when it continued speaking in its usual style. Jarvis agreed to '
-        'speak that way from then on. Later the user asked how old Jarvis is; '
+        'it when it continued speaking in its usual style. ATLAS agreed to '
+        'speak that way from then on. Later the user asked how old ATLAS is; '
         'it explained that it lacks an age as a digital arrangement.',
         ('pirate', 'buccaneer'), id='reported-conversation'),
     pytest.param(
@@ -72,11 +72,11 @@ def test_interest_in_a_style_is_a_user_fact(mock_config):
     (BRANCH_DIRECTIVES, 'Speak to the user like a pirate', True),
     (BRANCH_DIRECTIVES, 'The user previously requested pirate speech from the assistant', False),
     (BRANCH_WORLD, 'The AI lacks an age as it is a digital arrangement', False),
-    (BRANCH_WORLD, 'Jarvis can maintain a diary', False),
+    (BRANCH_WORLD, 'ATLAS can maintain a diary', False),
     (BRANCH_WORLD, 'Whisper is an open-source transcription model', True),
 ])
 def test_review_checks_the_branch_and_rejects_assistant_self_description(mock_config, branch, text, keep):
-    summary = ('The user told their assistant Jarvis to speak like a pirate from now on. '
+    summary = ('The user told their assistant ATLAS to speak like a pirate from now on. '
                'Later they asked its age and capabilities; it said it has no age as '
                'software and can maintain a diary. A separate lookup established '
                'that Whisper is an open-source transcription model.')

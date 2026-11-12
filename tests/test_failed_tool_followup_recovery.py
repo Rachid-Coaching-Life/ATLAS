@@ -1,8 +1,8 @@
 """A selected failed-task continuation needs an actual current result."""
 from unittest.mock import patch
 import pytest
-from jarvis.reply import engine
-from jarvis.tools.types import ToolExecutionResult
+from atlas.reply import engine
+from atlas.tools.types import ToolExecutionResult
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 

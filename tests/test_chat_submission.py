@@ -11,7 +11,7 @@ These verify the contract in ``src/desktop_app/chat_window.spec.md``:
 - In IPC mode it emits ``__CHAT__:`` JSON events to stdout.
 - It never passes unredacted user text to the reply engine or to IPC.
 
-Tests patch ``jarvis.reply.engine.run_reply_engine`` (the canonical location
+Tests patch ``atlas.reply.engine.run_reply_engine`` (the canonical location
 the daemon imports from at call time) per the conftest note about module
 instance identity.
 """
@@ -23,8 +23,8 @@ import time
 
 import pytest
 
-from jarvis import daemon
-from jarvis.memory.conversation import DialogueMemory
+from atlas import daemon
+from atlas.memory.conversation import DialogueMemory
 
 _REDACTABLE_QUERIES = [
     ('my email is test@example.com', 'test@example.com', '[REDACTED_EMAIL]'),
@@ -121,7 +121,7 @@ class TestSubmitTextQueryContract:
             captured["quiet"] = kwargs.get("quiet")
             return "hello from the engine"
 
-        monkeypatch.setattr("jarvis.reply.engine.run_reply_engine", fake_engine)
+        monkeypatch.setattr("atlas.reply.engine.run_reply_engine", fake_engine)
 
         events = []
         daemon.submit_text_query(
@@ -145,7 +145,7 @@ class TestSubmitTextQueryContract:
             captured["quiet"] = kwargs.get("quiet")
             return "a reply"
 
-        monkeypatch.setattr("jarvis.reply.engine.run_reply_engine", fake_engine)
+        monkeypatch.setattr("atlas.reply.engine.run_reply_engine", fake_engine)
 
         events = []
         daemon.submit_text_query(
@@ -161,7 +161,7 @@ class TestSubmitTextQueryContract:
         the reply text. Ordering matters for the UI."""
         _install_dialogue_memory(cfg=object(), db=object())
         monkeypatch.setattr(
-            "jarvis.reply.engine.run_reply_engine",
+            "atlas.reply.engine.run_reply_engine",
             lambda *a, **k: "the reply",
         )
 
@@ -183,7 +183,7 @@ class TestSubmitTextQueryContract:
         """An empty/stop reply surfaces as on_complete(None), not silence."""
         _install_dialogue_memory(cfg=object(), db=object())
         monkeypatch.setattr(
-            "jarvis.reply.engine.run_reply_engine", lambda *a, **k: None
+            "atlas.reply.engine.run_reply_engine", lambda *a, **k: None
         )
         events = []
         daemon.submit_text_query(
@@ -200,7 +200,7 @@ class TestSubmitTextQueryContract:
         def boom(*a, **k):
             raise RuntimeError("engine exploded")
 
-        monkeypatch.setattr("jarvis.reply.engine.run_reply_engine", boom)
+        monkeypatch.setattr("atlas.reply.engine.run_reply_engine", boom)
         events = []
         daemon.submit_text_query(
             "hi",
@@ -213,7 +213,7 @@ class TestSubmitTextQueryContract:
         """With no callbacks registered, submit_text_query still runs the
         engine and returns without error."""
         monkeypatch.setattr(
-            "jarvis.reply.engine.run_reply_engine", lambda *a, **k: "ok"
+            "atlas.reply.engine.run_reply_engine", lambda *a, **k: "ok"
         )
         _install_dialogue_memory(cfg=object(), db=object())
         daemon.submit_text_query("hi")
@@ -226,7 +226,7 @@ class TestSubmitTextQueryContract:
         never be called."""
         called = []
         monkeypatch.setattr(
-            "jarvis.reply.engine.run_reply_engine",
+            "atlas.reply.engine.run_reply_engine",
             lambda *a, **k: called.append(True),
         )
         # Globals left as None by _reset_daemon_globals.
@@ -248,7 +248,7 @@ class TestSubmitTextQueryContract:
         _install_dialogue_memory(cfg=object(), db=object())
         called = []
         monkeypatch.setattr(
-            "jarvis.reply.engine.run_reply_engine",
+            "atlas.reply.engine.run_reply_engine",
             lambda *a, **k: called.append(True),
         )
         daemon._global_stop_requested = True
@@ -271,7 +271,7 @@ class TestSubmitTextQueryContract:
         callbacks fire and the engine is never called."""
         called = []
         monkeypatch.setattr(
-            "jarvis.reply.engine.run_reply_engine",
+            "atlas.reply.engine.run_reply_engine",
             lambda *a, **k: called.append(True),
         )
         _install_dialogue_memory(cfg=object(), db=object())
@@ -295,7 +295,7 @@ class TestSubmitTextQueryContract:
             time.sleep(0.3)  # let cancel fire mid-run
             return "the reply that should be dropped"
 
-        monkeypatch.setattr("jarvis.reply.engine.run_reply_engine", slow_engine)
+        monkeypatch.setattr("atlas.reply.engine.run_reply_engine", slow_engine)
         events = []
         daemon.submit_text_query(
             "hi", on_complete=lambda r: events.append(("complete", r)),
@@ -311,7 +311,7 @@ class TestSubmitTextQueryContract:
         privacy boundary with structurally recognised secrets."""
         _install_dialogue_memory(cfg=object(), db=object())
         monkeypatch.setattr(
-            "jarvis.reply.engine.run_reply_engine", lambda *a, **k: "ok"
+            "atlas.reply.engine.run_reply_engine", lambda *a, **k: "ok"
         )
         events = []
         daemon.submit_text_query(
@@ -333,14 +333,14 @@ class TestSubmitTextQueryContract:
         _install_dialogue_memory(cfg=object(), db=object())
         engine_calls = []
         monkeypatch.setattr(
-            "jarvis.reply.engine.run_reply_engine",
+            "atlas.reply.engine.run_reply_engine",
             lambda *a, **k: engine_calls.append(True),
         )
 
         def boom(_text):
             raise RuntimeError("redact exploded")
 
-        monkeypatch.setattr("jarvis.utils.redact.redact", boom)
+        monkeypatch.setattr("atlas.utils.redact.redact", boom)
 
         events = []
         daemon.submit_text_query(
@@ -379,7 +379,7 @@ class TestSubmitTextQueryConcurrency:
             slow_done.wait(timeout=5)
             return "first reply"
 
-        monkeypatch.setattr("jarvis.reply.engine.run_reply_engine", slow_engine)
+        monkeypatch.setattr("atlas.reply.engine.run_reply_engine", slow_engine)
 
         events = []
         on_complete = lambda r: events.append(("complete", r))  # noqa: E731
@@ -474,7 +474,7 @@ class TestSubmitTextQueryIPC:
         """In IPC mode, start + complete events are emitted as __CHAT__: lines
         containing JSON with the redacted query and the reply."""
         monkeypatch.setattr(
-            "jarvis.reply.engine.run_reply_engine", lambda *a, **k: "ipc reply"
+            "atlas.reply.engine.run_reply_engine", lambda *a, **k: "ipc reply"
         )
         _install_dialogue_memory(cfg=object(), db=object())
 
@@ -502,7 +502,7 @@ class TestSubmitTextQueryIPC:
         stream. Verifies the spec's privacy boundary for the subprocess path."""
         _install_dialogue_memory(cfg=object(), db=object())
         monkeypatch.setattr(
-            "jarvis.reply.engine.run_reply_engine", lambda *a, **k: "ok"
+            "atlas.reply.engine.run_reply_engine", lambda *a, **k: "ok"
         )
         daemon.submit_text_query(query, use_ipc=True)
         chat_lines = _wait_for_ipc_complete(capsys)
@@ -532,7 +532,7 @@ class TestChatQueryStdinHandler:
         """A valid __CHAT_QUERY__ line submits the query (via use_ipc=True) and
         returns True so the caller knows not to treat it as shutdown."""
         monkeypatch.setattr(
-            "jarvis.reply.engine.run_reply_engine", lambda *a, **k: "stdin reply"
+            "atlas.reply.engine.run_reply_engine", lambda *a, **k: "stdin reply"
         )
         _install_dialogue_memory(cfg=object(), db=object())
         line = f'{daemon.CHAT_QUERY_IPC_PREFIX}{{"text":"hello from stdin"}}'
@@ -814,7 +814,7 @@ def test_ipc_capture_preserves_the_complete_event_sequence(monkeypatch, split, b
 @pytest.mark.parametrize("use_ipc", [False, True], ids=["bundled", "subprocess"])
 @pytest.mark.parametrize("outcome", ["reply", "cancelled", "empty"])
 def test_chat_activity_log_records_accepted_exchange(monkeypatch, capsys, use_ipc, outcome):
-    from jarvis.utils.redact import redact, scrub_secrets
+    from atlas.utils.redact import redact, scrub_secrets
 
     _reset_daemon_globals()
     _install_dialogue_memory(cfg=object(), db=object())
@@ -827,7 +827,7 @@ def test_chat_activity_log_records_accepted_exchange(monkeypatch, capsys, use_ip
             daemon.cancel_active_chat_query()
         return None if outcome == "empty" else reply
 
-    monkeypatch.setattr("jarvis.reply.engine.run_reply_engine", engine)
+    monkeypatch.setattr("atlas.reply.engine.run_reply_engine", engine)
     daemon.submit_text_query(
         query, use_ipc=use_ipc,
         on_complete=lambda result: finished.set(),
@@ -835,7 +835,7 @@ def test_chat_activity_log_records_accepted_exchange(monkeypatch, capsys, use_ip
     try:
         assert finished.wait(5)
         for worker in threading.enumerate():
-            if worker.name == "jarvis-chat-query":
+            if worker.name == "atlas-chat-query":
                 worker.join(timeout=5)
                 assert not worker.is_alive()
         output = capsys.readouterr().out
@@ -846,7 +846,7 @@ def test_chat_activity_log_records_accepted_exchange(monkeypatch, capsys, use_ip
         assert "alice@example.org" not in activity
         assert "bob@example.org" not in activity
         if outcome == "reply":
-            assert activity.count("🤖 Jarvis") == 1
+            assert activity.count("🤖 ATLAS") == 1
             assert "\n".join("  " + line for line in scrub_secrets(reply).splitlines()) in activity
         else:
             assert "🤖 Jarvis" not in activity

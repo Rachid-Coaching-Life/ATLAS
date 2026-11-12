@@ -5,11 +5,11 @@ from typing import Any, Dict, List, Optional
 
 import pytest
 
-# Robustly locate repository root (directory containing src/jarvis)
+# Robustly locate repository root (directory containing src/atlas)
 _this_file = Path(__file__).resolve()
 ROOT = None
 for parent in _this_file.parents:
-    if (parent / "src" / "jarvis").exists():
+    if (parent / "src" / "atlas").exists():
         ROOT = parent
         break
 if ROOT is None:
@@ -20,12 +20,12 @@ SRC = ROOT / "src"
 # Repository imports expose test helpers; SRC matches the installed package layout.
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-# Import Jarvis through its production package name.
+# Import ATLAS through its production package name.
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 
-from jarvis.config import get_default_config
+from atlas.config import get_default_config
 
 
 @dataclass
@@ -41,7 +41,7 @@ class MockConfig:
     # branch get the legacy alias promoted into ``llm_chat_model`` by
     # ``__post_init__`` — same shape ``load_settings()`` produces.
     llm_chat_model: str = ""
-    wake_word: str = "jarvis"
+    wake_word: str = "atlas"
     wake_aliases: list = field(default_factory=list)
     whisper_model: str = "small"
     embedding_provider: str = ""
@@ -109,8 +109,25 @@ class MockConfig:
 @pytest.fixture(autouse=True)
 def _isolate_user_config_path(tmp_path_factory, monkeypatch):
     """Select a temporary configuration for every runtime and desktop reader."""
-    sandbox = tmp_path_factory.mktemp("jarvis_config_sandbox")
-    monkeypatch.setenv("JARVIS_CONFIG_PATH", str(sandbox / "config.json"))
+    sandbox = tmp_path_factory.mktemp("atlas_config_sandbox")
+    monkeypatch.setenv("ATLAS_CONFIG_PATH", str(sandbox / "config.json"))
+
+
+@pytest.fixture(autouse=True)
+def _approve_sensitive_tools_for_behavioural_tests():
+    """Run existing behavioural tests as if the user had confirmed every action.
+
+    In production the confirmation gate refuses sensitive tools unless a human
+    approves (see ``atlas.tools.confirmation``). Most tests exercise the
+    tools themselves, not the gate, so they get an approving provider. The
+    gate's own tests (``test_confirmation_*``) install their own provider,
+    which replaces this one.
+    """
+    from atlas.tools import confirmation
+
+    confirmation.set_provider(lambda _request: True)
+    yield
+    confirmation.set_provider(None)
 
 
 @pytest.fixture
@@ -122,19 +139,19 @@ def mock_config():
 @pytest.fixture(autouse=True)
 def _isolate_dictation_history_path(tmp_path, monkeypatch):
     """Default-history consumers share this test's private storage boundary."""
-    from jarvis.dictation import paths
+    from atlas.dictation import paths
 
     monkeypatch.setattr(paths, "default_history_path", lambda: tmp_path / "default-history.json")
 
 
 @pytest.fixture(scope="session")
 def runtime_temp_root(tmp_path_factory):
-    return tmp_path_factory.mktemp("jarvis_runtime_sandbox")
+    return tmp_path_factory.mktemp("atlas_runtime_sandbox")
 
 
 @pytest.fixture(autouse=True)
 def _isolate_runtime_tempfiles(runtime_temp_root, monkeypatch):
-    """Keep temporary IPC state separate from a running user's Jarvis instance."""
+    """Keep temporary IPC state separate from a running user's ATLAS instance."""
     import tempfile
     monkeypatch.setattr(tempfile, "tempdir", str(runtime_temp_root))
     for variable in ("TMPDIR", "TEMP", "TMP"):
@@ -156,7 +173,7 @@ def desktop_log_home(tmp_path, monkeypatch):
 @pytest.fixture
 def db():
     """Provide an in-memory database for unit tests."""
-    from jarvis.memory.db import Database
+    from atlas.memory.db import Database
     database = Database(":memory:", sqlite_vss_path=None)
     yield database
     database.close()
@@ -165,7 +182,7 @@ def db():
 @pytest.fixture
 def dialogue_memory():
     """Provide a dialogue memory instance for unit tests."""
-    from jarvis.memory.conversation import DialogueMemory
+    from atlas.memory.conversation import DialogueMemory
     return DialogueMemory(inactivity_timeout=300, max_interactions=20)
 
 
@@ -209,7 +226,7 @@ def qapp(_qapplication):
 @pytest.fixture(autouse=True)
 def _isolate_daemon_lock(tmp_path, monkeypatch):
     """Daemon entry-point tests must not contend with the user's runtime."""
-    monkeypatch.setenv("JARVIS_DAEMON_LOCK", str(tmp_path / "jarvis_daemon.lock"))
+    monkeypatch.setenv("ATLAS_DAEMON_LOCK", str(tmp_path / "atlas_daemon.lock"))
 
 
 @pytest.fixture
@@ -330,7 +347,7 @@ def settings_config_path(qapp, tmp_path, monkeypatch):
 
     path = tmp_path / "config.json"
     path.write_text("{}", encoding="utf-8")
-    monkeypatch.setenv("JARVIS_CONFIG_PATH", str(path))
+    monkeypatch.setenv("ATLAS_CONFIG_PATH", str(path))
     monkeypatch.setattr(sw, "get_input_devices", lambda: [("", "Default"), ("7", "Microphone")])
     monkeypatch.setattr(sw.QMessageBox, "information", lambda *args: None)
     return path
@@ -340,7 +357,7 @@ def settings_config_path(qapp, tmp_path, monkeypatch):
 def silent_thinking_tunes(monkeypatch):
     """Exercise real cue workers against owned output streams and drain them."""
     import sounddevice
-    from jarvis.output import tune_player
+    from atlas.output import tune_player
 
     players = []
     streams = []
@@ -385,12 +402,12 @@ def make_speech_backend(monkeypatch, tmp_path):
     from types import ModuleType, SimpleNamespace
     import numpy as np
     import sounddevice
-    from jarvis import activity
+    from atlas import activity
 
-    monkeypatch.setattr(activity, '_get_jarvis_state_file', lambda: str(tmp_path / 'owned-speech-state'))
-    state = activity.JarvisStateManager()
-    state.set_state(activity.JarvisState.IDLE)
-    monkeypatch.setattr(activity, '_jarvis_state_instance', state)
+    monkeypatch.setattr(activity, '_get_atlas_state_file', lambda: str(tmp_path / 'owned-speech-state'))
+    state = activity.AtlasStateManager()
+    state.set_state(activity.AtlasState.IDLE)
+    monkeypatch.setattr(activity, '_atlas_state_instance', state)
     engines = []
 
     def create(backend):

@@ -3,8 +3,8 @@ import json
 
 import pytest
 
-from jarvis.memory import graph_ops
-from jarvis.memory.graph import GraphMemoryStore, SPLIT_THRESHOLD
+from atlas.memory import graph_ops
+from atlas.memory.graph import GraphMemoryStore, SPLIT_THRESHOLD
 
 pytestmark = pytest.mark.unit
 
@@ -100,7 +100,7 @@ def test_split_preserves_edits_outside_model_inputs(stores, monkeypatch, change)
 
 def test_mutation_readers_only_observe_committed_complete_splits(stores, monkeypatch):
     from contextlib import closing
-    from jarvis.memory.graph import register_graph_mutation_listener, unregister_graph_mutation_listener
+    from atlas.memory.graph import register_graph_mutation_listener, unregister_graph_mutation_listener
 
     store, _ = stores
     node = large_node(store)

@@ -1,5 +1,6 @@
 """Regression checks for the installed ATLAS face image and its Qt host."""
 
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
@@ -7,6 +8,70 @@ import pytest
 ASSET = Path(__file__).resolve().parents[1] / (
     "src/desktop_app/desktop_assets/atlas_portrait.png"
 )
+
+# Provisional technical baseline only, not a definitive approved visual reference.
+# A deliberate asset replacement requires explicit review of this fingerprint.
+PROVISIONAL_PORTRAIT_SHA256 = (
+    "22850edeed26c147d4508790616b383dde516289aae7c765990f3d237193e59f"
+)
+
+
+@pytest.mark.unit
+def test_atlas_portrait_matches_provisional_technical_fingerprint():
+    assert sha256(ASSET.read_bytes()).hexdigest() == PROVISIONAL_PORTRAIT_SHA256, (
+        "Portrait PNG bytes differ from the provisional technical baseline; "
+        "review the asset change explicitly. This baseline is not visual approval."
+    )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "canvas_size", [(240, 280), (400, 240), None],
+    ids=["tall-canvas", "wide-canvas", "source-size"],
+)
+def test_neutral_portrait_matches_source_without_destructive_changes(qapp, canvas_size):
+    """Neutral pixels equal a centred, uniformly scaled source, including alpha."""
+    from PyQt6.QtCore import QRectF
+    from PyQt6.QtGui import QImage, QPainter, QPixmap
+    from desktop_app.face_widget import FaceWidget
+
+    original_bytes = ASSET.read_bytes()
+    source = QPixmap(str(ASSET))
+    assert not source.isNull()
+    width, height = canvas_size or (source.width(), source.height())
+    image_format = QImage.Format.Format_ARGB32_Premultiplied
+    source_pixels = source.toImage().convertToFormat(image_format)
+
+    # Build the reference independently of FaceWidget's bounds and cached image.
+    scale = min(width / source.width(), height / source.height())
+    scaled_width, scaled_height = source.width() * scale, source.height() * scale
+    target = QRectF((width - scaled_width) / 2, (height - scaled_height) / 2,
+                    scaled_width, scaled_height)
+    expected = QImage(width, height, image_format)
+    expected.fill(0)
+    painter = QPainter(expected)
+    try:
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        painter.drawPixmap(target, source, QRectF(source.rect()))
+    finally:
+        painter.end()
+
+    face = FaceWidget()
+    try:
+        face.resize(width, height)
+        # Keep the neutral state independent of animation time and event delivery.
+        face._animation_timer.stop()
+        face._elapsed = 1.37
+        actual = QImage(width, height, image_format)
+        actual.fill(0)
+        face.render(actual)
+
+        assert actual == expected
+        assert face._portrait.toImage().convertToFormat(image_format) == source_pixels
+        assert ASSET.read_bytes() == original_bytes
+    finally:
+        face.close()
 
 
 @pytest.mark.unit
@@ -131,17 +196,17 @@ def test_portrait_lips_move_only_during_speaking(qapp):
 def test_portrait_speaking_animation_uses_real_shared_state(qapp, monkeypatch):
     """Qt's timer must react to the real shared SPEAKING state."""
     from types import SimpleNamespace
-    from jarvis.activity import JarvisState
+    from atlas.activity import AtlasState
     from desktop_app.face_widget import FaceWidget
 
     face = FaceWidget()
     try:
-        face._state_manager = SimpleNamespace(state=JarvisState.SPEAKING)
+        face._state_manager = SimpleNamespace(state=AtlasState.SPEAKING)
         face._last_frame_at -= 0.5
         face._animate()
         assert face._speaking > 0.8
 
-        face._state_manager.state = JarvisState.IDLE
+        face._state_manager.state = AtlasState.IDLE
         face._last_frame_at -= 0.5
         face._animate()
         assert face._speaking < 0.2
@@ -157,9 +222,9 @@ def test_portrait_lips_follow_real_pcm_level_not_timer(qapp, monkeypatch):
 
     face = face_module.FaceWidget()
     face.resize(240, 280)
-    from jarvis.activity import JarvisState
+    from atlas.activity import AtlasState
     face._speaking = 1.0
-    face._jarvis_state = JarvisState.SPEAKING
+    face._atlas_state = AtlasState.SPEAKING
     face._mouth_envelope = {"started_at": 123.0, "frame_ms": 40, "levels": [0, 100, 0]}
 
     def frame():
@@ -178,7 +243,7 @@ def test_portrait_lips_follow_real_pcm_level_not_timer(qapp, monkeypatch):
         assert silent_frame != voiced_frame
         monkeypatch.setattr(face_module, "envelope_level", lambda data: 0.0)
         assert frame() == silent_frame
-        face._jarvis_state = JarvisState.IDLE
+        face._atlas_state = AtlasState.IDLE
         monkeypatch.setattr(face_module, "envelope_level", lambda data: 1.0)
         assert frame() == silent_frame  # no ghost articulation after playback
     finally:

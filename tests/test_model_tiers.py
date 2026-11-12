@@ -5,8 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis.config import DEFAULT_FAST_MODEL, load_settings
-from jarvis.llm import resolve_model, Tier
+from atlas.config import DEFAULT_FAST_MODEL, load_settings
+from atlas.llm import resolve_model, Tier
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 
@@ -14,7 +14,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 def _load_settings_from(tmp_path, monkeypatch, values, version=2):
     path = tmp_path / "config.json"
     path.write_text(json.dumps({"_config_version": version, **values}))
-    monkeypatch.setenv("JARVIS_CONFIG_PATH", str(path))
+    monkeypatch.setenv("ATLAS_CONFIG_PATH", str(path))
     return load_settings(), path
 
 

@@ -29,8 +29,8 @@ collect=COLLECT(exe,a.binaries,a.datas,name='mlx-probe')
                     str(spec)],check=True,capture_output=True,text=True,timeout=600)
     env={**os.environ,'HF_HUB_OFFLINE':'1'}
     arguments=[str(tmp_path/'dist'/'mlx-probe'/'mlx-probe')]
-    model=os.environ.get('JARVIS_MLX_SMOKE_MODEL')
-    audio=os.environ.get('JARVIS_MLX_SMOKE_AUDIO')
+    model=os.environ.get('ATLAS_MLX_SMOKE_MODEL')
+    audio=os.environ.get('ATLAS_MLX_SMOKE_AUDIO')
     if model and audio:
         arguments += [model,audio]
     result=subprocess.run(arguments,

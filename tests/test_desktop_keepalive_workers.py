@@ -158,7 +158,7 @@ def _run_scenario(tmp_path) -> str:
     runtime = tmp_path/'runtime'
     runtime.mkdir()
     env = dict(os.environ, QT_QPA_PLATFORM="offscreen", PYTHONDONTWRITEBYTECODE="1",
-               JARVIS_CONFIG_PATH=str(tmp_path/'data/config.json'),
+               ATLAS_CONFIG_PATH=str(tmp_path/'data/config.json'),
                XDG_CONFIG_HOME=str(tmp_path/'data/xdg'), XDG_CACHE_HOME=str(runtime/'cache'),
                TMPDIR=str(runtime), TEMP=str(runtime), TMP=str(runtime))
     scenario_path = tmp_path/"scenario.py"

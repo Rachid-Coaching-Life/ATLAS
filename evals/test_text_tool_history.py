@@ -7,10 +7,10 @@ import pytest
 
 from evals.conftest import requires_judge_llm
 from evals.helpers import voice_config
-from jarvis.memory.conversation import DialogueMemory
-from jarvis.memory.db import Database
-from jarvis.reply import engine
-from jarvis.tools.types import ToolExecutionResult
+from atlas.memory.conversation import DialogueMemory
+from atlas.memory.db import Database
+from atlas.reply import engine
+from atlas.tools.types import ToolExecutionResult
 
 pytestmark = [pytest.mark.eval, requires_judge_llm]
 

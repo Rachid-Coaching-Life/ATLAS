@@ -3,7 +3,7 @@
 from contextlib import closing
 import sqlite3
 import pytest
-from jarvis.memory.db import Database
+from atlas.memory.db import Database
 
 @pytest.mark.unit
 @pytest.mark.parametrize("stage", ["vector", "schema"])
@@ -22,7 +22,7 @@ def test_failed_initialisation_closes_diary_connection(tmp_path, monkeypatch, st
         raise failure('Synthetic diary initialisation failure')
     monkeypatch.setattr(sqlite3, 'connect', track_connect)
     if stage == 'vector':
-        monkeypatch.setattr('jarvis.utils.vector_store.get_best_vector_store', unavailable_index)
+        monkeypatch.setattr('atlas.utils.vector_store.get_best_vector_store', unavailable_index)
     else:
         def failed_schema(self):
             self.conn.execute('BEGIN IMMEDIATE')

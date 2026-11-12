@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from jarvis.reply import prompt_dump
+from atlas.reply import prompt_dump
 
 pytestmark = pytest.mark.unit
 
@@ -25,7 +25,7 @@ def tmp_home(tmp_path, monkeypatch):
 
 class TestGating:
     def test_disabled_by_default(self, tmp_home, monkeypatch):
-        monkeypatch.delenv("JARVIS_DUMP_PROMPTS", raising=False)
+        monkeypatch.delenv("ATLAS_DUMP_PROMPTS", raising=False)
         result = prompt_dump.dump_reply_turn(
             session_id="abc12345",
             turn=1,
@@ -37,22 +37,22 @@ class TestGating:
         )
         assert result is None
         # No files created.
-        assert not (tmp_home / ".local" / "share" / "jarvis" / "prompts").exists()
+        assert not (tmp_home / ".local" / "share" / "atlas" / "prompts").exists()
 
     @pytest.mark.parametrize("value", ["1", "true", "YES", "on"])
     def test_enabled_by_truthy_env_values(self, tmp_home, monkeypatch, value):
-        monkeypatch.setenv("JARVIS_DUMP_PROMPTS", value)
+        monkeypatch.setenv("ATLAS_DUMP_PROMPTS", value)
         assert prompt_dump.is_enabled()
 
     @pytest.mark.parametrize("value", ["", "0", "false", "no"])
     def test_disabled_by_falsy_env_values(self, tmp_home, monkeypatch, value):
-        monkeypatch.setenv("JARVIS_DUMP_PROMPTS", value)
+        monkeypatch.setenv("ATLAS_DUMP_PROMPTS", value)
         assert not prompt_dump.is_enabled()
 
 
 class TestDumpContents:
     def test_writes_full_payload(self, tmp_home, monkeypatch, capsys):
-        monkeypatch.setenv("JARVIS_DUMP_PROMPTS", "1")
+        monkeypatch.setenv("ATLAS_DUMP_PROMPTS", "1")
         messages = [
             {"role": "system", "content": "SYS"},
             {"role": "user", "content": "Tell me about Possessor"},
@@ -70,7 +70,7 @@ class TestDumpContents:
         )
         assert path is not None
         assert path.exists()
-        assert path.parent == tmp_home / ".local" / "share" / "jarvis" / "prompts"
+        assert path.parent == tmp_home / ".local" / "share" / "atlas" / "prompts"
         assert "deadbeef" in path.name
         assert "t02" in path.name
 
@@ -95,7 +95,7 @@ class TestDumpContents:
     def test_dump_failure_is_swallowed(self, tmp_home, monkeypatch):
         """A broken serialiser must not propagate — prompts dump is a
         diagnostic aid, never a hard dependency of reply generation."""
-        monkeypatch.setenv("JARVIS_DUMP_PROMPTS", "1")
+        monkeypatch.setenv("ATLAS_DUMP_PROMPTS", "1")
 
         class Unserialisable:
             def __repr__(self):
@@ -122,15 +122,15 @@ import json, os, stat, sys, time
 root = Path(sys.argv[1])
 config = root / 'private-config.json'
 config.write_text(json.dumps({'_config_version': 3, 'db_path': str(root/'synthetic.sqlite'), 'voice_debug': False}))
-os.environ['JARVIS_CONFIG_PATH'] = str(config)
-os.environ['JARVIS_DUMP_PROMPTS'] = '1'
-from jarvis.reply import prompt_dump
+os.environ['ATLAS_CONFIG_PATH'] = str(config)
+os.environ['ATLAS_DUMP_PROMPTS'] = '1'
+from atlas.reply import prompt_dump
 owned_path = MagicMock(wraps=Path)
 owned_path.home.return_value = root
 prompt_dump.Path = owned_path
 prompt_dump.time = SimpleNamespace(time=time.time, strftime=lambda fmt: 'fixed')
 os.umask(0o022)
-target = root/'.local/share/jarvis/prompts/turn-fixed-fixture-t01.json'
+target = root/'.local/share/atlas/prompts/turn-fixed-fixture-t01.json'
 if sys.argv[2] == 'existing':
     target.parent.mkdir(parents=True)
     target.write_text('Retained old diagnostic')
@@ -150,7 +150,7 @@ print('DIAG_RESULT:' + json.dumps({'mode': stat.S_IMODE(path.stat().st_mode), 'd
 
 
 def test_failed_serialisation_preserves_saved_diagnostics_and_private_errors(tmp_home, monkeypatch):
-    monkeypatch.setenv("JARVIS_DUMP_PROMPTS", "1")
+    monkeypatch.setenv("ATLAS_DUMP_PROMPTS", "1")
     from types import SimpleNamespace
     import time
     monkeypatch.setattr(prompt_dump, "time", SimpleNamespace(time=time.time, strftime=lambda fmt: "fixed"))
@@ -174,7 +174,7 @@ def test_failed_serialisation_preserves_saved_diagnostics_and_private_errors(tmp
 
 
 def test_failed_publication_preserves_saved_diagnostics_and_cleans_temporary_files(tmp_home, monkeypatch):
-    monkeypatch.setenv("JARVIS_DUMP_PROMPTS", "1")
+    monkeypatch.setenv("ATLAS_DUMP_PROMPTS", "1")
     from types import SimpleNamespace
     import time
     monkeypatch.setattr(prompt_dump, "time", SimpleNamespace(time=time.time, strftime=lambda fmt: "fixed"))

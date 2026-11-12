@@ -2,10 +2,10 @@
 
 The persona should match the user's configured wake word so renaming the
 wake word to e.g. "Friday" produces a butler named Friday, not one still
-hardcoded to Jarvis.
+hardcoded to ATLAS.
 """
 
-from jarvis.system_prompt import build_system_prompt
+from atlas.system_prompt import build_system_prompt
 
 
 class TestBuildSystemPrompt:
@@ -13,7 +13,7 @@ class TestBuildSystemPrompt:
         prompt = build_system_prompt()
         assert "named ATLAS" in prompt
 
-    def test_custom_name_replaces_jarvis(self):
+    def test_custom_name_replaces_atlas(self):
         prompt = build_system_prompt("Friday")
         assert "named Friday" in prompt
         assert "named Jarvis" not in prompt

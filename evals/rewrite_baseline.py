@@ -6,8 +6,8 @@ results. Runtime intent classification does not import this evaluation module.
 from dataclasses import dataclass
 import json
 from typing import List, Optional
-from jarvis.listening.transcript_buffer import TranscriptSegment
-from jarvis.listening.intent_judge import IntentJudge, _extract_json_object
+from atlas.listening.transcript_buffer import TranscriptSegment
+from atlas.listening.intent_judge import IntentJudge, _extract_json_object
 
 @dataclass
 class BaselineJudgment:
@@ -24,14 +24,14 @@ Two modes:
 
 WAKE WORD MODE:
 - Extract complete query from segment containing "{name}" — may be a question, plain declarative statement (e.g. "{name} I just ate a burger", "{name} I'm tired"), or command/imperative (e.g. "set a timer", "remind me to...", "play music"). All are valid directed queries; never mark a wake-worded segment "not directed" just because it's a statement rather than a question/command.
-- CRITICAL: The wake word "{name}" is addressed TO the assistant, never part of the query content. Remove every occurrence of "{name}" from the extracted query, whether it appears at the start, end, or middle of the sentence — including when it sits next to a named entity (e.g. "movie called Possessor Jarvis" → the film is "Possessor", not "Possessor Jarvis"). Exception: keep "{name}" only if the user is literally talking ABOUT the assistant as a subject ("tell me about Jarvis") rather than addressing it.
+- CRITICAL: The wake word "{name}" is addressed TO the assistant, never part of the query content. Remove every occurrence of "{name}" from the extracted query, whether it appears at the start, end, or middle of the sentence — including when it sits next to a named entity (e.g. "movie called Possessor ATLAS" → the film is "Possessor", not "Possessor ATLAS"). Exception: keep "{name}" only if the user is literally talking ABOUT the assistant as a subject ("tell me about ATLAS") rather than addressing it.
 - If current segment contains a vague ref ("that", "it", "this", "they") OR a topic-less question whose answer needs a subject not in the current segment ("what do you think", "how much does it cost", "what's the price", "is it worth it", "when did it come out", "what do you recommend") — NAME the topic from earlier segments inside the query string. Do NOT output the vague/open form literally.
 - When earlier segments cover multiple unrelated topics, pick the one whose subject fits the question's grammar (e.g. "what's the price" -> a purchasable thing, not a sports game). Ignore unrelated threads.
-- Example: "I made carbonara" + "Jarvis find recipe for that" -> "find recipe for carbonara"
-- Example: "the weather will be nice tomorrow" + "Jarvis what do you think" -> "what do you think about the weather tomorrow"
-- Example: "the new iPhone is cool" + "Jarvis how much does it cost" -> "how much does the iPhone cost"
-- Example: "the AirPods sound great" + "Jarvis how much do they cost" -> "how much do the AirPods cost". NOT "how much do they cost" — pronoun MUST be replaced with the named topic in the output query even if you resolved it correctly in your reasoning.
-- Example: "did you catch the ball game" + "the new iPhone is out" + "I want the pro model" + "Jarvis what's the price" -> "what's the price of the iPhone pro model". NOT "what's the price of the pro model" (which pro model? ambiguous) — always prepend the brand/parent from earlier segments.
+- Example: "I made carbonara" + "ATLAS find recipe for that" -> "find recipe for carbonara"
+- Example: "the weather will be nice tomorrow" + "ATLAS what do you think" -> "what do you think about the weather tomorrow"
+- Example: "the new iPhone is cool" + "ATLAS how much does it cost" -> "how much does the iPhone cost"
+- Example: "the AirPods sound great" + "ATLAS how much do they cost" -> "how much do the AirPods cost". NOT "how much do they cost" — pronoun MUST be replaced with the named topic in the output query even if you resolved it correctly in your reasoning.
+- Example: "did you catch the ball game" + "the new iPhone is out" + "I want the pro model" + "ATLAS what's the price" -> "what's the price of the iPhone pro model". NOT "what's the price of the pro model" (which pro model? ambiguous) — always prepend the brand/parent from earlier segments.
 - If standalone imperative command ("answer that", "respond to that", "reply to that", "address that", "answer my question", "go ahead and answer") NOT a question -> re-issue prior question
   Variants: "answered that", "answers that", "answering that" = same imperative (Whisper tense errors)
   Exception: If segment has BOTH imperative + new question -> new question wins
@@ -65,20 +65,20 @@ Output JSON only:
 {{"directed": true/false, "query": "...", "stop": true/false, "confidence": "high/medium/low", "reasoning": "brief"}}
 
 Examples:
-- "Jarvis what time is it" -> {{"directed": true, "query": "what time is it", "stop": false, "confidence": "high", "reasoning": "wake word + question"}}
-- "what do you know about the movie called Possessor Jarvis" -> {{"directed": true, "query": "what do you know about the movie called Possessor", "stop": false, "confidence": "high", "reasoning": "wake word at end; entity is Possessor, not Possessor Jarvis"}}
-- "I just ate a big Mac Jarvis" -> {{"directed": true, "query": "I just ate a big Mac", "stop": false, "confidence": "high", "reasoning": "wake word at end; 'Mac' is part of the brand name 'Big Mac', not a compound surname with Jarvis"}}
-- "hey Jarvis what's the weather in London" -> {{"directed": true, "query": "what's the weather in London", "stop": false, "confidence": "high", "reasoning": "wake word removed from mid-sentence position"}}
-- "Jarvis say something please" -> {{"directed": true, "query": "say something please", "stop": false, "confidence": "high", "reasoning": "self-contained imperative"}}
-- "Jarvis tell me a joke" -> {{"directed": true, "query": "tell me a joke", "stop": false, "confidence": "high", "reasoning": "self-contained imperative"}}
-- Previous "dinosaurs are cool" + Current "Jarvis what do you think about that" -> {{"directed": true, "query": "what do you think about dinosaurs being cool", "stop": false, "confidence": "high", "reasoning": "resolved 'that' to dinosaurs"}}
-- Previous "How's the weather?" + Current "Jarvis answer that" -> {{"directed": true, "query": "how is the weather", "stop": false, "confidence": "high", "reasoning": "imperative -> re-issue prior question"}}
-- Previous "How tall is Mount Everest" + Noise "some unrelated chatter" + Current "Jarvis answer that" -> {{"directed": true, "query": "how tall is Mount Everest", "stop": false, "confidence": "high", "reasoning": "imperative -> re-issue prior QUESTION; ignore the chatter segment, re-issue the original question even when noise sits between"}}
-- Previous "What's the capital of Portugal" + Current "Jarvis go ahead and answer" -> {{"directed": true, "query": "what is the capital of Portugal", "stop": false, "confidence": "high", "reasoning": "multi-word imperative ('go ahead and answer') is the same pattern as 'answer that' -> re-issue prior question; do NOT pass the imperative through literally"}}
+- "ATLAS what time is it" -> {{"directed": true, "query": "what time is it", "stop": false, "confidence": "high", "reasoning": "wake word + question"}}
+- "what do you know about the movie called Possessor ATLAS" -> {{"directed": true, "query": "what do you know about the movie called Possessor", "stop": false, "confidence": "high", "reasoning": "wake word at end; entity is Possessor, not Possessor ATLAS"}}
+- "I just ate a big Mac ATLAS" -> {{"directed": true, "query": "I just ate a big Mac", "stop": false, "confidence": "high", "reasoning": "wake word at end; 'Mac' is part of the brand name 'Big Mac', not a compound surname with ATLAS"}}
+- "hey ATLAS what's the weather in London" -> {{"directed": true, "query": "what's the weather in London", "stop": false, "confidence": "high", "reasoning": "wake word removed from mid-sentence position"}}
+- "ATLAS say something please" -> {{"directed": true, "query": "say something please", "stop": false, "confidence": "high", "reasoning": "self-contained imperative"}}
+- "ATLAS tell me a joke" -> {{"directed": true, "query": "tell me a joke", "stop": false, "confidence": "high", "reasoning": "self-contained imperative"}}
+- Previous "dinosaurs are cool" + Current "ATLAS what do you think about that" -> {{"directed": true, "query": "what do you think about dinosaurs being cool", "stop": false, "confidence": "high", "reasoning": "resolved 'that' to dinosaurs"}}
+- Previous "How's the weather?" + Current "ATLAS answer that" -> {{"directed": true, "query": "how is the weather", "stop": false, "confidence": "high", "reasoning": "imperative -> re-issue prior question"}}
+- Previous "How tall is Mount Everest" + Noise "some unrelated chatter" + Current "ATLAS answer that" -> {{"directed": true, "query": "how tall is Mount Everest", "stop": false, "confidence": "high", "reasoning": "imperative -> re-issue prior QUESTION; ignore the chatter segment, re-issue the original question even when noise sits between"}}
+- Previous "What's the capital of Portugal" + Current "ATLAS go ahead and answer" -> {{"directed": true, "query": "what is the capital of Portugal", "stop": false, "confidence": "high", "reasoning": "multi-word imperative ('go ahead and answer') is the same pattern as 'answer that' -> re-issue prior question; do NOT pass the imperative through literally"}}
 - Hot window, user says "I think absurdism is better" -> {{"directed": true, "query": "I think absurdism is better", "stop": false, "confidence": "high", "reasoning": "user statement in hot window"}}
 - "(during TTS)" segments only -> {{"directed": false, "query": "", "stop": false, "confidence": "high", "reasoning": "only echo"}}
 - "stop" -> {{"directed": true, "query": "", "stop": true, "confidence": "high", "reasoning": "stop command"}}
-- "Yeah, the light is very bright but the heat isn't too bad this week honestly Jarvis" -> {{"directed": true, "query": "Yeah, the light is very bright but the heat isn't too bad this week honestly", "stop": false, "confidence": "high", "reasoning": "wake word + statement about weather — directed"}}
+- "Yeah, the light is very bright but the heat isn't too bad this week honestly ATLAS" -> {{"directed": true, "query": "Yeah, the light is very bright but the heat isn't too bad this week honestly", "stop": false, "confidence": "high", "reasoning": "wake word + statement about weather — directed"}}
 - No wake word, not hot window -> {{"directed": false, "query": "", "stop": false, "confidence": "high", "reasoning": "no wake word"}}"""
 
     def _build_system_prompt(self, in_hot_window: bool) -> str:

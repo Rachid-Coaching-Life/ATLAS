@@ -21,10 +21,10 @@ from unittest.mock import patch
 
 import requests
 
-from jarvis.debug import debug_log
-from jarvis.listening.intent_judge import IntentJudge, IntentJudgeConfig
+from atlas.debug import debug_log
+from atlas.listening.intent_judge import IntentJudge, IntentJudgeConfig
 from evals.rewrite_baseline import RewriteBaselineJudge
-from jarvis.listening.transcript_buffer import TranscriptSegment
+from atlas.listening.transcript_buffer import TranscriptSegment
 
 from evals.helpers import is_fallback_reply, is_max_turns_digest
 
@@ -33,9 +33,9 @@ ARMS = ("rewrite", "raw_only", "raw_context")
 
 def comparison_settings(base_url: str, model: str, *, fast_model: str = "", api_key: str = "", provider: str = "openai_compatible"):
     """Construct isolated production Settings without changing the user's config."""
-    from jarvis.config import load_settings
+    from atlas.config import load_settings
     RequestRecorder(base_url, no_thinking=True, provider=provider)
-    with tempfile.TemporaryDirectory(prefix="jarvis-query-comparison-") as directory:
+    with tempfile.TemporaryDirectory(prefix="atlas-query-comparison-") as directory:
         path = Path(directory) / "config.json"
         path.write_text(json.dumps({
             "llm_provider": provider, "llm_base_url": base_url,
@@ -44,7 +44,7 @@ def comparison_settings(base_url: str, model: str, *, fast_model: str = "", api_
             "db_path": ":memory:", "location_enabled": False,
             "mcps": {}, "tts_enabled": False, "memory_enrichment_source": "diary",
         }))
-        with patch.dict(os.environ, {"JARVIS_CONFIG_PATH": str(path)}):
+        with patch.dict(os.environ, {"ATLAS_CONFIG_PATH": str(path)}):
             cfg = load_settings()
     # Credentials are held in memory and excluded from benchmark files.
     return replace(cfg, llm_api_key=api_key, sqlite_vss_path=None,
@@ -108,14 +108,14 @@ def prepare_query(case: ComparisonCase, arm: str, *, judgment=None) -> tuple[str
         return judgment.query, ""
     if arm == "raw_only":
         return case.transcript[-1][0], ""
-    from jarvis.listening.speech_context import SpeechContext
+    from atlas.listening.speech_context import SpeechContext
     segments, _ = judge_context(case)
     context = SpeechContext.capture(segments, current_text=case.transcript[-1][0], last_tts=case.last_tts)
     return case.transcript[-1][0], context.render()
 
 
 def _arguments_match(case: ComparisonCase, args: dict) -> bool:
-    from jarvis.tools.registry import BUILTIN_TOOLS
+    from atlas.tools.registry import BUILTIN_TOOLS
     if not isinstance(args, dict) or case.expected_tool not in BUILTIN_TOOLS:
         return False
     schema = BUILTIN_TOOLS[case.expected_tool].inputSchema
@@ -334,10 +334,10 @@ class RequestRecorder:
 
 def run_case(case: ComparisonCase, arm: str, repeat: int, cfg, *, no_thinking=True) -> ComparisonResult:
     """Replay the real intent judge and reply engine with synthetic tool data."""
-    from jarvis.memory.conversation import DialogueMemory
-    from jarvis.memory.db import Database
-    from jarvis.reply import engine
-    from jarvis.tools.types import ToolExecutionResult
+    from atlas.memory.conversation import DialogueMemory
+    from atlas.memory.db import Database
+    from atlas.reply import engine
+    from atlas.tools.types import ToolExecutionResult
 
     result = ComparisonResult(case.name, case.category, arm, repeat)
     recorder = RequestRecorder(cfg.llm_base_url, no_thinking=no_thinking, provider=cfg.llm_provider)
@@ -368,12 +368,12 @@ def run_case(case: ComparisonCase, arm: str, repeat: int, cfg, *, no_thinking=Tr
     started = time.monotonic()
     try:
         with contextlib.closing(Database(":memory:", sqlite_vss_path=None)) as db, contextlib.ExitStack() as stack:
-            stack.enter_context(patch("jarvis.llm.http.post", recorder.post))
+            stack.enter_context(patch("atlas.llm.http.post", recorder.post))
             stack.enter_context(patch.object(engine, "select_tools", route))
             stack.enter_context(patch.object(engine, "plan_query", plan))
             stack.enter_context(patch.object(engine, "run_tool_with_retries", tool_run))
             # This replay has no persisted diary entries to retrieve.
-            stack.enter_context(patch("jarvis.memory.conversation.search_conversation_memory_by_keywords", return_value=[]))
+            stack.enter_context(patch("atlas.memory.conversation.search_conversation_memory_by_keywords", return_value=[]))
             # The replay prints one compact result; retain engine output in memory.
             stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
             judgment = None
@@ -393,7 +393,7 @@ def run_case(case: ComparisonCase, arm: str, repeat: int, cfg, *, no_thinking=Tr
             result.query, _ = prepare_query(case, arm, judgment=judgment)
             speech_context = None
             if arm == "raw_context":
-                from jarvis.listening.speech_context import SpeechContext
+                from atlas.listening.speech_context import SpeechContext
                 segments, _ = judge_context(case)
                 speech_context = SpeechContext.capture(segments, current_text=result.query, last_tts=case.last_tts, assistant_names=(cfg.wake_word, *cfg.wake_aliases))
             result.reply = engine.run_reply_engine(db, cfg, None, result.query, memory, quiet=True, speech_context=speech_context) or ""

@@ -7,7 +7,7 @@ import pytest
 
 from desktop_app import app as desktop
 from desktop_app.task_centre import TaskCentreWindow
-from jarvis import daemon
+from atlas import daemon
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 
@@ -59,7 +59,7 @@ def test_retained_history_is_bounded_and_active_tasks_stay_usable(qapp):
 @pytest.mark.parametrize('accepted', [False, True], ids=['rejected', 'accepted'])
 def test_source_submission_waits_for_correlated_admission(qapp, monkeypatch, capsys, accepted):
     wire = io.StringIO()
-    tray = desktop.JarvisSystemTray.__new__(desktop.JarvisSystemTray)
+    tray = desktop.AtlasSystemTray.__new__(desktop.AtlasSystemTray)
     tray.is_bundled = False
     tray.daemon_process = SimpleNamespace(stdin=wire)
     manager = SimpleNamespace(submit=lambda prompt: 'accepted-task') if accepted else None
@@ -187,7 +187,7 @@ def test_large_results_keep_the_window_and_actions_within_the_screen(qapp):
 def test_a_user_can_scroll_to_the_end_of_a_long_result(qapp):
     from PyQt6.QtGui import QKeySequence
     from PyQt6.QtTest import QTest
-    from jarvis.utils.redact import redact
+    from atlas.utils.redact import redact
     result = 'Useful detail for a task result. ' * 250
     view = TaskCentreWindow(lambda *args, **kwargs: None, lambda task: None)
     try:

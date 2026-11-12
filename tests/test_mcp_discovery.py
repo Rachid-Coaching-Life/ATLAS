@@ -1,8 +1,8 @@
 """MCP discovery preserves external names and isolates server failures."""
 
 import pytest
-import jarvis.tools.registry as registry
-from jarvis.tools.registry import discover_mcp_tools, generate_tools_description, generate_tools_json_schema, run_tool_with_retries, ToolExecutionResult
+import atlas.tools.registry as registry
+from atlas.tools.registry import discover_mcp_tools, generate_tools_description, generate_tools_json_schema, run_tool_with_retries, ToolExecutionResult
 
 
 class DummyCfg:
@@ -106,7 +106,7 @@ def test_mcp_tool_execution_new_format(monkeypatch):
             assert arguments == {"path": "/test/file.txt"}
             return {"text": "file contents", "isError": False}
 
-    import jarvis.tools.registry as registry_mod
+    import atlas.tools.registry as registry_mod
     monkeypatch.setattr(registry_mod, "MCPClient", FakeClient)
 
     result = run_tool_with_retries(
@@ -139,7 +139,7 @@ def test_mcp_tool_execution_error_handling(monkeypatch):
         def invoke_tool(self, server_name, tool_name, arguments):
             return {"text": "Permission denied", "isError": True}
 
-    import jarvis.tools.registry as registry_mod
+    import atlas.tools.registry as registry_mod
     monkeypatch.setattr(registry_mod, "MCPClient", FakeClient)
 
     result = run_tool_with_retries(
@@ -195,7 +195,7 @@ def test_mcp_tool_exception_handling(monkeypatch):
         def invoke_tool(self, server_name, tool_name, arguments):
             raise Exception("Connection failed")
 
-    import jarvis.tools.registry as registry_mod
+    import atlas.tools.registry as registry_mod
     monkeypatch.setattr(registry_mod, "MCPClient", FakeClient)
 
     result = run_tool_with_retries(
@@ -216,7 +216,7 @@ def test_mcp_tool_exception_handling(monkeypatch):
 @pytest.mark.unit
 def test_generate_tools_json_schema_returns_openai_format():
     """Test that generate_tools_json_schema returns OpenAI-compatible format for native tool calling."""
-    from jarvis.tools.registry import ToolSpec
+    from atlas.tools.registry import ToolSpec
 
     mcp_tools = {
         "server__read": ToolSpec(

@@ -8,11 +8,11 @@ import pytest
 
 from evals.conftest import requires_judge_llm
 from evals.helpers import voice_config
-from jarvis.llm import get_llm_backend
-from jarvis.memory.graph_ops import format_warm_profile_block
-from jarvis.reply import engine
-from jarvis.system_prompt import build_system_prompt
-from jarvis.utils.time_context import format_time_context
+from atlas.llm import get_llm_backend
+from atlas.memory.graph_ops import format_warm_profile_block
+from atlas.reply import engine
+from atlas.system_prompt import build_system_prompt
+from atlas.utils.time_context import format_time_context
 
 pytestmark = [pytest.mark.eval, requires_judge_llm]
 

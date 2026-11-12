@@ -7,7 +7,7 @@ import pytest
 
 from conftest import requires_judge_llm
 from helpers import voice_config
-from jarvis.llm.openai_compatible import OpenAICompatibleBackend, _normalise_response
+from atlas.llm.openai_compatible import OpenAICompatibleBackend, _normalise_response
 
 pytestmark = [pytest.mark.eval, requires_judge_llm]
 
@@ -15,7 +15,7 @@ pytestmark = [pytest.mark.eval, requires_judge_llm]
 @pytest.fixture(autouse=True)
 def private_runtime_paths(tmp_path, monkeypatch):
     import tempfile
-    monkeypatch.setenv("JARVIS_CONFIG_PATH", str(tmp_path / "config.json"))
+    monkeypatch.setenv("ATLAS_CONFIG_PATH", str(tmp_path / "config.json"))
     monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
     for name in ("TMPDIR", "TEMP", "TMP"):
         monkeypatch.setenv(name, str(tmp_path))

@@ -71,7 +71,7 @@ def builder():
 @pytest.mark.parametrize('base', [
     'https://barissencan.com/jarvis/',
     'https://isair.github.io/jarvis/',
-    'https://jarvis.example.org/',
+    'https://atlas.example.org/',
 ])
 def test_pages_have_readable_content_and_consistent_discovery_metadata(builder, tmp_path, base):
     output = tmp_path / 'site'
@@ -165,7 +165,7 @@ def test_rebuild_updates_all_canonical_urls_and_protects_added_files(builder, tm
     unrelated.write_text('Keep this private fixture unchanged')
     original = (output / 'index.html').read_bytes()
     with pytest.raises(ValueError):
-        builder.build_site(output, base_url='https://jarvis.example.org/')
+        builder.build_site(output, base_url='https://atlas.example.org/')
     assert unrelated.read_text() == 'Keep this private fixture unchanged'
     assert (output / 'index.html').read_bytes() == original
 
@@ -217,11 +217,11 @@ def test_configured_routes_control_navigation_and_install_metadata(builder, monk
     config['pages'][1]['route'] = 'start/'
     config_path.write_text(json.dumps(config))
     monkeypatch.setattr(builder, 'SOURCE', source)
-    base = 'https://example.org/jarvis/'
+    base = 'https://example.org/atlas/'
     output = tmp_path / 'site'
     builder.build_site(output, base_url=base)
     home = Page((output / 'index.html').read_text())
-    assert any(link.get('href') == '/jarvis/start/' for link in home.tags('a'))
+    assert any(link.get('href') == '/atlas/start/' for link in home.tags('a'))
     assert not any('/getting-started/' in link.get('href', '') for link in home.tags('a'))
     assert json.loads(''.join(home.structured))['installUrl'] == base + 'start/'
     assert (output / 'start/index.html').is_file()

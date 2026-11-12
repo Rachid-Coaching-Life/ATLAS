@@ -7,8 +7,8 @@ from types import SimpleNamespace
 import pytest
 
 from desktop_app import memory_viewer
-from jarvis import config
-from jarvis.memory import db as database, graph_ops
+from atlas import config
+from atlas.memory import db as database, graph_ops
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 
@@ -22,8 +22,8 @@ def test_import_releases_diary_connection(tmp_path, mock_config, monkeypatch, ex
     original_database = database.Database
     with closing(original_database(path, sqlite_vss_path=None)) as seed:
         if exit_path != 'empty':
-            seed.upsert_conversation_summary('2026-01-01', 'Synthetic user fact', None, 'jarvis')
-            seed.upsert_conversation_summary('2026-01-02', 'Another synthetic fact', None, 'jarvis')
+            seed.upsert_conversation_summary('2026-01-01', 'Synthetic user fact', None, 'atlas')
+            seed.upsert_conversation_summary('2026-01-02', 'Another synthetic fact', None, 'atlas')
 
     opened = []
 

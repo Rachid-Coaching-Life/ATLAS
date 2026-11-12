@@ -1,10 +1,22 @@
+# Contrat de travail ATLAS
+
+Identité du produit : **ATLAS**. Langue principale : français. Cible : **Windows 11 sur mini-PC GTR7** avec un fonctionnement local.
+
+Conserver l'avatar approuvé du propriétaire : `src/desktop_app/desktop_assets/atlas_portrait.png`. Ne pas le régénérer, le remplacer ou le déformer sans validation explicite.
+
+Respecter `develop-atlas` comme cible d'intégration. Ne pas modifier `main`, Révision-TSSR ni les projets tiers.
+
+Les anciens identifiants internes ne doivent subsister que lorsqu'une compatibilité technique ou une attribution légale l'impose ; ne pas les réintroduire dans l'identité publique du produit.
+
+---
+
 Data privacy comes first, always.
 
-Jarvis is offline-first by principle. Do not add integrations that depend on a specific proprietary cloud vendor (e.g. ElevenLabs TTS, or any SaaS that requires shipping user audio/text/data to a third party's servers), not even as an opt-in feature. The line is the offline path: a backend is acceptable only if it can run fully locally. Generic, self-hostable protocols where the user points at their own endpoint (Ollama, OpenAI-compatible servers, LM Studio) are fine precisely because they can be local; a vendor-locked cloud service with no local option is not. When a feature request asks for such a service, decline it on principle and redirect to the offline equivalent (e.g. better local TTS voices rather than cloud TTS).
+ATLAS is offline-first by principle. Do not add integrations that depend on a specific proprietary cloud vendor (e.g. ElevenLabs TTS, or any SaaS that requires shipping user audio/text/data to a third party's servers), not even as an opt-in feature. The line is the offline path: a backend is acceptable only if it can run fully locally. Generic, self-hostable protocols where the user points at their own endpoint (Ollama, OpenAI-compatible servers, LM Studio) are fine precisely because they can be local; a vendor-locked cloud service with no local option is not. When a feature request asks for such a service, decline it on principle and redirect to the offline equivalent (e.g. better local TTS voices rather than cloud TTS).
 
 All user-facing command line output should make use of emojis. Especially an initial emoji to start off the lines that depict what the line is about. Output should make use of indentation spacing to establish a visual hierarchy and aim to make output as easy to sift through as possible. Exception: Windows .bat scripts cannot use emojis (cmd.exe doesn't render Unicode properly).
 
-Any important point in our logical flows should have debug logs using the `debug_log` method from `src/jarvis/debug.py`. Avoid excessive logging to keep the logs easily readable and actionable.
+Any important point in our logical flows should have debug logs using the `debug_log` method from `src/atlas/debug.py`. Avoid excessive logging to keep the logs easily readable and actionable.
 
 Any code change must either adhere to our spec files perfectly or you should ask the user to confirm changes, which should also propagate to the specs themselves. Spec files follow the \*.spec.md format and live next to the code that implements them. Always search for related spec files before starting any work. When corrected about how something should work, check if there's a spec for it and whether it needs updating.
 
@@ -12,51 +24,51 @@ Any code change must either adhere to our spec files perfectly or you should ask
 
 | Spec file | Covers | Key principles |
 |-----------|--------|----------------|
-| `src/jarvis/config.spec.md` | Shared configuration file selection | One resolver for runtime and desktop reads, writes and navigation |
+| `src/atlas/config.spec.md` | Shared configuration file selection | One resolver for runtime and desktop reads, writes and navigation |
 | `website/website.spec.md` | Public product site, static build, discovery metadata and GitHub Pages publication | Crawlable content, truthful claims, no user stores or third-party tracking |
-| `src/jarvis/activity.spec.md` | Shared assistant activity publication and local observers | Standard-library core; complete atomic file snapshots; no desktop or Qt dependency |
-| `src/desktop_app/desktop_app.spec.md` | System tray app, startup flow, daemon integration, windows, theme, updates | Desktop is separate from core; jarvis has no knowledge of desktop_app |
+| `src/atlas/activity.spec.md` | Shared assistant activity publication and local observers | Standard-library core; complete atomic file snapshots; no desktop or Qt dependency |
+| `src/desktop_app/desktop_app.spec.md` | System tray app, startup flow, daemon integration, windows, theme, updates | Desktop is separate from core; atlas has no knowledge of desktop_app |
 | `src/desktop_app/settings_window.spec.md` | Auto-generated settings UI from config metadata | Metadata-driven; only non-default values written; preserves unknown keys |
 | `src/desktop_app/setup_wizard.spec.md` | First-run wizard (Ollama, models, Whisper, location) | Minimal friction; only shown when user action required; doesn't configure everything |
 | `src/desktop_app/chat_window.spec.md` | Text chat interface alongside voice; shared conversation, no TTS, bundled callbacks + subprocess IPC | One conversation for voice + text; text never speaks; redaction shared with voice path |
-| `src/jarvis/dictation/dictation.spec.md` | Hold-to-dictate engine, hotkey, clipboard paste | Independent from assistant pipeline; shared Whisper model; independent capture pause reason |
-| `src/jarvis/listening/listening.spec.md` | Voice listener, wake word detection, audio pipeline | — |
-| `src/jarvis/output/tune_player.spec.md` | Local thinking-sound generation and playback lifecycle | One owning worker; bounded stop; restart waits for audio teardown |
-| `src/jarvis/reply/reply.spec.md` | LLM reply generation, tool use, profiles | Tools return raw data; profiles handle formatting |
-| `src/jarvis/reply/evaluator.spec.md` | **Deprecated** — evaluator no longer runs in the reply engine; preserved for reference | Replaced by the planner; see planner.spec.md |
-| `src/jarvis/reply/planner.spec.md` | Task-list planner: pre-loop query decomposition + direct-exec step resolver for small models | Fail-open; rides warm small model chain; advisory for large models, direct-exec for small |
-| `src/jarvis/tools/builtin/local_files.spec.md` | Local file operations and listing boundaries | Home-directory confinement; literal UTF-8 content; boolean recursion |
-| `src/jarvis/tools/builtin/tool_search.spec.md` | toolSearchTool escape hatch for mid-loop tool routing | Re-runs the same router; never removes stop/self; capped per reply |
-| `src/jarvis/tools/external/mcp_runtime.spec.md` | Persistent MCP runtime: per-server long-lived stdio session, queue-based dispatch, retry on transient session loss | One worker per server keyed by config; calls to the same server serialise; `MCPServerSessionError` for session-level failures; opt-in `idle_timeout_sec` for stateless servers |
-| `src/jarvis/reply/prompts/prompts.spec.md` | System/user prompt templates | — |
-| `src/jarvis/tools/builtin/web_search.spec.md` | webSearch tool: cascade fetch, SSRF guard, prompt-injection fence, links-only envelope | Untrusted web content is fenced as data, not instructions; rank preference over speed; honest failure over confabulation |
-| `src/jarvis/tools/builtin/fetch_web_page.spec.md` | Supplied-URL page fetching, bounded download, HTML and raw-text extraction | Stream decoded content before parsing; reject oversized pages without partial results |
-| `src/jarvis/tools/builtin/nutrition/log_meal.spec.md` | logMeal tool: single-property schema for planner fast-path, internal nutrition extraction, untrusted-data fence, follow-ups | Public schema is a single optional `meal` string; nutrition fields are internal; user text is fenced as data |
-| `src/jarvis/utils/location.spec.md` | GeoIP location detection | Privacy-first; local GeoLite2 DB only |
-| `src/jarvis/memory/graph.spec.md` | Node graph memory (v2), self-organising tree, UI explorer | Dynamic structure; access-aware; auto-split/merge (future) |
-| `src/jarvis/memory/summariser.spec.md` | Diary summariser prompt contract, hygiene rules (deflection, attribution, topic separation), post-process scrub, and bulk-sweep clean button | Two-layer defence: prompt + deterministic scrub; corrupted summaries poison every downstream consumer |
-| `src/jarvis/memory/recall_gate.spec.md` | Deterministic skip-enrichment heuristic when the hot window covers a follow-up | Fail-open; language-agnostic via `\w{3,}` + `re.UNICODE`; planner intent always wins |
-| `src/jarvis/llm/llm.spec.md` | Pluggable LLM backend abstraction: `LLMBackend` ABC, `OllamaBackend`, `OpenAICompatibleBackend`, factory dispatch on `llm_provider`, `get_embedding_backend` override, config migrations, the two-tier model system (`Tier.FAST` / `Tier.CHAT` via `resolve_model`), function-style helpers | Provider-agnostic interface so Jarvis can run on Ollama or OpenAI-compatible servers (LM Studio / oMLX / llama.cpp / vLLM / LocalAI); every context states its tier instead of defining a model fallback chain |
+| `src/atlas/dictation/dictation.spec.md` | Hold-to-dictate engine, hotkey, clipboard paste | Independent from assistant pipeline; shared Whisper model; independent capture pause reason |
+| `src/atlas/listening/listening.spec.md` | Voice listener, wake word detection, audio pipeline | — |
+| `src/atlas/output/tune_player.spec.md` | Local thinking-sound generation and playback lifecycle | One owning worker; bounded stop; restart waits for audio teardown |
+| `src/atlas/reply/reply.spec.md` | LLM reply generation, tool use, profiles | Tools return raw data; profiles handle formatting |
+| `src/atlas/reply/evaluator.spec.md` | **Deprecated** — evaluator no longer runs in the reply engine; preserved for reference | Replaced by the planner; see planner.spec.md |
+| `src/atlas/reply/planner.spec.md` | Task-list planner: pre-loop query decomposition + direct-exec step resolver for small models | Fail-open; rides warm small model chain; advisory for large models, direct-exec for small |
+| `src/atlas/tools/builtin/local_files.spec.md` | Local file operations and listing boundaries | Home-directory confinement; literal UTF-8 content; boolean recursion |
+| `src/atlas/tools/builtin/tool_search.spec.md` | toolSearchTool escape hatch for mid-loop tool routing | Re-runs the same router; never removes stop/self; capped per reply |
+| `src/atlas/tools/external/mcp_runtime.spec.md` | Persistent MCP runtime: per-server long-lived stdio session, queue-based dispatch, retry on transient session loss | One worker per server keyed by config; calls to the same server serialise; `MCPServerSessionError` for session-level failures; opt-in `idle_timeout_sec` for stateless servers |
+| `src/atlas/reply/prompts/prompts.spec.md` | System/user prompt templates | — |
+| `src/atlas/tools/builtin/web_search.spec.md` | webSearch tool: cascade fetch, SSRF guard, prompt-injection fence, links-only envelope | Untrusted web content is fenced as data, not instructions; rank preference over speed; honest failure over confabulation |
+| `src/atlas/tools/builtin/fetch_web_page.spec.md` | Supplied-URL page fetching, bounded download, HTML and raw-text extraction | Stream decoded content before parsing; reject oversized pages without partial results |
+| `src/atlas/tools/builtin/nutrition/log_meal.spec.md` | logMeal tool: single-property schema for planner fast-path, internal nutrition extraction, untrusted-data fence, follow-ups | Public schema is a single optional `meal` string; nutrition fields are internal; user text is fenced as data |
+| `src/atlas/utils/location.spec.md` | GeoIP location detection | Privacy-first; local GeoLite2 DB only |
+| `src/atlas/memory/graph.spec.md` | Node graph memory (v2), self-organising tree, UI explorer | Dynamic structure; access-aware; auto-split/merge (future) |
+| `src/atlas/memory/summariser.spec.md` | Diary summariser prompt contract, hygiene rules (deflection, attribution, topic separation), post-process scrub, and bulk-sweep clean button | Two-layer defence: prompt + deterministic scrub; corrupted summaries poison every downstream consumer |
+| `src/atlas/memory/recall_gate.spec.md` | Deterministic skip-enrichment heuristic when the hot window covers a follow-up | Fail-open; language-agnostic via `\w{3,}` + `re.UNICODE`; planner intent always wins |
+| `src/atlas/llm/llm.spec.md` | Pluggable LLM backend abstraction: `LLMBackend` ABC, `OllamaBackend`, `OpenAICompatibleBackend`, factory dispatch on `llm_provider`, `get_embedding_backend` override, config migrations, the two-tier model system (`Tier.FAST` / `Tier.CHAT` via `resolve_model`), function-style helpers | Provider-agnostic interface so ATLAS can run on Ollama or OpenAI-compatible servers (LM Studio / oMLX / llama.cpp / vLLM / LocalAI); every context states its tier instead of defining a model fallback chain |
 
 The LLM contexts graph at `docs/llm_contexts.md` maps every LLM call in the app (model, gating, inputs, outputs, limits, flow). Keep it up-to-date at all times: any change that adds, removes, or alters an LLM context (model resolution, timeout, cap, prompt source, gating flag, data-flow edge) must update `docs/llm_contexts.md` in the same PR.
 
 Avoid hardcoded language patterns as this assistant needs to support an arbitrary amount of different languages.
 
-Tools define when/how to be used and return raw data without LLM processing. The unified system prompt in `src/jarvis/system_prompt.py` handles response formatting and personality through the daemon's LLM loop.
+Tools define when/how to be used and return raw data without LLM processing. The unified system prompt in `src/atlas/system_prompt.py` handles response formatting and personality through the daemon's LLM loop.
 
 ## Git Workflow
 
-The default branch is `develop`. All PRs and feature branches must target `develop`, not `main`.
+ATLAS development targets `develop-atlas`. All ATLAS feature branches and PRs must target `develop-atlas`, never `main`. Preserve `main`.
 
 Use [Conventional Commits](https://www.conventionalcommits.org/) for all commit messages and PR titles (e.g. `fix:`, `feat:`, `refactor:`, `docs:`, `test:`, `chore:`).
 
-Reserve `feat:` and `fix:` for the Jarvis CLI and desktop product. Website-only changes use `docs:` for content or `chore:` for build and deployment work. GitHub Pages deploys only from `main`, including manual dispatch; website PRs still target `develop`.
+Reserve `feat:` and `fix:` for the ATLAS CLI and desktop product. Website-only changes use `docs:` for content or `chore:` for build and deployment work. GitHub Pages deploys only from `main`, including manual dispatch; website PRs must follow their own approved workflow and must not be merged into `main` as part of ATLAS work.
 
 When pushing commits to a PR, always update the PR title and body to cover the entire changeset.
 
 After creating a PR, run the `/review-pr` skill on it before considering the task complete.
 
-Squash-merged commits on `develop` should only carry the PR number in the title (e.g. `(#171)`), never the originating issue number. Issue references belong in the commit body as `Closes #NNN` so that they auto-close when the commit reaches `main` on release.
+Squash-merged commits on `develop-atlas` should only carry the PR number in the title (e.g. `(#171)`), never the originating issue number. Issue references belong in the commit body as `Closes #NNN` so that they auto-close when the commit reaches `main` on release.
 
 Use real line breaks in commit messages and GitHub text. For multiline `gh` bodies, write UTF-8 text to a file and pass `--body-file`; do not encode line breaks as literal `\n` sequences. Put each closing reference on its own body line. After publishing a release, verify closure of referenced issues before marking the triage work complete.
 
@@ -66,19 +78,15 @@ Use the `/triage` skill for triaging open issues and discussions. It owns the fu
 
 ## Releases
 
-Batch routine stable releases around meaningful user-visible improvements, allowing time to validate the accumulated changes. Keep fixes flowing into `develop` between releases. Do not publish multiple routine stable versions in one day. An additional same-day stable release is reserved for an urgent regression, security or data-loss fix.
+Batch routine stable releases around meaningful user-visible improvements, allowing time to validate the accumulated changes. Keep ATLAS fixes flowing into `develop-atlas` between releases. Do not publish multiple routine stable versions in one day. An additional same-day stable release is reserved for an urgent regression, security or data-loss fix.
 
-"Release" means fast-forwarding `main` to the current tip of `develop` and pushing it. First sync local `develop` with `origin/develop` so you ship the real head. No merge commit, no force push — just `git checkout main && git merge --ff-only develop && git push origin main`. This is what triggers the release workflow and the auto-close of issues referenced by `Closes #NNN` in the develop commits.
+ATLAS is under development. Do not merge into, fast-forward, or publish from `main` without explicit project-owner approval. Prepare releases only after targeted CI, Windows packaging and GTR7 checks.
 
 ## Development Environment
 
-The project uses a micromamba environment at `.mamba_env/`. Always activate it before running builds, tests, or the app:
+The target platform is Windows 11 on the GTR7 mini-PC. Use an isolated, repository-local Python environment when testing; do not assume any previous developer machine path. Linux Qt-offscreen checks are preliminary and are not a substitute for eventual Windows/GTR7 validation.
 
-```bash
-eval "$(micromamba.exe shell hook --shell bash)" && micromamba activate "C:/Users/baris/projects/jarvis/.mamba_env"
-```
-
-Frontend rendering tests require Node.js 22 or later to execute the viewer JavaScript. Node.js is a development test dependency; Jarvis does not require it at runtime.
+Frontend rendering tests require Node.js 22 or later to execute the viewer JavaScript. Node.js is a development test dependency; ATLAS does not require it at runtime.
 
 ## README Maintenance
 
@@ -101,7 +109,7 @@ README priorities (in order of importance):
 Keep sections concise. Use collapsible `<details>` for lengthy content. Avoid documenting internal implementation details - the README is for end users, not developers.
 
 README style:
-- Lead with what Jarvis lets people do. Keep wording direct, clear and brief.
+- Lead with what ATLAS lets people do. Keep wording direct, clear and brief.
 - Cover the useful capabilities and show what makes them impressive through concrete examples, without hype or repeated claims.
 - Explain user-visible outcomes. Keep prompt rules, extraction stages, source attribution mechanics and other internal details in specs or technical docs.
 - A fix does not need another README sentence when the existing description already covers the capability. Prefer tightening or replacing text over adding more.
@@ -122,7 +130,7 @@ Ensure all your changes are covered by all appropriate form of automated tests -
 
 Tests should verify mechanisms, not current values. Assert against config-driven or computed references rather than hardcoding specifics that change between migrations.
 
-Tests and patch targets use the runtime package names (`jarvis.*` and `desktop_app.*`).
+Tests and patch targets use the runtime package names (`atlas.*` and `desktop_app.*`).
 Do not add `src.` to imports, which creates separate module state and bypasses runtime subscribers or patches.
 
 Run evals after finalising a change that can affect agent accuracy.

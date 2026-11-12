@@ -1,7 +1,7 @@
 """Configured alias variants must not expand into unrelated ambient words."""
 import pytest
-from jarvis.config import get_default_config
-from jarvis.listening.wake_detection import is_wake_word_detected
+from atlas.config import get_default_config
+from atlas.listening.wake_detection import is_wake_word_detected
 
 pytestmark = pytest.mark.unit
 
@@ -9,7 +9,7 @@ pytestmark = pytest.mark.unit
 @pytest.mark.parametrize('text', [
     "Doesn't matter if her oppresses A, first joins",
     'the first person joins the game',
-    'jarvisian is a made-up word',
+    'atlasian is a made-up word',
     'the chavisville address',
 ])
 def test_ambient_words_do_not_trigger_default_wake_detection(text):
@@ -26,7 +26,7 @@ def test_each_configured_alias_remains_a_valid_address(alias):
 
 
 @pytest.mark.parametrize('name,alias,near_primary', [
-    ('jarvis', 'joris', 'jarvas'),
+    ('atlas', 'joris', 'atlass'),
     ('friday', 'computer', 'fridai'),
 ])
 def test_primary_approximation_and_exact_alias_remain_usable(name, alias, near_primary):
@@ -35,22 +35,22 @@ def test_primary_approximation_and_exact_alias_remain_usable(name, alias, near_p
 
 
 @pytest.mark.parametrize('text,name,alias', [
-    ('FRİDAY, hello', 'jarvis', 'friday'),
+    ('FRİDAY, hello', 'atlas', 'friday'),
     ('ΓΕΙΑ, ΑΘΗΝΑ!', 'athena', 'αθηνα'),
-    ('你好，小助手！', 'jarvis', '小助手'),
-    ('Jarvis, hello', 'jarvis', ''),
+    ('你好，小助手！', 'atlas', '小助手'),
+    ('ATLAS, hello', 'atlas', ''),
 ])
 def test_unicode_punctuation_and_case_are_supported(text, name, alias):
     assert is_wake_word_detected(text, name, [alias])
 
 
 def test_empty_alias_cannot_wake_ambient_speech():
-    assert not is_wake_word_detected('ambient discussion', 'jarvis', [''])
+    assert not is_wake_word_detected('ambient discussion', 'atlas', [''])
 
 
 @pytest.mark.parametrize('text,expected', [
-    ('jarvis explain jarvisian philosophy', 'explain jarvisian philosophy'),
-    ('jarvis tell me about chavisville', 'tell me about chavisville'),
+    ('atlas explain atlasian philosophy', 'explain atlasian philosophy'),
+    ('atlas tell me about chavisville', 'tell me about chavisville'),
 ])
 def test_request_preservation_keeps_names_inside_other_words(text, expected):
     from test_hot_window_input import _create_listener, _process_transcript
@@ -64,20 +64,20 @@ def test_request_preservation_keeps_names_inside_other_words(text, expected):
 
 
 def test_explicit_fuzzy_threshold_is_respected():
-    assert not is_wake_word_detected('jarvas hello', 'jarvis', ['joris'], fuzzy_ratio=1.0)
+    assert not is_wake_word_detected('atlass hello', 'atlas', ['joris'], fuzzy_ratio=1.0)
 
 
 @pytest.mark.parametrize('name', ['Frédérique', 'Αθηνά', 'Müller'])
 @pytest.mark.parametrize('decomposed_config', [False, True])
 def test_canonical_unicode_aliases_remain_valid_addresses(name, decomposed_config):
     import unicodedata
-    from jarvis.listening.intent_judge import IntentJudge, IntentJudgeConfig
+    from atlas.listening.intent_judge import IntentJudge, IntentJudgeConfig
     alias = unicodedata.normalize('NFD', name) if decomposed_config else name
     heard_name = name if decomposed_config else unicodedata.normalize('NFD', name)
     heard = heard_name + ', what time is it?'
-    assert is_wake_word_detected(heard, 'jarvis', [alias], fuzzy_ratio=1.0)
-    judge = IntentJudge(IntentJudgeConfig(assistant_name='Jarvis', aliases=[alias]))
-    assert judge._normalize_aliases(heard) == 'Jarvis, what time is it?'
+    assert is_wake_word_detected(heard, 'atlas', [alias], fuzzy_ratio=1.0)
+    judge = IntentJudge(IntentJudgeConfig(assistant_name='ATLAS', aliases=[alias]))
+    assert judge._normalize_aliases(heard) == 'ATLAS, what time is it?'
 
 
 @pytest.mark.parametrize('heard,alias', [
@@ -87,9 +87,9 @@ def test_canonical_unicode_aliases_remain_valid_addresses(name, decomposed_confi
     ('कल is another word', 'क'),
 ])
 def test_marks_do_not_create_alias_boundaries(heard, alias):
-    from jarvis.listening.intent_judge import IntentJudge, IntentJudgeConfig
-    assert not is_wake_word_detected(heard, 'jarvis', [alias], fuzzy_ratio=1.0)
-    judge = IntentJudge(IntentJudgeConfig(assistant_name='Jarvis', aliases=[alias]))
+    from atlas.listening.intent_judge import IntentJudge, IntentJudgeConfig
+    assert not is_wake_word_detected(heard, 'atlas', [alias], fuzzy_ratio=1.0)
+    judge = IntentJudge(IntentJudgeConfig(assistant_name='ATLAS', aliases=[alias]))
     assert 'Jarvis' not in judge._normalize_aliases(heard)
 
 
@@ -100,18 +100,18 @@ def test_fuzzy_primary_tokens_keep_combining_marks(heard):
 
 
 def test_alias_replacement_treats_configured_name_literally():
-    from jarvis.listening.intent_judge import IntentJudge, IntentJudgeConfig
-    judge = IntentJudge(IntentJudgeConfig(assistant_name=r'Jarvis\1', aliases=['computer']))
-    assert judge._normalize_aliases('computer, hello') == r'Jarvis\1, hello'
+    from atlas.listening.intent_judge import IntentJudge, IntentJudgeConfig
+    judge = IntentJudge(IntentJudgeConfig(assistant_name=r'ATLAS\1', aliases=['computer']))
+    assert judge._normalize_aliases('computer, hello') == r'ATLAS\1, hello'
 
 
 @pytest.mark.parametrize('heard,aliases,expected', [
-    ('hey cab\u0301, what time is it?', ['hey', 'hey cab'], 'Jarvis cab\u0301, what time is it?'),
-    ('cab-cab\u0301, what time is it?', ['cab', 'cab-cab'], 'Jarvis-cab\u0301, what time is it?'),
-    ('hey cab, what time is it?', ['hey', 'hey cab'], 'Jarvis, what time is it?'),
+    ('hey cab\u0301, what time is it?', ['hey', 'hey cab'], 'ATLAS cab\u0301, what time is it?'),
+    ('cab-cab\u0301, what time is it?', ['cab', 'cab-cab'], 'ATLAS-cab\u0301, what time is it?'),
+    ('hey cab, what time is it?', ['hey', 'hey cab'], 'ATLAS, what time is it?'),
 ])
 def test_valid_shorter_alias_is_not_hidden_by_invalid_longer_alias(heard, aliases, expected):
-    from jarvis.listening.intent_judge import IntentJudge, IntentJudgeConfig
-    assert is_wake_word_detected(heard, 'jarvis', aliases, fuzzy_ratio=1.0)
-    judge = IntentJudge(IntentJudgeConfig(assistant_name='Jarvis', aliases=aliases))
+    from atlas.listening.intent_judge import IntentJudge, IntentJudgeConfig
+    assert is_wake_word_detected(heard, 'atlas', aliases, fuzzy_ratio=1.0)
+    judge = IntentJudge(IntentJudgeConfig(assistant_name='ATLAS', aliases=aliases))
     assert judge._normalize_aliases(heard) == expected

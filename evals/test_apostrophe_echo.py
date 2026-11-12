@@ -8,8 +8,8 @@ import pytest
 
 from evals.conftest import requires_judge_llm
 from evals.helpers import isolated_voice_settings
-from jarvis.listening.intent_judge import create_intent_judge
-from jarvis.listening.listener import _TranscriptionResult
+from atlas.listening.intent_judge import create_intent_judge
+from atlas.listening.listener import _TranscriptionResult
 
 _helpers = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tests' / 'test_hot_window_input.py'))
 pytestmark = [pytest.mark.eval, requires_judge_llm]

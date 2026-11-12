@@ -6,8 +6,8 @@ import pytest
 
 from conftest import requires_judge_llm
 from helpers import judge_pass_fail, voice_config
-from jarvis.memory import conversation
-from jarvis.memory.db import Database
+from atlas.memory import conversation
+from atlas.memory.db import Database
 
 pytestmark = [pytest.mark.eval, requires_judge_llm]
 
@@ -40,7 +40,7 @@ def test_midnight_diary_facts_reach_the_persistent_graph(graph_store, monkeypatc
             db, memory, cfg, force=True, timeout_sec=60,
             on_token=(lambda token: None) if streaming else None,
         )
-        saved = db.get_conversation_summary(before.date().isoformat(), 'jarvis')
+        saved = db.get_conversation_summary(before.date().isoformat(), 'atlas')
         assert saved and ident == saved['id'] and 'aurora' in saved['summary'].casefold(), saved
         facts = '\n'.join(node.data for node in graph_store.get_all_nodes() if node.data)
         assert 'aurora' in facts.casefold(), 'Committed diary facts never reached the graph'

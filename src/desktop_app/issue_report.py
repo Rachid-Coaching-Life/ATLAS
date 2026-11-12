@@ -14,9 +14,9 @@ from PyQt6.QtWidgets import (
     QSizePolicy, QVBoxLayout, QWidget,
 )
 
-from jarvis.debug import debug_log
-from jarvis.utils.redact import scrub_secrets
-from desktop_app.themes import JARVIS_THEME_STYLESHEET
+from atlas.debug import debug_log
+from atlas.utils.redact import scrub_secrets
+from desktop_app.themes import ATLAS_THEME_STYLESHEET
 
 _ISSUE_URL = 'https://github.com/Rachid-Coaching-Life/ATLAS/issues/new'
 _URL_LIMIT = 8000
@@ -29,7 +29,7 @@ class IssueReportDialog(QDialog):
                  metadata: Mapping[str, str], parent=None):
         super().__init__(parent)
         self.setWindowTitle('ATLAS — Signaler un problème')
-        self.setStyleSheet(JARVIS_THEME_STYLESHEET)
+        self.setStyleSheet(ATLAS_THEME_STYLESHEET)
         screen = self.screen().availableGeometry()
         self.resize(min(660, screen.width()), min(640, screen.height()))
         self._logs = scrub_secrets(logs).replace('```', '`` `')

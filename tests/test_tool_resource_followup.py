@@ -3,9 +3,9 @@ import json
 from unittest.mock import patch
 
 import pytest
-from jarvis.reply import engine
-from jarvis.tools.builtin.nutrition import log_meal
-from jarvis.tools.base import ToolContext
+from atlas.reply import engine
+from atlas.tools.builtin.nutrition import log_meal
+from atlas.tools.base import ToolContext
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 
@@ -46,7 +46,7 @@ def test_digest_does_not_erase_followup_identity(db, mock_config, dialogue_memor
         return {'message': {'content': 'Done.'}}
     with patch.object(engine, 'select_tools', return_value=['logMeal','deleteMeal','stop']), \
          patch.object(engine, 'plan_query', side_effect=plan), \
-         patch('jarvis.reply.planner.call_llm_direct', side_effect=AssertionError('Concrete IDs need no model')),  \
+         patch('atlas.reply.planner.call_llm_direct', side_effect=AssertionError('Concrete IDs need no model')),  \
          patch.object(engine, 'digest_tool_result_for_query', return_value='The meal contains estimated nutrition.'), \
          patch.object(engine, 'chat_with_messages', side_effect=reply_chat):
         assert engine.run_reply_engine(db, mock_config, None, 'Log oats', dialogue_memory)
@@ -59,7 +59,7 @@ def test_digest_does_not_erase_followup_identity(db, mock_config, dialogue_memor
     ('note', 27, '買い物'),
 ])
 def test_references_survive_digest_for_arbitrary_resource_types(mock_config, kind, identity, label):
-    from jarvis.tools.types import ToolExecutionResult
+    from atlas.tools.types import ToolExecutionResult
     ref = {'kind':kind, 'id':identity, 'label':label}
     result = ToolExecutionResult(True, 'Long result prose.', resource_references=(ref,))
     mock_config.tool_result_digest_enabled = True
@@ -71,7 +71,7 @@ def test_references_survive_digest_for_arbitrary_resource_types(mock_config, kin
 
 
 def test_failed_and_unconfirmed_results_cannot_supply_resource_identity(mock_config):
-    from jarvis.tools.types import ToolExecutionResult
+    from atlas.tools.types import ToolExecutionResult
     ref = {'kind':'note','id':27,'label':'Fixture'}
     mock_config.tool_result_digest_enabled = False
     content, records = engine._tool_result_content(mock_config, 'Create it', 'createNote',
@@ -107,7 +107,7 @@ def test_reference_budget_preserves_complete_newest_ids():
 
 
 def test_native_tool_execution_preserves_identity_for_followup(db, mock_config, dialogue_memory, monkeypatch):
-    from jarvis.reply.prompts.model_variants import ModelSize
+    from atlas.reply.prompts.model_variants import ModelSize
     mock_config.location_enabled = False
     mock_config.tool_result_digest_enabled = True
     # An empty advisory plan triggers memory extraction independently of tool routing.
@@ -139,8 +139,8 @@ def test_native_tool_execution_preserves_identity_for_followup(db, mock_config, 
 
 @pytest.mark.parametrize('reference_key', ['id', 'meal_description'])
 def test_delete_meal_ignores_unused_null_reference(db, mock_config, reference_key):
-    from jarvis.tools.base import ToolContext
-    from jarvis.tools.builtin.nutrition.delete_meal import DeleteMealTool
+    from atlas.tools.base import ToolContext
+    from atlas.tools.builtin.nutrition.delete_meal import DeleteMealTool
     older = db.insert_meal('2026-10-05T00:00:00+00:00', 'fixture', 'Keep')
     target = db.insert_meal('2026-10-05T00:01:00+00:00', 'fixture', 'Unique fixture')
     reference = {'id': None, 'meal_description': None}

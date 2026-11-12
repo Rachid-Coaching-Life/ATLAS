@@ -6,9 +6,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from jarvis.config import load_settings
-from jarvis.dictation.dictation_engine import _llm_clean_dictation
-from jarvis.llm import get_llm_backend, http
+from atlas.config import load_settings
+from atlas.dictation.dictation_engine import _llm_clean_dictation
+from atlas.llm import get_llm_backend, http
 
 pytestmark = pytest.mark.unit
 

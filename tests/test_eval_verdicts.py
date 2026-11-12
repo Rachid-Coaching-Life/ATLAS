@@ -25,7 +25,7 @@ def test_verdict_uses_constrained_output_without_changing_the_actor(monkeypatch,
                                      'choices': [{'message': {'content': answer}}]}
         return response
 
-    with patch('jarvis.llm.http.post', side_effect=post):
+    with patch('atlas.llm.http.post', side_effect=post):
         verdict = helpers.judge_pass_fail('Requires the actual reading.', 'Recorded reading: 12 C.')
     assert verdict == expected
     payload = payloads[0]

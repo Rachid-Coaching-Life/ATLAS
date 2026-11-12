@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from jarvis.config import load_settings
+from atlas.config import load_settings
 from desktop_app import settings_window as settings_ui
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
@@ -13,7 +13,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 @pytest.fixture
 def config_files(qapp, tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "standard"))
-    standard = tmp_path / "standard" / "jarvis" / "config.json"
+    standard = tmp_path / "standard" / "atlas" / "config.json"
     selected = tmp_path / "selected" / "config.json"
     for path, values in (
         (standard, {"wake_word": "standard", "dictation_enabled": True}),
@@ -22,7 +22,7 @@ def config_files(qapp, tmp_path, monkeypatch):
     ):
         path.parent.mkdir(parents=True)
         path.write_text(json.dumps({"_config_version": 3, **values}), encoding="utf-8")
-    monkeypatch.setenv("JARVIS_CONFIG_PATH", str(selected))
+    monkeypatch.setenv("ATLAS_CONFIG_PATH", str(selected))
     monkeypatch.setattr(settings_ui, "get_input_devices", lambda: [("", "Default")])
     monkeypatch.setattr(settings_ui.QMessageBox, "information", lambda *args: None)
     return standard, selected
@@ -49,7 +49,7 @@ def test_settings_save_only_the_selected_config(config_files):
 def test_empty_history_explains_the_selected_dictation_setting(config_files, tmp_path):
     from PyQt6.QtWidgets import QLabel
     from desktop_app.dictation_history import DictationHistoryWindow
-    from jarvis.dictation.history import DictationHistory
+    from atlas.dictation.history import DictationHistory
 
     assert load_settings().dictation_enabled is False
     window = DictationHistoryWindow(history=DictationHistory(path=tmp_path / "history.json"))
@@ -73,13 +73,13 @@ def test_dictation_wizard_reads_and_saves_the_selected_config(config_files):
 
 
 def test_configuration_directory_action_targets_the_selected_file(config_files, monkeypatch):
-    from desktop_app.app import JarvisSystemTray
+    from desktop_app.app import AtlasSystemTray
 
     selected = config_files[1]
     destinations = []
-    monkeypatch.setattr(JarvisSystemTray, "open_directory",
+    monkeypatch.setattr(AtlasSystemTray, "open_directory",
                         lambda self, path, label: destinations.append((path, label)))
-    tray = JarvisSystemTray.__new__(JarvisSystemTray)
+    tray = AtlasSystemTray.__new__(AtlasSystemTray)
     tray.open_config_directory()
     assert destinations == [(selected.parent, "Config")]
 
@@ -88,17 +88,17 @@ def test_configuration_directory_action_targets_the_selected_file(config_files, 
 @pytest.mark.parametrize("xdg", [False, True])
 def test_configuration_path_precedence_and_home_notation(tmp_path, monkeypatch, override, xdg):
     from pathlib import Path
-    from jarvis.config import get_config_path
+    from atlas.config import get_config_path
 
     if override is None:
-        monkeypatch.delenv("JARVIS_CONFIG_PATH", raising=False)
+        monkeypatch.delenv("ATLAS_CONFIG_PATH", raising=False)
     else:
-        monkeypatch.setenv("JARVIS_CONFIG_PATH", override)
+        monkeypatch.setenv("ATLAS_CONFIG_PATH", override)
     if xdg:
         base = tmp_path / "xdg"
         monkeypatch.setenv("XDG_CONFIG_HOME", str(base))
     else:
         base = Path.home() / ".config"
         monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
-    expected = Path(override).expanduser() if override else base / "jarvis" / "config.json"
+    expected = Path(override).expanduser() if override else base / "atlas" / "config.json"
     assert get_config_path() == expected

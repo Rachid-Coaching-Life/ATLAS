@@ -5,9 +5,9 @@ import socket
 from unittest.mock import Mock, patch
 import requests
 
-from jarvis.tools.builtin.web_search import WebSearchTool
-from jarvis.tools.base import ToolContext
-from jarvis.tools.types import ToolExecutionResult
+from atlas.tools.builtin.web_search import WebSearchTool
+from atlas.tools.base import ToolContext
+from atlas.tools.types import ToolExecutionResult
 
 pytestmark = pytest.mark.unit
 
@@ -32,7 +32,7 @@ def reject_external_network(monkeypatch):
 @pytest.fixture(autouse=True)
 def scripted_ddg_html(monkeypatch):
     """Use the test's scripted response queue for the HTML transport boundary."""
-    from jarvis.tools.builtin import web_search
+    from atlas.tools.builtin import web_search
 
     def download(url, timeout_sec, max_bytes):
         response = web_search.requests.get(url, timeout=timeout_sec)
@@ -152,7 +152,7 @@ class TestWebSearchTool:
         assert result.success is False
         assert "disabled" in result.reply_text.lower()
 
-    @patch('jarvis.tools.builtin.web_search._fetch_page_content')
+    @patch('atlas.tools.builtin.web_search._fetch_page_content')
     @patch('requests.get')
     def test_fetch_cascades_through_results_when_first_fails(self, mock_get, mock_fetch):
         """If top result fetch fails, fall back to result #2 — don't give up after one attempt.
@@ -198,7 +198,7 @@ class TestWebSearchTool:
         # though it would have returned faster in a race.
         assert "DISTRACTOR" not in result.reply_text
 
-    @patch('jarvis.tools.builtin.web_search._fetch_page_content')
+    @patch('atlas.tools.builtin.web_search._fetch_page_content')
     @patch('requests.get')
     def test_cascade_skips_boilerplate_extracts_that_ignore_query(
         self, mock_get, mock_fetch,
@@ -254,7 +254,7 @@ class TestWebSearchTool:
         assert "Accept cookies" not in result.reply_text
         assert "DISTRACTOR" not in result.reply_text
 
-    @patch('jarvis.tools.builtin.web_search._fetch_page_content')
+    @patch('atlas.tools.builtin.web_search._fetch_page_content')
     @patch('requests.get')
     def test_cascade_emits_links_only_when_no_extract_mentions_query(
         self, mock_get, mock_fetch,
@@ -308,7 +308,7 @@ class TestWebSearchTool:
         assert "Accept cookies" not in result.reply_text
         assert "Subscribe for updates" not in result.reply_text
 
-    @patch('jarvis.tools.builtin.web_search._fetch_page_content')
+    @patch('atlas.tools.builtin.web_search._fetch_page_content')
     @patch('requests.get')
     def test_envelope_signals_when_all_fetches_fail(self, mock_get, mock_fetch):
         """When every fetch attempt returns None, envelope tells the model to admit it.
@@ -351,7 +351,7 @@ class TestWebSearchTool:
         assert "even if you recall them" in lowered
         assert "you have failed" in lowered
 
-    @patch('jarvis.tools.builtin.web_search._fetch_page_content')
+    @patch('atlas.tools.builtin.web_search._fetch_page_content')
     @patch('requests.get')
     def test_envelope_directs_extraction_when_content_fetched(self, mock_get, mock_fetch):
         """When page content WAS fetched, the envelope must push the model to
@@ -405,7 +405,7 @@ class TestWebSearchTool:
     def test_is_public_url_rejects_private_and_non_http(self):
         """SSRF guard: loopback, private, link-local, metadata, and non-http URLs
         must all be rejected before we ever issue a request."""
-        from jarvis.tools.builtin.web_search import _is_public_url
+        from atlas.tools.builtin.web_search import _is_public_url
         # Scheme filter
         assert _is_public_url("file:///etc/passwd") is False
         assert _is_public_url("ftp://example.com/") is False
@@ -419,7 +419,7 @@ class TestWebSearchTool:
         # Public literal
         assert _is_public_url("https://1.1.1.1/") is True
 
-    @patch('jarvis.tools.builtin.web_search._fetch_page_content')
+    @patch('atlas.tools.builtin.web_search._fetch_page_content')
     @patch('requests.get')
     def test_fetched_content_is_fenced_as_untrusted(self, mock_get, mock_fetch):
         """Attacker-controlled page text must be wrapped in untrusted-extract
@@ -506,8 +506,8 @@ class TestWebSearchTool:
         assert "bot-challenge" in printed.lower() or "blocked" in printed.lower()
         assert "Found 1 result" not in printed
 
-    @patch('jarvis.tools.builtin.web_search._fetch_page_content')
-    @patch('jarvis.tools.builtin.web_search._brave_search')
+    @patch('atlas.tools.builtin.web_search._fetch_page_content')
+    @patch('atlas.tools.builtin.web_search._brave_search')
     @patch('requests.get')
     def test_brave_fallback_runs_when_ddg_blocked(self, mock_get, mock_brave, mock_fetch):
         """With a Brave key configured, a DDG bot-challenge must trigger a
@@ -558,7 +558,7 @@ class TestWebSearchTool:
         printed = "\n".join(call.args[0] for call in self.context.user_print.call_args_list)
         assert "🚧 DuckDuckGo served a bot-challenge page" in printed
 
-    @patch('jarvis.tools.builtin.web_search._wikipedia_summary')
+    @patch('atlas.tools.builtin.web_search._wikipedia_summary')
     @patch('requests.get')
     def test_bot_challenge_log_fires_even_when_wikipedia_rescues(
         self, mock_get, mock_wiki
@@ -599,7 +599,7 @@ class TestWebSearchTool:
         # Wikipedia success line must also appear.
         assert "wikipedia" in printed.lower()
 
-    @patch('jarvis.tools.builtin.web_search._wikipedia_summary')
+    @patch('atlas.tools.builtin.web_search._wikipedia_summary')
     @patch('requests.get')
     def test_zero_ddg_results_logged_before_wikipedia_fallback(
         self, mock_get, mock_wiki
@@ -641,7 +641,7 @@ class TestWebSearchTool:
         # Wikipedia success line must still appear.
         assert "wikipedia" in printed.lower()
 
-    @patch('jarvis.tools.builtin.web_search._wikipedia_summary')
+    @patch('atlas.tools.builtin.web_search._wikipedia_summary')
     @patch('requests.get')
     def test_wikipedia_fallback_uses_detected_language(self, mock_get, mock_wiki):
         """Wikipedia fallback must hit the host matching the Whisper-detected
@@ -681,8 +681,8 @@ class TestWebSearchTool:
         assert "<<<BEGIN UNTRUSTED WEB EXTRACT>>>" in result.reply_text
         assert "Brandon Cronenberg" in result.reply_text
 
-    @patch('jarvis.tools.builtin.web_search._wikipedia_summary')
-    @patch('jarvis.tools.builtin.web_search._brave_search')
+    @patch('atlas.tools.builtin.web_search._wikipedia_summary')
+    @patch('atlas.tools.builtin.web_search._brave_search')
     @patch('requests.get')
     def test_all_fallbacks_fail_emits_honest_block(self, mock_get, mock_brave, mock_wiki):
         """When DDG is blocked AND Brave returns nothing AND Wikipedia
@@ -728,15 +728,15 @@ class TestWebSearchTool:
 class TestBraveSearchHelper:
     """Isolated tests for the `_brave_search` helper."""
 
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_returns_empty_without_key(self, mock_get):
-        from jarvis.tools.builtin.web_search import _brave_search
+        from atlas.tools.builtin.web_search import _brave_search
         assert _brave_search("q", "") == []
         mock_get.assert_not_called()
 
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_parses_results(self, mock_get, public_example_dns):
-        from jarvis.tools.builtin.web_search import _brave_search
+        from atlas.tools.builtin.web_search import _brave_search
         resp = Mock()
         resp.status_code = 200
         resp.json.return_value = {
@@ -752,18 +752,18 @@ class TestBraveSearchHelper:
         call = mock_get.call_args
         assert call.kwargs["headers"]["X-Subscription-Token"] == "BSA-key"
 
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_non_200_returns_empty(self, mock_get):
-        from jarvis.tools.builtin.web_search import _brave_search
+        from atlas.tools.builtin.web_search import _brave_search
         resp = Mock()
         resp.status_code = 429
         mock_get.return_value = resp
         assert _brave_search("q", "BSA-key") == []
 
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_filters_unsafe_urls(self, mock_get, public_example_dns):
         """Private IPs and non-http(s) schemes must be rejected via _is_public_url."""
-        from jarvis.tools.builtin.web_search import _brave_search
+        from atlas.tools.builtin.web_search import _brave_search
         resp = Mock()
         resp.status_code = 200
         resp.json.return_value = {
@@ -777,11 +777,11 @@ class TestBraveSearchHelper:
         pairs = _brave_search("q", "BSA-key")
         assert pairs == [("Good", "https://example.com/ok")]
 
-    @patch("jarvis.tools.builtin.web_search.debug_log")
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search.debug_log")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_scrubs_key_from_exception_log(self, mock_get, mock_debug):
         """A stringified exception containing the API key must be scrubbed."""
-        from jarvis.tools.builtin.web_search import _brave_search
+        from atlas.tools.builtin.web_search import _brave_search
         mock_get.side_effect = requests.RequestException("bad token BSA-secret in url")
         assert _brave_search("q", "BSA-secret") == []
         logged = " ".join(str(c.args[0]) for c in mock_debug.call_args_list)
@@ -816,9 +816,9 @@ class TestWikipediaSummaryHelper:
         }
         return r
 
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_returns_title_url_extract(self, mock_get):
-        from jarvis.tools.builtin.web_search import _wikipedia_summary
+        from atlas.tools.builtin.web_search import _wikipedia_summary
         mock_get.side_effect = [
             self._mk_search(["Possessor"]),
             self._mk_summary("A 2020 film."),
@@ -826,21 +826,21 @@ class TestWikipediaSummaryHelper:
         result = _wikipedia_summary("possessor movie", lang="en")
         assert result == ("Possessor", "https://en.wikipedia.org/wiki/Possessor", "A 2020 film.")
 
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_no_titles_returns_none(self, mock_get):
         """When opensearch AND the full-text fallback both come up empty, the
         helper bows out with `None` rather than fabricating a result."""
-        from jarvis.tools.builtin.web_search import _wikipedia_summary
+        from atlas.tools.builtin.web_search import _wikipedia_summary
         mock_get.side_effect = [self._mk_search([]), self._mk_fulltext([])]
         assert _wikipedia_summary("nonsense blob", lang="en") is None
 
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_opensearch_empty_falls_back_to_fulltext(self, mock_get):
         """Opensearch is a title-prefix matcher; the planner's verbose queries
         ('modern scientists similar to Albert Einstein') return zero titles
         from it. The helper must cascade to `list=search` (full-text) so the
         Wikipedia fallback actually fires for real-world phrasings."""
-        from jarvis.tools.builtin.web_search import _wikipedia_summary
+        from atlas.tools.builtin.web_search import _wikipedia_summary
         mock_get.side_effect = [
             self._mk_search([]),  # opensearch: no prefix match
             self._mk_fulltext(["Albert Einstein"]),  # full-text: relevance hit
@@ -863,39 +863,39 @@ class TestWikipediaSummaryHelper:
         assert second_call.kwargs["params"]["action"] == "query"
         assert second_call.kwargs["params"]["list"] == "search"
 
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_fulltext_status_error_returns_none(self, mock_get):
         """If `list=search` itself returns a non-200 status (Wikimedia hiccup,
         rate limit, transient outage), the helper must return None and let the
         envelope fall through to the honest-block path — not raise, not return
         a half-resolved title that then 404s on the summary fetch."""
-        from jarvis.tools.builtin.web_search import _wikipedia_summary
+        from atlas.tools.builtin.web_search import _wikipedia_summary
         bad = Mock()
         bad.status_code = 503
         mock_get.side_effect = [self._mk_search([]), bad]
         assert _wikipedia_summary("q", lang="en") is None
 
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_fulltext_hit_without_title_returns_none(self, mock_get):
         """`list=search` is documented to return objects with a `title` key,
         but a malformed mirror or future API change could ship hits with
         missing/empty titles. The defensive guard must collapse to None
         rather than feeding an empty string to `urllib.parse.quote` and
         firing a doomed REST summary fetch on `…/page/summary/`."""
-        from jarvis.tools.builtin.web_search import _wikipedia_summary
+        from atlas.tools.builtin.web_search import _wikipedia_summary
         bad_hits = Mock()
         bad_hits.status_code = 200
         bad_hits.json.return_value = {"query": {"search": [{}]}}  # no "title"
         mock_get.side_effect = [self._mk_search([]), bad_hits]
         assert _wikipedia_summary("q", lang="en") is None
 
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_fulltext_search_not_a_list_treated_as_empty(self, mock_get):
         """Defensive: `query.search` is documented as a list, but if the API
         ever ships back a string/dict/null in that slot, the helper must
         treat it as empty rather than indexing into it (which would, e.g.,
         slice a string into a single-character title)."""
-        from jarvis.tools.builtin.web_search import _wikipedia_summary
+        from atlas.tools.builtin.web_search import _wikipedia_summary
         for malformed in (None, "broken", {"unexpected": "shape"}, 42):
             mock_get.reset_mock()
             weird = Mock()
@@ -906,14 +906,14 @@ class TestWikipediaSummaryHelper:
                 f"search={malformed!r} should resolve to None"
             )
 
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_opensearch_titles_not_a_list_treated_as_empty(self, mock_get):
         """`payload[1]` is documented as a list of strings. A malformed
         response that hands us a string here would otherwise slice into
         single characters (`titles[0]` becomes the first letter), producing
         a phantom one-character title that flows all the way to the REST
         summary fetch. Treat anything non-list as empty and cascade."""
-        from jarvis.tools.builtin.web_search import _wikipedia_summary
+        from atlas.tools.builtin.web_search import _wikipedia_summary
         weird = Mock()
         weird.status_code = 200
         weird.json.return_value = ["q", "broken-string-not-a-list", [], []]
@@ -926,27 +926,27 @@ class TestWikipediaSummaryHelper:
         assert result is not None
         assert result[0] == "Real Title"
 
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_deadline_in_past_short_circuits(self, mock_get):
         """A deadline already in the past must collapse the helper to None
         without firing any HTTP request — the chain budget is exhausted and
         firing more requests can only make the latency situation worse."""
         import time as _time
-        from jarvis.tools.builtin.web_search import _wikipedia_summary
+        from atlas.tools.builtin.web_search import _wikipedia_summary
         result = _wikipedia_summary(
             "q", lang="en", deadline=_time.monotonic() - 1.0
         )
         assert result is None
         assert mock_get.call_count == 0
 
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_deadline_shrinks_request_timeout(self, mock_get):
         """A near-expiry deadline must shrink the per-request `timeout`
         rather than fire the default 4s request that would happily blow the
         chain budget. Verify the timeout argument is clamped below the
         default for a deadline ~1s out."""
         import time as _time
-        from jarvis.tools.builtin.web_search import (
+        from atlas.tools.builtin.web_search import (
             _WIKIPEDIA_REQUEST_TIMEOUT_SEC,
             _wikipedia_summary,
         )
@@ -965,9 +965,9 @@ class TestWikipediaSummaryHelper:
                 f"expected clamped timeout, got {t!r}"
             )
 
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_uses_language_subdomain(self, mock_get):
-        from jarvis.tools.builtin.web_search import _wikipedia_summary
+        from atlas.tools.builtin.web_search import _wikipedia_summary
         mock_get.side_effect = [
             self._mk_search(["Istanbul"]),
             self._mk_summary("Şehir.", title="İstanbul", page_url="https://tr.wikipedia.org/wiki/İstanbul"),
@@ -976,10 +976,10 @@ class TestWikipediaSummaryHelper:
         assert "tr.wikipedia.org" in mock_get.call_args_list[0].args[0]
         assert "tr.wikipedia.org" in mock_get.call_args_list[1].args[0]
 
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_invalid_language_falls_back_to_english(self, mock_get):
         """Non-alpha / wrong-length / None / empty must all resolve to en.wikipedia.org."""
-        from jarvis.tools.builtin.web_search import _wikipedia_summary
+        from atlas.tools.builtin.web_search import _wikipedia_summary
         for bad in ["en-US", "1", "zzzz", "", None]:
             mock_get.reset_mock()
             mock_get.side_effect = [self._mk_search(["Thing"]), self._mk_summary("e")]
@@ -988,18 +988,18 @@ class TestWikipediaSummaryHelper:
                 f"lang={bad!r} should have fallen back to English"
             )
 
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_opensearch_failure_returns_none(self, mock_get):
-        from jarvis.tools.builtin.web_search import _wikipedia_summary
+        from atlas.tools.builtin.web_search import _wikipedia_summary
         bad = Mock()
         bad.status_code = 503
         mock_get.return_value = bad
         assert _wikipedia_summary("q", lang="en") is None
 
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_empty_extract_returns_none(self, mock_get):
         """An opensearch hit with an empty summary extract must not masquerade as content."""
-        from jarvis.tools.builtin.web_search import _wikipedia_summary
+        from atlas.tools.builtin.web_search import _wikipedia_summary
         mock_get.side_effect = [self._mk_search(["Thing"]), self._mk_summary("   ")]
         assert _wikipedia_summary("q", lang="en") is None
 
@@ -1014,7 +1014,7 @@ class TestWikipediaLanguageScriptMismatch:
     """
 
     def test_latin_query_with_korean_language_is_mismatch(self):
-        from jarvis.tools.builtin.web_search import (
+        from atlas.tools.builtin.web_search import (
             _language_script_mismatches_query,
         )
         assert _language_script_mismatches_query(
@@ -1023,13 +1023,13 @@ class TestWikipediaLanguageScriptMismatch:
 
     @pytest.mark.parametrize("lang", ["ja", "zh", "ru", "el", "ar", "he", "hi", "th"])
     def test_non_latin_languages_with_latin_query_all_flagged(self, lang):
-        from jarvis.tools.builtin.web_search import (
+        from atlas.tools.builtin.web_search import (
             _language_script_mismatches_query,
         )
         assert _language_script_mismatches_query(lang, "some plain english text")
 
     def test_latin_query_with_latin_language_is_not_mismatch(self):
-        from jarvis.tools.builtin.web_search import (
+        from atlas.tools.builtin.web_search import (
             _language_script_mismatches_query,
         )
         # Turkish query misdetected as Turkish is fine — Turkish uses Latin.
@@ -1039,7 +1039,7 @@ class TestWikipediaLanguageScriptMismatch:
         assert not _language_script_mismatches_query("en", "hello there")
 
     def test_native_script_query_with_matching_language_is_not_mismatch(self):
-        from jarvis.tools.builtin.web_search import (
+        from atlas.tools.builtin.web_search import (
             _language_script_mismatches_query,
         )
         # Korean query in Korean is correct.
@@ -1048,14 +1048,14 @@ class TestWikipediaLanguageScriptMismatch:
         assert not _language_script_mismatches_query("ru", "Москва")
 
     def test_empty_query_is_not_mismatch(self):
-        from jarvis.tools.builtin.web_search import (
+        from atlas.tools.builtin.web_search import (
             _language_script_mismatches_query,
         )
         assert not _language_script_mismatches_query("ko", "")
         assert not _language_script_mismatches_query("ko", "   ")
 
-    @patch("jarvis.tools.builtin.web_search._wikipedia_summary")
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search._wikipedia_summary")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_mismatch_overrides_lang_to_english(self, mock_get, mock_wiki):
         """Field case: Whisper returned "ko" for an English utterance.
         The Wikipedia call must be made against en.wikipedia.org, not ko."""
@@ -1073,7 +1073,7 @@ class TestWikipediaLanguageScriptMismatch:
             "Canadian singer.",
         )
 
-        from jarvis.tools.registry import run_tool_with_retries
+        from atlas.tools.registry import run_tool_with_retries
         cfg = Mock()
         cfg.web_search_enabled = True
         cfg.voice_debug = False
@@ -1098,8 +1098,8 @@ class TestWikipediaLanguageScriptMismatch:
             "Korean detection on Latin-script query must be overridden to 'en'"
         )
 
-    @patch("jarvis.tools.builtin.web_search._wikipedia_summary")
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search._wikipedia_summary")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_localised_miss_retries_in_english(self, mock_get, mock_wiki):
         """Turkish Wikipedia has no page → retry in English before giving up."""
         instant = Mock()
@@ -1116,7 +1116,7 @@ class TestWikipediaLanguageScriptMismatch:
             ("Possessor", "https://en.wikipedia.org/wiki/Possessor", "A film."),
         ]
 
-        from jarvis.tools.registry import run_tool_with_retries
+        from atlas.tools.registry import run_tool_with_retries
         cfg = Mock()
         cfg.web_search_enabled = True
         cfg.voice_debug = False
@@ -1149,10 +1149,10 @@ class TestLanguagePlumbingEndToEnd:
     calling `run_tool_with_retries(language=X)` causes the tool to query
     `X.wikipedia.org` when the fallback fires."""
 
-    @patch("jarvis.tools.builtin.web_search._wikipedia_summary")
-    @patch("jarvis.tools.builtin.web_search.requests.get")
+    @patch("atlas.tools.builtin.web_search._wikipedia_summary")
+    @patch("atlas.tools.builtin.web_search.requests.get")
     def test_registry_threads_language_to_web_search(self, mock_get, mock_wiki):
-        from jarvis.tools.registry import run_tool_with_retries
+        from atlas.tools.registry import run_tool_with_retries
         # DDG returns bot-challenge so we fall through to the fallback chain.
         instant = Mock()
         instant.status_code = 200
@@ -1192,14 +1192,16 @@ class TestLanguagePlumbingEndToEnd:
     def test_listener_passes_detected_language_to_reply_engine(self):
         """Voice query dispatch carries the detected language to the reply engine."""
         from contextlib import nullcontext
-        from jarvis.listening.listener import VoiceListener
+        from atlas.listening.listener import VoiceListener
+        from atlas.listening.state_manager import StateManager
 
         listener = VoiceListener.__new__(VoiceListener)
         listener.db = object()
         from types import SimpleNamespace
-        from jarvis.listening.transcript_buffer import TranscriptBuffer
-        from jarvis.listening.echo_detection import EchoDetector
-        listener.cfg = SimpleNamespace(wake_word="jarvis", wake_aliases=[])
+        from atlas.listening.transcript_buffer import TranscriptBuffer
+        from atlas.listening.echo_detection import EchoDetector
+        listener.cfg = SimpleNamespace(wake_word="atlas", wake_aliases=[])
+        listener.state_manager = StateManager()
         listener._buffer_duration = 120.0
         listener._transcript_buffer = TranscriptBuffer()
         listener.echo_detector = EchoDetector()
@@ -1212,9 +1214,9 @@ class TestLanguagePlumbingEndToEnd:
         listener._clear_audio_buffers = Mock()
         listener._stop_thinking_tune = Mock()
 
-        with patch("jarvis.activity.get_jarvis_state", return_value=Mock()), \
-                patch("jarvis.reply.engine.run_reply_engine", return_value="") as run_reply:
-            with patch("jarvis.daemon.query_lock", return_value=nullcontext()):
+        with patch("atlas.activity.get_atlas_state", return_value=Mock()), \
+                patch("atlas.reply.engine.run_reply_engine", return_value="") as run_reply:
+            with patch("atlas.daemon.query_lock", return_value=nullcontext()):
                 listener._dispatch_query("istanbul", language="tr", generation=listener._capture_generation)
 
         assert run_reply.call_args.kwargs["language"] == "tr"

@@ -1,0 +1,41 @@
+name: ATLAS GTR7 Windows Validation
+
+on:
+  # Qualify installer changes only on isolated ATLAS development branches.
+  push:
+    branches:
+      - chatgpt/atlas-build-workflows
+      - chatgpt/atlas-installer-safety
+    paths:
+      - .github/workflows/atlas-gtr7-validation.yml
+      - installer/windows/atlas_setup.iss
+      - tests/test_atlas_installer_safety.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  installer-contract:
+    name: Check installer identity and deletion safety
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Install focused test dependency
+        run: python -m pip install pytest
+      - name: Verify the ATLAS installer contract
+        # Source-only tests do not need the application dependencies or conftest.
+        run: python -m pytest -q --noconftest tests/test_atlas_installer_safety.py
+
+  windows-installer:
+    name: Build ATLAS Windows installer and smoke-test
+    needs: [installer-contract]
+    uses: ./.github/workflows/build-desktop.yml
+    with:
+      version: dev-gtr7-validation
+      channel: develop
+      smoke_test: true
+      target_os: windows

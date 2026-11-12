@@ -26,7 +26,7 @@ def test_diary_hygiene_eval_reaches_selected_model_and_transport(monkeypatch, pr
         response.json.return_value = ({'message': message} if provider == 'ollama'
                                      else {'choices': [{'message': message}]})
         return response
-    monkeypatch.setattr('jarvis.llm.http.post', post)
+    monkeypatch.setattr('atlas.llm.http.post', post)
     assert DiaryCases()._summarise(['User: I prefer Celsius.']) == (summary, topics)
     assert observed
     url, kwargs = observed[0]
@@ -42,6 +42,6 @@ def test_empty_or_incomplete_diary_inference_cannot_pass_hygiene(monkeypatch, an
     response = MagicMock()
     response.__enter__.return_value = response
     response.json.return_value = {'message': {'content': answer}}
-    monkeypatch.setattr('jarvis.llm.http.post', lambda *args, **kwargs: response)
+    monkeypatch.setattr('atlas.llm.http.post', lambda *args, **kwargs: response)
     with pytest.raises(AssertionError, match='Empty or incomplete'):
         DiaryCases()._summarise(['User: I prefer Celsius.'])

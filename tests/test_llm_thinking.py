@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from jarvis.config import get_default_config
+from atlas.config import get_default_config
 
 
 # ---------------------------------------------------------------------------
@@ -27,8 +27,8 @@ class TestLlmThinkingPayload:
     def test_reasoning_and_answer_delivery(self, monkeypatch, operation, thinking):
         from contextlib import nullcontext
         from inspect import signature
-        from jarvis import llm
-        from jarvis.llm import http
+        from atlas import llm
+        from atlas.llm import http
 
         helpers = {'direct': llm.call_llm_direct, 'streaming': llm.call_llm_streaming,
                    'chat': llm.chat_with_messages}
@@ -87,7 +87,7 @@ class TestSettingsWindowThinking:
         self, settings_config_path, qapp, key, category, enabled,
     ):
         from desktop_app import settings_window as sw
-        from jarvis.config import load_settings
+        from atlas.config import load_settings
 
         keys = ['llm_thinking_enabled', 'intent_judge_thinking_enabled', 'dictation_thinking_enabled']
         original = {name: not enabled for name in keys}
@@ -126,9 +126,9 @@ class TestCallLlmDirectFailurePaths:
     def test_failure_diagnostics_and_recovery(self, monkeypatch, capsys, entry, stage, error_type):
         from contextlib import nullcontext
         import requests
-        from jarvis import llm
+        from atlas import llm
 
-        monkeypatch.setenv('JARVIS_VOICE_DEBUG', '1')
+        monkeypatch.setenv('ATLAS_VOICE_DEBUG', '1')
         endpoint = 'http://127.0.0.1:1/private-endpoint?token=private-token'
         private_text = 'Synthetic private question'
         message = f'{endpoint}, {private_text}'

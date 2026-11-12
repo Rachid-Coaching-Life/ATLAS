@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from jarvis.dictation import paths
-from jarvis.dictation.paths import default_history_path as user_default_history_path
+from atlas.dictation import paths
+from atlas.dictation.paths import default_history_path as user_default_history_path
 
 pytestmark = pytest.mark.unit
 
@@ -19,7 +19,7 @@ def test_user_default_storage_location_is_preserved(tmp_path, monkeypatch):
     owned_path.home.return_value = tmp_path
     monkeypatch.setattr(paths, "Path", owned_path)
     target = user_default_history_path()
-    assert target == tmp_path / ".local" / "share" / "jarvis" / "dictation_history.json"
+    assert target == tmp_path / ".local" / "share" / "atlas" / "dictation_history.json"
     assert target.parent.is_dir()
 
 
@@ -31,12 +31,12 @@ def test_dictation_test_cannot_publish_to_the_protected_default_store(tmp_path):
     plugin.write_text(
         "import os\nfrom pathlib import Path\n"
         "def pytest_configure(config):\n"
-        "    from jarvis.dictation import paths\n"
-        "    paths.default_history_path = lambda: Path(os.environ['JARVIS_TEST_PROTECTED_HISTORY'])\n",
+        "    from atlas.dictation import paths\n"
+        "    paths.default_history_path = lambda: Path(os.environ['ATLAS_TEST_PROTECTED_HISTORY'])\n",
         encoding="utf-8",
     )
     root = Path(__file__).resolve().parents[1]
-    env = dict(os.environ, JARVIS_TEST_PROTECTED_HISTORY=str(protected))
+    env = dict(os.environ, ATLAS_TEST_PROTECTED_HISTORY=str(protected))
     env["PYTHONPATH"] = os.pathsep.join((str(tmp_path), str(root / "src")))
     result = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "history_boundary",

@@ -1,0 +1,231 @@
+name: atlas-core-rename
+
+# Migration of the Python engine from jarvis to atlas, tested before any commit.
+# - runs only for pushes to perplexity/atlas-core-rename that change the tooling;
+# - never pushes anywhere else (main, develop-atlas and ChatGPT branches are untouched);
+# - the migrated tree is committed by the last job only if the unit tests show no
+#   regression against the baseline taken before the migration and the Windows
+#   packaging succeeded;
+# - a report is always committed under docs/atlas-migration/.
+# GITHUB_TOKEN cannot change workflow files: .github/workflows is not migrated here.
+
+on:
+  push:
+    branches: [ perplexity/atlas-core-rename ]
+    paths:
+      - scripts/migrate_to_atlas.py
+      - scripts/atlas_migration/**
+      - tests/test_atlas_migration_script.py
+      - .github/workflows/atlas-core-rename.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: atlas-core-rename
+  cancel-in-progress: false
+
+env:
+  TARGET_BRANCH: perplexity/atlas-core-rename
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  migrate:
+    name: Migrate and test (Linux, Python 3.11)
+    if: github.repository == 'Rachid-Coaching-Life/ATLAS' && github.ref == 'refs/heads/perplexity/atlas-core-rename'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Report folder (outside the repository)
+        run: |
+          echo "REPORTS=$RUNNER_TEMP/atlas-reports" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/atlas-reports"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: System dependencies
+        run: sudo apt-get update && sudo apt-get install -y portaudio19-dev pulseaudio libegl1 libxkbcommon0
+      - name: Headless audio server for test imports
+        run: |
+          pulseaudio --start --exit-idle-time=-1
+          pactl info
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - name: Tests of the migration tooling
+        run: python -m pytest -q -p no:cacheprovider tests/test_atlas_migration_script.py
+      - name: Baseline unit tests before the migration
+        continue-on-error: true
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -q -m unit -p no:cacheprovider -rfE --junitxml="$REPORTS/baseline.xml" 2>&1 | tee "$REPORTS/baseline-tests.log"
+      - name: Inventory before
+        run: python scripts/migrate_to_atlas.py inventory --out "$REPORTS/inventory-before.json"
+      - name: Apply the migration (working tree only)
+        run: python scripts/migrate_to_atlas.py apply --report-dir "$REPORTS" 2>&1 | tee "$REPORTS/apply.log"
+      - name: Check (references, compilation, imports)
+        run: python scripts/migrate_to_atlas.py check --report-dir "$REPORTS" 2>&1 | tee "$REPORTS/check.log"
+      - name: Unit tests after the migration
+        id: after
+        continue-on-error: true
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -q -m unit -p no:cacheprovider -rfE --junitxml="$REPORTS/after.xml" 2>&1 | tee "$REPORTS/after-tests.log"
+      - name: Compare with the baseline (no regression allowed)
+        run: python scripts/migrate_to_atlas.py compare "$REPORTS/baseline.xml" "$REPORTS/after.xml" 2>&1 | tee "$REPORTS/compare.log"
+      - name: Patch of the migrated tree
+        run: |
+          git add -u
+          git add src/atlas/legacy_compat.py tests/test_atlas_legacy_compat.py
+          git diff --cached --binary -M HEAD > "$REPORTS/migration.patch"
+          git diff --cached --stat -M HEAD | tail -n 60 | tee "$REPORTS/diffstat.log"
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: migration-reports
+          path: ${{ env.REPORTS }}
+
+  windows:
+    name: Windows packaging of the migrated tree
+    needs: migrate
+    if: needs.migrate.result == 'success'
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v5
+        with:
+          name: migration-reports
+          path: _atlas_reports
+      - name: Apply the migrated tree
+        run: git apply --index --whitespace=nowarn _atlas_reports/migration.patch
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          grep -v -E '^(chatterbox-tts|mlx-whisper|nvidia-)' requirements.txt > requirements-desktop.txt
+          pip install -r requirements-desktop.txt
+          pip install pyinstaller pytest
+      - name: Check (references, imports on Windows)
+        run: python scripts/migrate_to_atlas.py check --report-dir _atlas_reports/windows
+      - name: Windows tests of paths, confirmation and legacy compatibility
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -q -p no:cacheprovider tests/test_local_files_confirmation_fidelity.py tests/test_local_files_path_arguments.py tests/test_local_files_glob_confinement.py tests/test_atlas_legacy_compat.py 2>&1 | tee _atlas_reports/windows-tests.log
+      - name: Version file and icons
+        run: |
+          echo 'VERSION = "dev-migration"' > src/atlas/_version.py
+          echo 'RELEASE_CHANNEL = "develop"' >> src/atlas/_version.py
+          python src/desktop_app/desktop_assets/generate_icons.py
+      - name: Build the executable
+        run: pyinstaller atlas_desktop.spec 2>&1 | tee _atlas_reports/windows.log
+      - name: Executable and folder names carry no former name
+        run: |
+          python - <<'PY'
+          import pathlib
+          dist = pathlib.Path('dist')
+          exes = sorted(dist.rglob('*.exe'))
+          print('executables:', [str(p) for p in exes])
+          former = [str(p) for p in dist.rglob('*') if 'jarvis' in p.name.lower()]
+          assert exes, 'no executable was produced'
+          assert any(p.name.lower().startswith('atlas') for p in exes), 'no ATLAS executable'
+          assert not former, former[:10]
+          PY
+      - name: Smoke test of the bundled application
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem dist -Recurse -Filter 'ATLAS*.exe' | Select-Object -First 1
+          if (-not $exe) { Write-Host 'No ATLAS executable'; exit 1 }
+          $out = Join-Path $env:RUNNER_TEMP 'atlas-smoke-stdout.txt'
+          $err = Join-Path $env:RUNNER_TEMP 'atlas-smoke-stderr.txt'
+          $process = Start-Process -FilePath $exe.FullName -ArgumentList '--smoke-test' -Wait -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+          Get-Content $out -ErrorAction SilentlyContinue
+          Get-Content $err -ErrorAction SilentlyContinue
+          if ($process.ExitCode -ne 0) { Write-Host "SMOKE TEST FAILED ($($process.ExitCode))"; exit 1 }
+      - name: Windows installer
+        shell: pwsh
+        run: |
+          choco install innosetup -y
+          & 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe' /DMyAppVersion=dev-migration installer/windows/atlas_setup.iss
+          $setup = Get-ChildItem dist -Filter '*Setup*.exe'
+          $setup | ForEach-Object { Write-Host $_.Name }
+          if (-not $setup) { Write-Host 'No installer produced'; exit 1 }
+          if ($setup | Where-Object { $_.Name -match '(?i)jarvis' }) { Write-Host 'Installer carries the former name'; exit 1 }
+          if (-not ($setup | Where-Object { $_.Name -like 'ATLAS*' })) { Write-Host 'Installer is not named ATLAS'; exit 1 }
+      - name: Upload Windows logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-logs
+          path: _atlas_reports/*.log
+
+  publish:
+    name: Report, and migrated tree only if every check passed
+    needs: [migrate, windows]
+    if: always() && needs.migrate.result != 'skipped' && github.repository == 'Rachid-Coaching-Life/ATLAS' && github.ref == 'refs/heads/perplexity/atlas-core-rename'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: The target branch has not moved
+        run: |
+          git fetch origin "$TARGET_BRANCH"
+          test "$(git rev-parse "origin/$TARGET_BRANCH")" = "$GITHUB_SHA"
+      - uses: actions/download-artifact@v5
+        continue-on-error: true
+        with:
+          name: migration-reports
+          path: reports
+      - uses: actions/download-artifact@v5
+        continue-on-error: true
+        with:
+          name: windows-logs
+          path: reports
+      - name: Build the report
+        env:
+          JOB_RESULTS: ${{ toJSON(needs) }}
+        run: python scripts/migrate_to_atlas.py summary --reports reports --out docs/atlas-migration/last-run.md
+      - name: Apply the migrated tree (only when everything passed)
+        id: apply
+        if: needs.migrate.result == 'success' && needs.windows.result == 'success'
+        run: |
+          if [ -s reports/migration.patch ]; then
+            git apply --index --whitespace=nowarn reports/migration.patch
+            echo "migrated=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Commit to the target branch only
+        env:
+          MIGRATED: ${{ steps.apply.outputs.migrated }}
+        run: |
+          git config user.name "atlas-migration-bot"
+          git config user.email "atlas-migration-bot@users.noreply.github.com"
+          git add -A docs/atlas-migration
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+            exit 0
+          fi
+          if [ "$MIGRATED" = "true" ]; then
+            git commit -q -m "chore(atlas): migrate the Python engine from jarvis to atlas" -m "Automated by scripts/migrate_to_atlas.py after unit tests (no regression against the baseline) and Windows packaging passed. See docs/atlas-migration/last-run.md."
+          else
+            git commit -q -m "docs(atlas): migration run report (the migration was NOT applied)"
+          fi
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"

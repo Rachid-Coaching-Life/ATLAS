@@ -1,6 +1,6 @@
 # Bonsai 2 as an experimental local chat model
 
-Bonsai 2 offers 27B-class chat with compact weights through Jarvis's existing OpenAI-compatible provider. It is an experimental alternative for people comfortable running a model server, outside automatic recommendations. Keep a small fast model for voice intent and tool routing, and a separate embedding model for memory search.
+Bonsai 2 offers 27B-class chat with compact weights through ATLAS's existing OpenAI-compatible provider. It is an experimental alternative for people comfortable running a model server, outside automatic recommendations. Keep a small fast model for voice intent and tool routing, and a separate embedding model for memory search.
 
 ## Runtime and memory
 
@@ -50,12 +50,12 @@ Run the fork's `llama-server` from its installed directory:
   --host 127.0.0.1 --port 18965 --no-webui
 ```
 
-`reasoning = off` matters for Jarvis's short classification and planning deadlines. Bonsai's default extended reasoning can consume the output budget before producing an answer. The server-level setting is required for this recipe; a client flag alone does not establish that the template disables reasoning.
+`reasoning = off` matters for ATLAS's short classification and planning deadlines. Bonsai's default extended reasoning can consume the output budget before producing an answer. The server-level setting is required for this recipe; a client flag alone does not establish that the template disables reasoning.
 
-In Jarvis's Setup Wizard, select **OpenAI-compatible**, connect to `http://127.0.0.1:18965/v1`, and select Bonsai for chat, Gemma for fast and Nomic for embeddings. Review the memory budget and run the connection checks. The warning for an experimental chat model offers **Continue Anyway**; this does not certify the server or downloaded weights. All three models remain loaded in this example, so budget their combined memory. The serving recipe is tested on Apple Silicon with PQ2_0; publisher support for another backend does not establish Jarvis qualification on that hardware.
+In ATLAS's Setup Wizard, select **OpenAI-compatible**, connect to `http://127.0.0.1:18965/v1`, and select Bonsai for chat, Gemma for fast and Nomic for embeddings. Review the memory budget and run the connection checks. The warning for an experimental chat model offers **Continue Anyway**; this does not certify the server or downloaded weights. All three models remain loaded in this example, so budget their combined memory. The serving recipe is tested on Apple Silicon with PQ2_0; publisher support for another backend does not establish ATLAS qualification on that hardware.
 
 ## Suitability
 
-This combination is for experimentation, not an automatic replacement for Gemma or Qwen recommendations. Bonsai can perform native tool calls, but its current Jarvis qualification includes planning deadline failures and strict weather-response failures where correct temperatures are written as words rather than retained as numeric measurements. A passed setup probe does not establish long-term accuracy or latency. Keep the recommended defaults if you need the most thoroughly qualified path.
+This combination is for experimentation, not an automatic replacement for Gemma or Qwen recommendations. Bonsai can perform native tool calls, but its current ATLAS qualification includes planning deadline failures and strict weather-response failures where correct temperatures are written as words rather than retained as numeric measurements. A passed setup probe does not establish long-term accuracy or latency. Keep the recommended defaults if you need the most thoroughly qualified path.
 
 The configuration keeps inference and memory search on your machine. Downloading weights and runtime binaries needs an internet connection; conversation data is sent only to the local endpoint.

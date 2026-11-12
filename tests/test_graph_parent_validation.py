@@ -1,7 +1,7 @@
 """Parent edits retain an acyclic graph and its fixed top-level branches."""
 import pytest
 
-from jarvis.memory.graph import FIXED_BRANCH_IDS, GraphMemoryStore
+from atlas.memory.graph import FIXED_BRANCH_IDS, GraphMemoryStore
 
 pytestmark = pytest.mark.unit
 

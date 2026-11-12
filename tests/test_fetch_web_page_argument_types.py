@@ -5,8 +5,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 import requests
 
-from jarvis.tools.base import ToolContext
-from jarvis.tools.builtin.fetch_web_page import FetchWebPageTool
+from atlas.tools.base import ToolContext
+from atlas.tools.builtin.fetch_web_page import FetchWebPageTool
 
 pytestmark = pytest.mark.unit
 

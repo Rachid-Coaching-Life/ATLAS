@@ -23,11 +23,11 @@ from urllib.parse import urlsplit
 import requests
 
 from desktop_app.whisper_models import get_whisper_vram_mb, wizard_model_options
-from jarvis.llm.model_names import missing_ollama_models
-from jarvis.listening import whisper_capabilities
-from jarvis.debug import debug_log
-from jarvis.config import SUPPORTED_CHAT_MODELS, DEFAULT_CHAT_MODEL, DEFAULT_FAST_MODEL, SUPPORTED_FAST_MODEL_IDS, DEFAULT_EMBEDDING_MODEL
-from jarvis.utils.vram import (
+from atlas.llm.model_names import missing_ollama_models
+from atlas.listening import whisper_capabilities
+from atlas.debug import debug_log
+from atlas.config import SUPPORTED_CHAT_MODELS, DEFAULT_CHAT_MODEL, DEFAULT_FAST_MODEL, SUPPORTED_FAST_MODEL_IDS, DEFAULT_EMBEDDING_MODEL
+from atlas.utils.vram import (
     detect_total_vram_mb,
     get_recommended_model_id,
     get_recommended_model_pair,
@@ -96,7 +96,7 @@ def check_mlx_whisper_status() -> MLXWhisperStatus:
 
 
 # Import config early (no PyQt6 dependency) - needed for detection functions
-from jarvis.config import load_settings, get_default_config, get_config_path
+from atlas.config import load_settings, get_default_config, get_config_path
 
 
 class SetupStatus(Enum):
@@ -179,7 +179,7 @@ def check_ollama_server() -> Tuple[bool, Optional[str]]:
     except Exception:
         base_url = "http://127.0.0.1:11434"
 
-    from jarvis.llm import check_version
+    from atlas.llm import check_version
     return check_version(base_url, timeout=5.0)
 
 
@@ -378,12 +378,12 @@ try:
     from PyQt6.QtGui import QFont, QColor, QPalette, QPixmap, QPainter
 
     from desktop_app.qt_worker import KeepAliveWorker
-    from desktop_app.themes import JARVIS_THEME_STYLESHEET, WIZARD_STYLESHEET, COLORS, _ensure_icons, _ICON_STYLESHEET_TEMPLATE
+    from desktop_app.themes import ATLAS_THEME_STYLESHEET, WIZARD_STYLESHEET, COLORS, _ensure_icons, _ICON_STYLESHEET_TEMPLATE
     from desktop_app.mcp_catalogue import get_wizard_entries, MCPEntry
 
     # Import location utilities with crash protection for Windows native modules
     try:
-        from jarvis.utils.location import (
+        from atlas.utils.location import (
             get_location_info,
             get_location_context,
             is_location_available,
@@ -424,7 +424,7 @@ except ImportError:
         return None
 
     # Stub location utilities that depend on themes
-    JARVIS_THEME_STYLESHEET = ""
+    ATLAS_THEME_STYLESHEET = ""
     COLORS = {}
     get_location_info = lambda *a, **k: {}
     get_location_context = lambda *a, **k: "Location: Unknown"
@@ -639,7 +639,7 @@ class SetupWizard(QWizard):
         """Apply the shared ATLAS theme with SVG indicator icons."""
         icons = _ensure_icons()
         icon_css = _ICON_STYLESHEET_TEMPLATE.format(**icons)
-        self.setStyleSheet(JARVIS_THEME_STYLESHEET + icon_css + """
+        self.setStyleSheet(ATLAS_THEME_STYLESHEET + icon_css + """
             /* Additional wizard-specific overrides */
             QLabel#title {
                 color: #fbbf24;
@@ -995,7 +995,7 @@ class ProviderChoicePage(ScrollableWizardPage):
 
     def _preselect_from_config(self):
         try:
-            from jarvis.config import get_config_path, _load_json
+            from atlas.config import get_config_path, _load_json
             config = _load_json(get_config_path()) or {}
             provider = str(config.get("llm_provider", "ollama") or "ollama")
         except Exception:
@@ -1018,7 +1018,7 @@ class ProviderChoicePage(ScrollableWizardPage):
         authoritative again — no stale base URL / key / model is left
         pointing at a former remote server."""
         try:
-            from jarvis.config import get_config_path, _load_json, _save_json
+            from atlas.config import get_config_path, _load_json, _save_json
             config_path = get_config_path()
             config = _load_json(config_path) or {}
 
@@ -1099,11 +1099,11 @@ class _CapabilityWorker(KeepAliveWorker):
 
     def run(self):
         try:
-            from jarvis.llm import OpenAICompatibleBackend, ServerCapabilities
+            from atlas.llm import OpenAICompatibleBackend, ServerCapabilities
             backend = OpenAICompatibleBackend(self._base_url, api_key=self._api_key or None)
             caps = backend.check_capabilities(self._chat_model, self._embed_model or None)
         except Exception:
-            from jarvis.llm import ServerCapabilities
+            from atlas.llm import ServerCapabilities
             caps = ServerCapabilities()
         self.done.emit(caps)
 
@@ -1510,7 +1510,7 @@ class OpenAICompatiblePage(ScrollableWizardPage):
         if not base_url:
             return []
         try:
-            from jarvis.llm import OpenAICompatibleBackend
+            from atlas.llm import OpenAICompatibleBackend
             backend = OpenAICompatibleBackend(base_url, api_key=(api_key or "").strip() or None)
             return list(backend.list_models(timeout_sec=timeout))
         except Exception:
@@ -1668,7 +1668,7 @@ class OpenAICompatiblePage(ScrollableWizardPage):
         user's values. With no saved URL, default to the common LM Studio
         address and kick off auto-discovery of running local servers."""
         try:
-            from jarvis.config import get_config_path, _load_json
+            from atlas.config import get_config_path, _load_json
             config = _load_json(get_config_path()) or {}
         except Exception:
             config = {}
@@ -1740,7 +1740,7 @@ class OpenAICompatiblePage(ScrollableWizardPage):
         if not self._is_ready(base_url, chat_model):
             return False
         try:
-            from jarvis.config import get_config_path, _load_json, _save_json
+            from atlas.config import get_config_path, _load_json, _save_json
             config_path = get_config_path()
             config = _load_json(config_path) or {}
 
@@ -2475,7 +2475,7 @@ class ModelsPage(ScrollableWizardPage):
 
     def _save_model_to_config(self):
         try:
-            from jarvis.config import _load_json, _save_json
+            from atlas.config import _load_json, _save_json
             cp = get_config_path()
             cp.parent.mkdir(parents=True, exist_ok=True)
             cfg = _load_json(cp) or {}
@@ -2496,7 +2496,7 @@ class ModelsPage(ScrollableWizardPage):
             pass
         self._chat_model = cc if cc in self._ALL_MODELS else DEFAULT_CHAT_MODEL
         self._fast_model = fc if fc in self._ALL_MODELS else DEFAULT_FAST_MODEL
-        from jarvis.config import _load_json, get_config_path
+        from atlas.config import _load_json, get_config_path
         saved = _load_json(get_config_path())
         if self._detected_vram_mb is not None and cc == DEFAULT_CHAT_MODEL and "ollama_chat_model" not in saved:
             usable_mb = self._detected_vram_mb - self._EMBED_VRAM_MB - self._whisper_vram_mb()
@@ -3062,7 +3062,7 @@ class WhisperSetupPage(ScrollableWizardPage):
     def _save_whisper_model_to_config(self):
         """Save the selected whisper model to config file."""
         try:
-            from jarvis.config import _load_json, _save_json
+            from atlas.config import _load_json, _save_json
             config_path = get_config_path()
             config_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -3422,7 +3422,7 @@ class LocationPage(ScrollableWizardPage):
 
     def _open_ip_lookup(self):
         """Resolve public IP via OpenDNS and populate the input field."""
-        from jarvis.utils.location import _resolve_public_ip_via_opendns
+        from atlas.utils.location import _resolve_public_ip_via_opendns
         resolved = _resolve_public_ip_via_opendns()
         if resolved:
             self.ip_input.setText(resolved)
@@ -3505,7 +3505,7 @@ class LocationPage(ScrollableWizardPage):
             return
 
         try:
-            from jarvis.config import _load_json, _save_json
+            from atlas.config import _load_json, _save_json
 
             config_path = get_config_path()
             config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -3541,8 +3541,8 @@ class DictationPage(ScrollableWizardPage):
 
     @staticmethod
     def _hotkey_options():
-        from jarvis.dictation.dictation_engine import format_hotkey_display
-        from jarvis.config import _default_dictation_hotkey
+        from atlas.dictation.dictation_engine import format_hotkey_display
+        from atlas.config import _default_dictation_hotkey
         default = _default_dictation_hotkey()
         options = [
             ("ctrl+alt", format_hotkey_display("ctrl+alt")),
@@ -3666,7 +3666,7 @@ class DictationPage(ScrollableWizardPage):
     def _load_current_filler_removal(self) -> bool:
         """Load the current filler removal setting from config, defaulting to False."""
         try:
-            from jarvis.config import get_config_path, _load_json
+            from atlas.config import get_config_path, _load_json
             config = _load_json(get_config_path())
             if config and "dictation_filler_removal" in config:
                 return bool(config["dictation_filler_removal"])
@@ -3677,7 +3677,7 @@ class DictationPage(ScrollableWizardPage):
     def _load_current_hotkey(self) -> str:
         """Load the current hotkey from config, or platform default."""
         try:
-            from jarvis.config import get_config_path, _load_json, _default_dictation_hotkey
+            from atlas.config import get_config_path, _load_json, _default_dictation_hotkey
             config = _load_json(get_config_path())
             if config and "dictation_hotkey" in config:
                 return config["dictation_hotkey"]
@@ -3690,7 +3690,7 @@ class DictationPage(ScrollableWizardPage):
     def validatePage(self) -> bool:
         """Save dictation settings to config before leaving page."""
         try:
-            from jarvis.config import get_config_path, _load_json, _save_json
+            from atlas.config import get_config_path, _load_json, _save_json
             config_path = get_config_path()
             config = _load_json(config_path) or {}
 
@@ -3821,7 +3821,7 @@ class MCPPage(ScrollableWizardPage):
     def _is_node_available() -> bool:
         """Check if Node.js (npx) is available on the system."""
         try:
-            from jarvis.tools.external.mcp_client import _resolve_command
+            from atlas.tools.external.mcp_client import _resolve_command
             _resolve_command("npx")
             return True
         except (FileNotFoundError, Exception):
@@ -3831,7 +3831,7 @@ class MCPPage(ScrollableWizardPage):
     def _is_already_configured(name: str) -> bool:
         """Check if an MCP server is already in the user's config."""
         try:
-            from jarvis.config import get_config_path, _load_json
+            from atlas.config import get_config_path, _load_json
             config = _load_json(get_config_path())
             return name in (config.get("mcps") or {})
         except Exception:
@@ -3840,7 +3840,7 @@ class MCPPage(ScrollableWizardPage):
     def validatePage(self) -> bool:
         """Save selected MCPs to config before leaving page."""
         try:
-            from jarvis.config import get_config_path, _load_json, _save_json
+            from atlas.config import get_config_path, _load_json, _save_json
             config_path = get_config_path()
             config = _load_json(config_path) or {}
 
@@ -3986,7 +3986,7 @@ class SearchProvidersPage(ScrollableWizardPage):
     @staticmethod
     def _load_current_brave_key() -> str:
         try:
-            from jarvis.config import get_config_path, _load_json
+            from atlas.config import get_config_path, _load_json
             config = _load_json(get_config_path())
             return str(config.get("brave_search_api_key", "") or "")
         except Exception:
@@ -3995,7 +3995,7 @@ class SearchProvidersPage(ScrollableWizardPage):
     @staticmethod
     def _load_current_wikipedia_enabled() -> bool:
         try:
-            from jarvis.config import get_config_path, _load_json
+            from atlas.config import get_config_path, _load_json
             config = _load_json(get_config_path())
             # Default True to match config.py's default.
             val = config.get("wikipedia_fallback_enabled", True)
@@ -4008,7 +4008,7 @@ class SearchProvidersPage(ScrollableWizardPage):
         values to keep config.json minimal (consistent with the settings
         window's "only non-default values written" invariant)."""
         try:
-            from jarvis.config import get_config_path, _load_json, _save_json
+            from atlas.config import get_config_path, _load_json, _save_json
             config_path = get_config_path()
             config = _load_json(config_path) or {}
 
