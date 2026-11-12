@@ -96,83 +96,68 @@ def test_startup_uses_french_loopback_private_state_and_offline(tmp_path, monkey
     assert calls[-1] == "terminated"
 
 
-def test_http_uses_only_text_and_cannot_upload_private_voice(tmp_path, monkeypatch):
-    import http.client
+@pytest.mark.parametrize("framing", ["length", "chunked"])
+def test_http_uses_only_text_and_cannot_upload_private_voice(
+        tmp_path, monkeypatch, framing):
+    import socket
     binary, profile = private_fixtures(tmp_path)
     engine = PocketTTS(binary_path=str(binary), voice_profile=str(profile))
     engine._port = 8765
     engine._server = SimpleNamespace(poll=lambda: None)
-    calls = []
+    wav = b"RIFFdata"
+    if framing == "length":
+        response = (b"HTTP/1.1 200 OK\r\nContent-Type: audio/wav\r\n"
+                    b"Content-Length: 8\r\n\r\n" + wav)
+    else:
+        response = (b"HTTP/1.1 200 OK\r\nContent-Type: audio/wav\r\n"
+                    b"Transfer-Encoding: chunked\r\n\r\n8\r\n"
+                    + wav + b"\r\n0\r\n\r\n")
+    sent = []
 
-    class Response:
-        status = 200
-        length = 0
-        def __enter__(self):
-            return self
-        def __exit__(self, *args):
-            return False
-        def getheader(self, name, default):
-            return "audio/wav"
-        def read1(self, size):
-            if calls[-1] == "read":
-                return b""
-            calls.append("read")
-            return b"RIFFdata"
-
-    class Connection:
-        def __init__(self, host, port, timeout):
-            calls.append((host, port, timeout))
-            self.sock = SimpleNamespace(settimeout=lambda timeout: None)
-        def connect(self):
+    class Transport:
+        def __init__(self):
+            self.chunks = [response]
+        def settimeout(self, duration):
             pass
-        def request(self, method, path, body, headers):
-            calls.append((method, path, body, headers))
-        def getresponse(self):
-            return Response()
+        def recv(self, size):
+            return self.chunks.pop(0) if self.chunks else b""
+        def sendall(self, data):
+            sent.append(data)
         def close(self):
             pass
+        def shutdown(self, mode):
+            pass
 
-    monkeypatch.setattr(http.client, "HTTPConnection", Connection)
-    assert engine._request_audio("Bonjour ATLAS") == b"RIFFdata"
-    assert calls[0] == ("127.0.0.1", 8765, 3)
-    assert calls[1] == ("POST", "/tts", b"text=Bonjour+ATLAS", {
-        "Content-Type": "application/x-www-form-urlencoded",
-    })
-    assert str(profile) not in str(calls)
+    monkeypatch.setattr(socket, "create_connection",
+                        lambda address, timeout: Transport())
+    assert engine._request_audio("Bonjour ATLAS") == wav
+    assert len(sent) == 1
+    assert b"POST /tts HTTP/1.1" in sent[0]
+    assert sent[0].endswith(b"text=Bonjour+ATLAS")
+    assert str(profile).encode() not in sent[0]
 
 
 def test_cancelled_transfer_never_returns_audio(tmp_path, monkeypatch):
-    import http.client
+    import socket
     binary, profile = private_fixtures(tmp_path)
     engine = PocketTTS(binary_path=str(binary), voice_profile=str(profile))
     engine._port = 8765
     engine._server = SimpleNamespace(poll=lambda: None)
 
-    class Response:
-        status = 200
-        def __enter__(self):
-            return self
-        def __exit__(self, *args):
-            return False
-        def getheader(self, name, default):
-            return "audio/wav"
-        def read1(self, size):
+    class Transport:
+        def settimeout(self, duration):
+            pass
+        def sendall(self, data):
+            pass
+        def recv(self, size):
             engine._should_interrupt.set()
-            return b"RIFFdata"
-
-    class Connection:
-        def __init__(self, *args, **kwargs):
-            self.sock = SimpleNamespace(settimeout=lambda timeout: None)
-        def connect(self):
-            pass
-        def request(self, *args, **kwargs):
-            pass
-        def getresponse(self):
-            return Response()
+            return (b"HTTP/1.1 200 OK\r\nContent-Type: audio/wav\r\n"
+                    b"Content-Length: 8\r\n\r\nRIFFdata")
         def close(self):
             pass
 
-    monkeypatch.setattr(http.client, "HTTPConnection", Connection)
+    monkeypatch.setattr(socket, "create_connection",
+                        lambda address, timeout: Transport())
     assert engine._request_audio("Bonjour ATLAS") is None
 
 

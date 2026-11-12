@@ -1038,55 +1038,43 @@ class PocketTTS(_QueuedSpeech):
                 self._terminate_server()
 
     def _request_audio(self, text):
-        import http.client
-        from urllib.parse import urlencode
+        import socket
+        from .pocket_http import (
+            PocketHttpCancelled, PocketHttpError, make_local_request,
+            read_local_wav,
+        )
 
         if (self._server is None or self._server.poll() is not None
                 or self._port is None):
             return None
-        # A direct loopback connection ignores proxies and never follows
-        # redirects. Retain its socket so interruption can wake a blocked read
-        # even before response headers arrive, without stopping the model.
-        connection = http.client.HTTPConnection("127.0.0.1", self._port, timeout=3)
         transport = None
         try:
-            connection.connect()
-            transport = connection.sock
-            transport.settimeout(60)
+            transport = socket.create_connection(("127.0.0.1", self._port), timeout=3)
+            transport.settimeout(0.2)
             with self._http_lock:
                 if self._should_interrupt.is_set() or self._stop.is_set():
                     return None
                 self._http_socket = transport
-            connection.request(
-                "POST", "/tts", body=urlencode({"text": text}).encode("utf-8"),
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            transport.sendall(make_local_request(text))
+            result = read_local_wav(
+                transport,
+                cancelled=lambda: (self._should_interrupt.is_set()
+                                   or self._stop.is_set()),
+                max_bytes=self.MAX_WAV_BYTES,
             )
-            with connection.getresponse() as response:
-                if (response.status != 200 or
-                        response.getheader("Content-Type", "").split(";", 1)[0].lower()
-                        != "audio/wav"):
-                    return None
-                result = bytearray()
-                while True:
-                    if self._should_interrupt.is_set() or self._stop.is_set():
-                        return None
-                    piece = response.read1(8192)
-                    if not piece:
-                        if response.length not in (None, 0):
-                            return None
-                        break
-                    result.extend(piece)
-                    if len(result) > self.MAX_WAV_BYTES:
-                        return None
-                return (bytes(result) if result and not self._should_interrupt.is_set()
-                        and not self._stop.is_set() else None)
-        except (OSError, http.client.HTTPException):
+            return result if result and not (self._should_interrupt.is_set()
+                                             or self._stop.is_set()) else None
+        except (OSError, PocketHttpCancelled, PocketHttpError):
             return None
         finally:
             with self._http_lock:
                 if self._http_socket is transport:
                     self._http_socket = None
-            connection.close()
+            if transport is not None:
+                try:
+                    transport.close()
+                except OSError:
+                    pass
 
     def interrupt(self):
         self._interrupt_active_request()

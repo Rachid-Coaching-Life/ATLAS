@@ -69,3 +69,7 @@ charger les poids français et un profil donné puis produire une voix correcte.
 La synthèse française avec l'exécutable officiel Windows, le timbre personnel,
 la latence sur Ryzen et l'alignement sur le périphérique audio restent non
 validés. Aucun enregistrement ni profil privé n'est nécessaire aux tests.
+
+### Correctif d'interruption Windows, à valider par GitHub Actions
+
+La CI Windows du commit `75ca2d0` montrait encore 5 échecs sur 28, y compris après `shutdown()` et `close()` du socket : le décodage `http.client.HTTPResponse` pouvait rester en lecture bloquante. Le remplacement ciblé utilise un lecteur HTTP/1.1 local borné, avec sondage du socket toutes les 200 ms et décodage `Content-Length`/`Transfer-Encoding: chunked`. Le nouveau contrôle doit passer sous Windows avant toute validation. Aucune bibliothèque supplémentaire, aucun WAV privé dans la CI.

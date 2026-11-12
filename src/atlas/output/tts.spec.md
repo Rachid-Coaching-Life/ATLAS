@@ -165,3 +165,5 @@ length. Audio streams close before terminal release. This buffered path does
 not promise streaming latency or device-measured lip synchronisation.
 
 Windows compatibility follow-up: interruption explicitly shuts down **and closes** the owned HTTP socket to attempt to release Winsock's blocked header/body receive; the GitHub Windows tests are authoritative for whether this suffices. No claim is made before the corresponding run.
+
+Pocket local HTTP reads use a bounded 200 ms socket receive poll, not a blocking buffered HTTPResponse. The reader accepts Content-Length and HTTP/1.1 chunked WAV (as emitted by the official Rust server), checks a 32 MiB cap, refuses redirects, encodings and truncated framing, and checks request cancellation during stalled headers and body reads on Windows. No user text leaves loopback.
