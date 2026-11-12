@@ -12,7 +12,7 @@ ASSET = Path(__file__).resolve().parents[1] / (
 # Provisional technical baseline only, not a definitive approved visual reference.
 # A deliberate asset replacement requires explicit review of this fingerprint.
 PROVISIONAL_PORTRAIT_SHA256 = (
-    "3d0e831e38dfff46bc93a006e92eb03b03eb8a404e915a7984415800e52b59f9"
+    "22850edeed26c147d4508790616b383dde516289aae7c765990f3d237193e59f"
 )
 
 
