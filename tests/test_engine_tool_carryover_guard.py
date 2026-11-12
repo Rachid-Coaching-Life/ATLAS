@@ -4,8 +4,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from jarvis.reply import engine
-from jarvis.tools.types import ToolExecutionResult
+from atlas.reply import engine
+from atlas.tools.types import ToolExecutionResult
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 
@@ -134,7 +134,7 @@ def test_planner_failure_widens_the_followup_allowlist(reply_harness):
 
 
 def test_orphan_call_does_not_widen_the_allowlist_and_logs_the_gap(reply_harness, monkeypatch, capsys):
-    monkeypatch.setenv('JARVIS_VOICE_DEBUG', '1')
+    monkeypatch.setenv('ATLAS_VOICE_DEBUG', '1')
     _, _, memory, _ = reply_harness
     previous_turn(memory, tool_turn('getWeather', failed=True, native=True)[:1])
     assert reply(reply_harness, "I'm in London", ['webSearch']) == {

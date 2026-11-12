@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from jarvis import config
+from atlas import config
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 
@@ -26,7 +26,7 @@ def test_listening_controls_preserve_the_selected_value(monkeypatch, tmp_path, f
         payload[field] = expected
     path = tmp_path / 'config.json'
     path.write_text(json.dumps(payload), encoding='utf-8')
-    monkeypatch.setenv('JARVIS_CONFIG_PATH', str(path))
+    monkeypatch.setenv('ATLAS_CONFIG_PATH', str(path))
     assert config.get_config_path() == path
 
     settings = config.load_settings()

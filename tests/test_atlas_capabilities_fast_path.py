@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from jarvis.reply import engine
+from atlas.reply import engine
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 

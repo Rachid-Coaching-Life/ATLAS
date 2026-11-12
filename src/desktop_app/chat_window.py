@@ -38,8 +38,8 @@ from PyQt6.QtWidgets import (
     QSizeGrip,
 )
 
-from jarvis.debug import debug_log
-from desktop_app.themes import COLORS, JARVIS_THEME_STYLESHEET, CHAT_THEME_STYLESHEET
+from atlas.debug import debug_log
+from desktop_app.themes import COLORS, ATLAS_THEME_STYLESHEET, CHAT_THEME_STYLESHEET
 
 
 class PhoneShell(QWidget):
@@ -137,14 +137,14 @@ class ChatSizeGrip(QSizeGrip):
 
 
 def get_hot_window_messages() -> list:
-    """Thin wrapper around ``jarvis.daemon.get_hot_window_messages``.
+    """Thin wrapper around ``atlas.daemon.get_hot_window_messages``.
 
     Lives at module scope so tests can monkeypatch
     ``desktop_app.chat_window.get_hot_window_messages`` without touching the
     daemon module (which the bundled and subprocess paths resolve
     differently).
     """
-    from jarvis import daemon
+    from atlas import daemon
     return daemon.get_hot_window_messages()
 
 
@@ -337,7 +337,7 @@ _HEADER_STATUS_TEXTS = {
 
 
 class ChatWindow(QMainWindow):
-    """Text chat window. Sends via ``jarvis.daemon.submit_text_query``.
+    """Text chat window. Sends via ``atlas.daemon.submit_text_query``.
 
     In subprocess mode the desktop app sets ``submit_fn`` to a callable that
     writes a ``__CHAT_QUERY__:`` line to the daemon's stdin, ``cancel_fn`` to
@@ -371,7 +371,7 @@ class ChatWindow(QMainWindow):
         self.setMinimumSize(380, 560)
         available = self.screen().availableGeometry()
         self.resize(min(480, available.width()), min(800, available.height()))
-        self.setStyleSheet(JARVIS_THEME_STYLESHEET + CHAT_THEME_STYLESHEET)
+        self.setStyleSheet(ATLAS_THEME_STYLESHEET + CHAT_THEME_STYLESHEET)
         self._submit_fn = submit_fn
         # Subprocess mode routes cancellation to the daemon the same way it
         # routes a submission. Without it, Stop sets a flag in this
@@ -597,7 +597,7 @@ class ChatWindow(QMainWindow):
             self._submit_fn(text)
         else:
             # Bundled mode: call the daemon directly with our signal emitters.
-            from jarvis import daemon
+            from atlas import daemon
 
             daemon.submit_text_query(
                 text,
@@ -618,7 +618,7 @@ class ChatWindow(QMainWindow):
             # Subprocess mode: the query lives in the daemon process.
             self._cancel_fn()
         else:
-            from jarvis import daemon
+            from atlas import daemon
 
             daemon.cancel_active_chat_query()
 
@@ -652,7 +652,7 @@ class ChatWindow(QMainWindow):
         if self._control_fn is not None:
             self._control_fn("rewind", {"user_index": user_index})
         else:
-            from jarvis import daemon
+            from atlas import daemon
             if not daemon.rewind_chat_to_user(user_index):
                 debug_log(
                     f"chat rewind rejected for user message {user_index}", "chat"
@@ -669,7 +669,7 @@ class ChatWindow(QMainWindow):
         if self._submit_fn is not None:
             self._submit_fn(text)
         else:
-            from jarvis import daemon
+            from atlas import daemon
 
             daemon.submit_text_query(
                 text,
@@ -743,7 +743,7 @@ class ChatWindow(QMainWindow):
         if malformed), False otherwise. Must be called on the Qt main thread
         (the caller marshals via a main-thread-owned signal).
         """
-        from jarvis.daemon import CHAT_IPC_PREFIX
+        from atlas.daemon import CHAT_IPC_PREFIX
         if not line.startswith(CHAT_IPC_PREFIX):
             return False
         import json as _json

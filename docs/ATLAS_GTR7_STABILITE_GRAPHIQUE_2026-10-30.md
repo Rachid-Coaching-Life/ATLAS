@@ -991,10 +991,10 @@ Après l'intégration du chat vers le panneau holographique (commit
 
 **Résultat communiqué : `2 failed, 124 passed in 18.20s`.**
 Échecs précis :
-- `TestChatWindowStructure.test_window_title_mentions_jarvis` attendait
-  `Jarvis` dans le titre, mais le vrai titre est `ATLAS Chat`.
+- `TestChatWindowStructure.test_window_title_mentions_atlas` attendait
+  `ATLAS` dans le titre, mais le vrai titre est `ATLAS Chat`.
 - `TestChatWindowSmsLook.test_header_shows_contact_and_presence`
-  attendait un label `Jarvis` exact, mais le contact porte le nom `ATLAS`.
+  attendait un label `ATLAS` exact, mais le contact porte le nom `ATLAS`.
   Un ancien libellé décoratif `J A R V I S / CHAT` subsistait.
 
 **Diagnostic :** anciennes attentes de tests incompatibles avec
@@ -1007,7 +1007,7 @@ notamment ceux de la nouvelle intégration de conversation.
 - `tests/test_chat_window.py` : titre et contact attendus
   `ATLAS`, vérification explicite de la capsule ATLAS ;
   exemple de ligne de journal visuel renommé `🤖 ATLAS`.
-- Aucune migration de noms internes `jarvis` utilisés comme chemins
+- Aucune migration de noms internes `atlas` utilisés comme chemins
   d'import, classes de compatibilité ou noms de thèmes :
   ils constituent une question de refactorisation distincte, susceptible
   de casser des intégrations, et ne doivent pas être rebaptisés

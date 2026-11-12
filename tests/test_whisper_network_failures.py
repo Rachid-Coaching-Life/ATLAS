@@ -7,7 +7,7 @@ import pytest
 import requests
 from urllib3.exceptions import MaxRetryError, ProtocolError, SSLError
 
-from jarvis.listening import model_download
+from atlas.listening import model_download
 
 pytestmark = pytest.mark.unit
 
@@ -51,8 +51,8 @@ def test_network_wrapper_keeps_rate_limit_priority_and_terminates_with_cycles():
 
 
 @pytest.mark.parametrize('category,actions', [
-    ('certificate', ('certificate', 'proxy', 'trust', 'restart jarvis')),
-    ('network', ('connection', 'proxy', 'restart jarvis', 'resume')),
+    ('certificate', ('certificate', 'proxy', 'trust', 'restart atlas')),
+    ('network', ('connection', 'proxy', 'restart atlas', 'resume')),
 ])
 def test_network_failure_explains_safe_recovery_and_retains_cache(monkeypatch, tmp_path, capsys, category, actions):
     cached = tmp_path / 'model.bin'

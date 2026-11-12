@@ -9,7 +9,7 @@ import time
 import pytest
 
 pytestmark = pytest.mark.unit
-from jarvis.listening.echo_detection import EchoDetector
+from atlas.listening.echo_detection import EchoDetector
 
 
 class TestTextNormalization:
@@ -869,7 +869,7 @@ def test_during_tts_echo_cleanup_obeys_shared_minimum(minimum, qualifies):
 ])
 def test_fuzzy_during_tts_cleanup_preserves_complete_follow_up(user_speech):
     detector = EchoDetector()
-    detector.track_tts_start('Jarvis explores projects through practical experiments and clear examples.')
+    detector.track_tts_start('ATLAS explores projects through practical experiments and clear examples.')
     heard = 'laws projects through practical experiments and clear examples. ' + user_speech
     assert detector.cleanup_leading_echo_during_tts(
         heard, tts_rate=200, utterance_start_time=detector._tts_start_time + 0.1,

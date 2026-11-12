@@ -3,7 +3,7 @@ import threading
 from types import SimpleNamespace
 
 import pytest
-from jarvis.listening import state_manager
+from atlas.listening import state_manager
 
 pytestmark = pytest.mark.unit
 
@@ -32,9 +32,9 @@ class ManualTimer:
 
 @pytest.fixture
 def window(monkeypatch, tmp_path):
-    from jarvis import activity
-    monkeypatch.setattr(activity, "_get_jarvis_state_file", lambda: str(tmp_path / "face_state"))
-    monkeypatch.setattr(activity, "_jarvis_state_instance", None)
+    from atlas import activity
+    monkeypatch.setattr(activity, "_get_atlas_state_file", lambda: str(tmp_path / "face_state"))
+    monkeypatch.setattr(activity, "_atlas_state_instance", None)
     timers = []
 
     def timer(delay, callback):

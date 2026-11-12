@@ -14,9 +14,9 @@ pytestmark = pytest.mark.unit
 
 
 @pytest.mark.parametrize('heard,directed,aliases,accepted', [
-    ('Jarvis set a timer for five minutes', True, [], True),
+    ('ATLAS set a timer for five minutes', True, [], True),
     ('How are you doing today?', True, [], False),
-    ('I told my friend about Jarvis yesterday', False, [], False),
+    ('I told my friend about ATLAS yesterday', False, [], False),
     ('Jairus log a burger please', True, ['jairus'], True),
 ])
 def test_current_wake_signal_and_decision_control_acceptance(heard, directed, aliases, accepted):

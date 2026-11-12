@@ -11,9 +11,9 @@ import sys
 
 import pytest
 
-from jarvis import config
-from jarvis.utils import vram
-from jarvis.utils.vram import detect_total_vram_mb, _detect_via_nvidia_smi
+from atlas import config
+from atlas.utils import vram
+from atlas.utils.vram import detect_total_vram_mb, _detect_via_nvidia_smi
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 
@@ -80,7 +80,7 @@ def test_requirement_lookup_uses_the_catalogue(catalogue, model, expected):
 class TestDetectionMocked:
     """Detection with mocked backends (no real GPU required)."""
 
-    @patch("jarvis.utils.vram._detect_via_dxgi")
+    @patch("atlas.utils.vram._detect_via_dxgi")
     def test_dxgi_takes_precedence_on_windows(self, mock_dxgi):
         """DXGI should be tried first on Windows."""
         mock_dxgi.return_value = 8192
@@ -89,8 +89,8 @@ class TestDetectionMocked:
         assert result == 8192
         mock_dxgi.assert_called_once()
 
-    @patch("jarvis.utils.vram._detect_via_dxgi")
-    @patch("jarvis.utils.vram._detect_via_nvidia_smi")
+    @patch("atlas.utils.vram._detect_via_dxgi")
+    @patch("atlas.utils.vram._detect_via_nvidia_smi")
     def test_falls_back_to_nvidia_smi_when_dxgi_fails(
         self, mock_smi, mock_dxgi
     ):
@@ -101,8 +101,8 @@ class TestDetectionMocked:
             result = detect_total_vram_mb()
         assert result == 4096
 
-    @patch("jarvis.utils.vram._detect_via_dxgi")
-    @patch("jarvis.utils.vram._detect_via_nvidia_smi")
+    @patch("atlas.utils.vram._detect_via_dxgi")
+    @patch("atlas.utils.vram._detect_via_nvidia_smi")
     def test_returns_none_when_all_fail(
         self, mock_smi, mock_dxgi
     ):
@@ -113,7 +113,7 @@ class TestDetectionMocked:
             result = detect_total_vram_mb()
         assert result is None
 
-    @patch("jarvis.utils.vram._detect_via_nvidia_smi")
+    @patch("atlas.utils.vram._detect_via_nvidia_smi")
     def test_uses_nvidia_smi_on_non_windows(self, mock_smi):
         """On non-Windows, nvidia-smi is the primary detector."""
         mock_smi.return_value = 8192
@@ -125,7 +125,7 @@ class TestDetectionMocked:
 class TestNvidiaSmiDetection:
     """nvidia-smi parsing logic (no real subprocess)."""
 
-    @patch("jarvis.utils.vram.subprocess.run")
+    @patch("atlas.utils.vram.subprocess.run")
     def test_parses_single_gpu(self, mock_run):
         """Single GPU should parse correctly."""
         mock_result = MagicMock()
@@ -136,7 +136,7 @@ class TestNvidiaSmiDetection:
         result = _detect_via_nvidia_smi()
         assert result == 12288
 
-    @patch("jarvis.utils.vram.subprocess.run")
+    @patch("atlas.utils.vram.subprocess.run")
     def test_parses_multi_gpu_returns_first(self, mock_run):
         """Multi-GPU should return the first GPU's VRAM."""
         mock_result = MagicMock()
@@ -147,7 +147,7 @@ class TestNvidiaSmiDetection:
         result = _detect_via_nvidia_smi()
         assert result == 8192
 
-    @patch("jarvis.utils.vram.subprocess.run")
+    @patch("atlas.utils.vram.subprocess.run")
     def test_handles_failure(self, mock_run):
         """Non-zero returncode should return None."""
         mock_result = MagicMock()
@@ -157,7 +157,7 @@ class TestNvidiaSmiDetection:
         result = _detect_via_nvidia_smi()
         assert result is None
 
-    @patch("jarvis.utils.vram.subprocess.run")
+    @patch("atlas.utils.vram.subprocess.run")
     def test_handles_timeout(self, mock_run):
         """subprocess.TimeoutExpired should return None."""
         from subprocess import TimeoutExpired
@@ -166,7 +166,7 @@ class TestNvidiaSmiDetection:
         result = _detect_via_nvidia_smi()
         assert result is None
 
-    @patch("jarvis.utils.vram.subprocess.run")
+    @patch("atlas.utils.vram.subprocess.run")
     def test_handles_file_not_found(self, mock_run):
         """FileNotFoundError should return None."""
         mock_run.side_effect = FileNotFoundError()

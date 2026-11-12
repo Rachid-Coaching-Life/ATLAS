@@ -4,8 +4,8 @@ from types import SimpleNamespace
 import pytest
 
 from desktop_app import setup_wizard
-from jarvis.config import DEFAULT_CHAT_MODEL
-from jarvis.utils.vram import get_recommended_model_id, required_vram_mb
+from atlas.config import DEFAULT_CHAT_MODEL
+from atlas.utils.vram import get_recommended_model_id, required_vram_mb
 
 pytestmark = pytest.mark.unit
 

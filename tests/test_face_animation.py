@@ -14,7 +14,7 @@ from PyQt6.QtCore import Qt, QPoint
 from PyQt6.QtGui import QImage, QPainter, QRegion
 
 from desktop_app import face_widget
-from jarvis.activity import JarvisState
+from atlas.activity import AtlasState
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
@@ -27,7 +27,7 @@ class Clock:
 
 @dataclass
 class LocalState:
-    state: JarvisState = JarvisState.ASLEEP
+    state: AtlasState = AtlasState.ASLEEP
 
 
 @pytest.fixture
@@ -35,7 +35,7 @@ def scene(qapp, monkeypatch):
     """Never construct the file-backed singleton or inspect the user's state."""
     clock = Clock()
     state = LocalState()
-    monkeypatch.setattr(face_widget, 'get_jarvis_state', lambda: state)
+    monkeypatch.setattr(face_widget, 'get_atlas_state', lambda: state)
     scene_clock = Mock(wraps=time)
     scene_clock.monotonic.side_effect = lambda: clock.now
     monkeypatch.setattr(face_widget, '_time', scene_clock)
@@ -101,7 +101,7 @@ def advance(scene, state, seconds, fps=30):
 def test_idle_mouth_is_a_straight_mask_seam(scene):
     """The resting mask has a straight light seam rather than a human smile."""
     window, _, _ = scene
-    advance(scene, JarvisState.IDLE, 2)
+    advance(scene, AtlasState.IDLE, 2)
     image = QImage(220, 280, QImage.Format.Format_ARGB32_Premultiplied)
     image.fill(Qt.GlobalColor.transparent)
     painter = QPainter(image)
@@ -118,7 +118,7 @@ def test_idle_mouth_is_a_straight_mask_seam(scene):
     assert 154 * 0.65 < occupied_x[-1] - occupied_x[0] < 154 * 0.8
 
 
-@pytest.mark.parametrize('state', [JarvisState.LISTENING, JarvisState.THINKING, JarvisState.SPEAKING])
+@pytest.mark.parametrize('state', [AtlasState.LISTENING, AtlasState.THINKING, AtlasState.SPEAKING])
 def test_motion_follows_elapsed_time_instead_of_frame_count(scene, state):
     """A busy desktop and a fast desktop show the same expression at the same time."""
     window, manager, clock = scene
@@ -126,7 +126,7 @@ def test_motion_follows_elapsed_time_instead_of_frame_count(scene, state):
     normal = pixels(render(window)).astype(float)
     window.close()
     clock.now = 1000.0
-    manager.state = JarvisState.ASLEEP
+    manager.state = AtlasState.ASLEEP
     second = face_widget.FaceWindow(portrait=False)
     second.show()
     second.face._animation_timer.stop()
@@ -140,24 +140,24 @@ def test_motion_follows_elapsed_time_instead_of_frame_count(scene, state):
 
 def test_hiding_the_face_suspends_its_animation_and_show_observes_current_state(scene):
     window, manager, clock = scene
-    advance(scene, JarvisState.IDLE, 2)
+    advance(scene, AtlasState.IDLE, 2)
     window.face._animation_timer.start()
     window.hide()
     assert not window.face._animation_timer.isActive()
-    manager.state = JarvisState.LISTENING
+    manager.state = AtlasState.LISTENING
     clock.now += 600
     observed = []
     window.face.state_observed.connect(observed.append)
     window.show()
-    assert observed == [JarvisState.LISTENING.value]
+    assert observed == [AtlasState.LISTENING.value]
     assert window.face._animation_timer.isActive()
 
 
 def test_sleep_has_no_continuing_motion(scene):
     window, _, _ = scene
-    advance(scene, JarvisState.ASLEEP, 5)
+    advance(scene, AtlasState.ASLEEP, 5)
     first = pixels(render(window))
-    advance(scene, JarvisState.ASLEEP, 20)
+    advance(scene, AtlasState.ASLEEP, 20)
     assert np.array_equal(first, pixels(render(window)))
 
 
@@ -172,13 +172,13 @@ def test_idle_motion_does_not_roam_across_the_desktop(scene):
     window, _, _ = scene
     edges = []
     for _ in range(80):
-        advance(scene, JarvisState.IDLE, 0.25, fps=20)
+        advance(scene, AtlasState.IDLE, 0.25, fps=20)
         y, x = np.nonzero(pixels(render(window))[:, :, 3] > 20)
         edges.append((x.min(), y.min(), x.max(), y.max()))
     assert np.max(np.ptp(edges, axis=0)) <= window.width() * 0.015
 
 
-@pytest.mark.parametrize('state', list(JarvisState))
+@pytest.mark.parametrize('state', list(AtlasState))
 def test_every_state_leaves_the_desktop_visible_and_stays_inside_its_footprint(scene, state):
     window, _, _ = scene
     advance(scene, state, 2.5)
@@ -191,7 +191,7 @@ def test_every_state_leaves_the_desktop_visible_and_stays_inside_its_footprint(s
     assert all(window.mask().contains(QPoint(int(px), int(py))) for px, py in zip(x, y))
 
 
-@pytest.mark.parametrize('state', list(JarvisState))
+@pytest.mark.parametrize('state', list(AtlasState))
 @pytest.mark.parametrize('background', [(18, 20, 26), (242, 240, 235)])
 def test_rendered_states_match_the_reviewed_light_and_dark_appearance(scene, state, background):
     """Allow minor rasteriser differences while protecting the actual character."""
@@ -215,7 +215,7 @@ def test_rendered_states_match_the_reviewed_light_and_dark_appearance(scene, sta
 def test_mask_has_connected_straight_beams_and_lit_junctions(scene):
     """The original angular mask remains recognisable at desktop size."""
     window, _, _ = scene
-    advance(scene, JarvisState.IDLE, 2)
+    advance(scene, AtlasState.IDLE, 2)
     widget = window.face
     alpha = pixels(render(widget))[:, :, 3]
     cx, cy = window.width() / 2, window.height() / 2
@@ -229,11 +229,11 @@ def test_mask_has_connected_straight_beams_and_lit_junctions(scene):
 
 def test_awake_beams_have_slow_flow_without_moving_the_mask(scene):
     window, _, _ = scene
-    advance(scene, JarvisState.IDLE, 2)
+    advance(scene, AtlasState.IDLE, 2)
     window.face._breathing_scale = 1.0
     window.face._activation_level = 1.0
     first = pixels(render(window))
-    advance(scene, JarvisState.IDLE, 1)
+    advance(scene, AtlasState.IDLE, 1)
     window.face._breathing_scale = 1.0
     window.face._activation_level = 1.0
     second = pixels(render(window))
@@ -246,7 +246,7 @@ def test_awake_beams_have_slow_flow_without_moving_the_mask(scene):
 def test_mask_features_keep_the_established_portrait_proportions(scene):
     """The diamond eyes sit above a wide mouth on the tall mask."""
     window, _, _ = scene
-    advance(scene, JarvisState.IDLE, 2)
+    advance(scene, AtlasState.IDLE, 2)
     window.face._breathing_scale = 1.0
     alpha = pixels(render(window))[:, :, 3]
     # Crown, upper diamond tip and mouth centre in the established portrait.
@@ -257,7 +257,7 @@ def test_mask_features_keep_the_established_portrait_proportions(scene):
 
 def test_pupils_are_flat_lights_rather_than_shaded_eyeballs(scene):
     window, _, _ = scene
-    advance(scene, JarvisState.IDLE, 2)
+    advance(scene, AtlasState.IDLE, 2)
     image = QImage(80, 80, QImage.Format.Format_ARGB32_Premultiplied)
     image.fill(Qt.GlobalColor.transparent)
     painter = QPainter(image)

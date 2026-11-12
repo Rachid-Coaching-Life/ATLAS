@@ -4,7 +4,7 @@ from threading import Barrier
 
 import pytest
 
-from jarvis.memory.graph import (
+from atlas.memory.graph import (
     GraphMemoryStore,
     register_graph_mutation_listener,
     unregister_graph_mutation_listener,

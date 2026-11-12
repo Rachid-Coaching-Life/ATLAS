@@ -27,8 +27,8 @@ from unittest.mock import Mock
 
 import pytest
 
-import jarvis.dictation.dictation_engine as de
-from jarvis.utils.audio_lock import portaudio_lock
+import atlas.dictation.dictation_engine as de
+from atlas.utils.audio_lock import portaudio_lock
 
 pytestmark = pytest.mark.unit
 

@@ -17,8 +17,8 @@ from dataclasses import dataclass, field
 from functools import wraps
 from typing import Callable, Optional
 
-from jarvis.llm.ollama import OllamaBackend, extract_text_from_response
-from jarvis.llm.openai_compatible import OpenAICompatibleBackend
+from atlas.llm.ollama import OllamaBackend, extract_text_from_response
+from atlas.llm.openai_compatible import OpenAICompatibleBackend
 
 
 # Map caller __qualname__ to context names from docs/llm_contexts.md.

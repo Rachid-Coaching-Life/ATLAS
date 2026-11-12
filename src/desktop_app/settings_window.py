@@ -22,12 +22,12 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QFont
 
-from jarvis.config import (
+from atlas.config import (
     get_default_config, load_config,
     get_config_path, _save_json, _load_json,
     SUPPORTED_CHAT_MODELS,
 )
-from jarvis.debug import debug_log
+from atlas.debug import debug_log
 from desktop_app.themes import apply_theme
 from desktop_app.mcp_catalogue import CATALOGUE, CATALOGUE_BY_NAME, MCPEntry
 from desktop_app.whisper_models import settings_model_choices
@@ -89,8 +89,8 @@ def _is_default_value(val: Any, default_val: Any) -> bool:
 
 def _dictation_hotkey_choices() -> list:
     """Build platform-aware dictation hotkey dropdown choices."""
-    from jarvis.dictation.dictation_engine import format_hotkey_display
-    from jarvis.config import _default_dictation_hotkey
+    from atlas.dictation.dictation_engine import format_hotkey_display
+    from atlas.config import _default_dictation_hotkey
     default = _default_dictation_hotkey()
     options = [
         ("ctrl+alt", format_hotkey_display("ctrl+alt")),
@@ -1139,7 +1139,7 @@ class _MCPCatalogueDialog(QDialog):
     def _is_node_available() -> bool:
         """Check if Node.js (npx) is available on the system."""
         try:
-            from jarvis.tools.external.mcp_client import _resolve_command
+            from atlas.tools.external.mcp_client import _resolve_command
             _resolve_command("npx")
             return True
         except (FileNotFoundError, Exception):

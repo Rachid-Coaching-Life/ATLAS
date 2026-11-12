@@ -22,7 +22,7 @@ def load_case(monkeypatch, case):
     module, cls, method, _, forecast = case
     path = Path(__file__).resolve().parents[1] / 'evals' / f'test_{module}_supplies_missing_tool_arg.py'
     monkeypatch.syspath_prepend(str(path.parent))
-    monkeypatch.setattr('jarvis.llm.http.get', lambda *args, **kwargs: nullcontext(SimpleNamespace(status_code=404)))
+    monkeypatch.setattr('atlas.llm.http.get', lambda *args, **kwargs: nullcontext(SimpleNamespace(status_code=404)))
     with monkeypatch.context() as scope:
         scope.setitem(sys.modules, 'conftest', importlib.import_module('evals.conftest'))
         namespace = runpy.run_path(str(path))
@@ -33,7 +33,7 @@ def load_case(monkeypatch, case):
             return original(db, dialogue, planner_enabled=False)
         if module != 'graph':
             return original(db, dialogue)
-        from jarvis.memory.graph import GraphMemoryStore
+        from atlas.memory.graph import GraphMemoryStore
         with TemporaryDirectory() as directory:
             store = GraphMemoryStore(str(Path(directory) / 'graph.db'))
             try:
@@ -45,7 +45,7 @@ def load_case(monkeypatch, case):
 
 
 def tool_turn(engine, cfg, text, city, result):
-    args = {} if 'tomorrow Jarvis' in text else {'location': city}
+    args = {} if 'tomorrow ATLAS' in text else {'location': city}
     engine.run_tool_with_retries(db=None, cfg=cfg, tool_name='getWeather', tool_args=args)
     return result
 
@@ -53,8 +53,8 @@ def tool_turn(engine, cfg, text, city, result):
 @pytest.mark.parametrize('case', CASES)
 @pytest.mark.parametrize('provider', ['ollama', 'openai_compatible'])
 def test_memory_tool_eval_reaches_selected_transport_and_tiers(monkeypatch, case, provider):
-    from jarvis.llm import Tier, get_llm_backend, resolve_model
-    from jarvis.reply import engine
+    from atlas.llm import Tier, get_llm_backend, resolve_model
+    from atlas.reply import engine
 
     run, forecast = load_case(monkeypatch, case)
     base, model = 'http://127.0.0.1:11439', 'selected-memory-tool-model'
@@ -72,7 +72,7 @@ def test_memory_tool_eval_reaches_selected_transport_and_tiers(monkeypatch, case
                                      'choices': [{'message': {'content': note}}]}
         return response
 
-    monkeypatch.setattr('jarvis.llm.http.post', post)
+    monkeypatch.setattr('atlas.llm.http.post', post)
 
     def reply(*, cfg, text, **kwargs):
         backend = get_llm_backend(cfg)
@@ -88,32 +88,32 @@ def test_memory_tool_eval_reaches_selected_transport_and_tiers(monkeypatch, case
 
 @pytest.mark.parametrize('missing', [None, '', '   '])
 def test_followup_eval_rejects_a_missing_first_answer(monkeypatch, missing):
-    from jarvis.reply import engine
+    from atlas.reply import engine
 
     run, forecast = load_case(monkeypatch, CASES[2])
     answers = iter([missing, forecast])
     monkeypatch.setattr(engine, 'run_reply_engine', lambda *, cfg, text, **kwargs:
                         tool_turn(engine, cfg, text, 'London', next(answers)))
-    monkeypatch.setattr('jarvis.llm.http.post', lambda *args, **kwargs: pytest.fail('🧠 Guard checks must not contact a model'))
+    monkeypatch.setattr('atlas.llm.http.post', lambda *args, **kwargs: pytest.fail('🧠 Guard checks must not contact a model'))
     with pytest.raises(AssertionError):
         run(MagicMock(), MagicMock())
 
 
 @pytest.mark.parametrize('case', CASES)
 def test_memory_tool_eval_rejects_a_city_without_weather_facts(monkeypatch, case):
-    from jarvis.reply import engine
+    from atlas.reply import engine
 
     run, forecast = load_case(monkeypatch, case)
     monkeypatch.setattr(engine, 'run_reply_engine', lambda *, cfg, text, **kwargs:
                         tool_turn(engine, cfg, text, case[3], f'The requested city is {case[3]}.'))
-    monkeypatch.setattr('jarvis.llm.http.post', lambda *args, **kwargs: pytest.fail('🧠 Guard checks must not contact a model'))
+    monkeypatch.setattr('atlas.llm.http.post', lambda *args, **kwargs: pytest.fail('🧠 Guard checks must not contact a model'))
     with pytest.raises(AssertionError):
         run(MagicMock(), MagicMock())
 
 
 @pytest.mark.parametrize('case', CASES)
 def test_weather_fixture_rejects_an_unrelated_location(monkeypatch, case):
-    from jarvis.reply import engine
+    from atlas.reply import engine
 
     run, forecast = load_case(monkeypatch, case)
     results = []
@@ -134,7 +134,7 @@ def test_weather_fixture_rejects_an_unrelated_location(monkeypatch, case):
 
 
 def test_followup_eval_rejects_setup_without_a_failed_tool_call(monkeypatch):
-    from jarvis.reply import engine
+    from atlas.reply import engine
 
     run, forecast = load_case(monkeypatch, CASES[2])
     answers = iter(['Which city should I check?', forecast])
@@ -146,7 +146,7 @@ def test_followup_eval_rejects_setup_without_a_failed_tool_call(monkeypatch):
         return result
 
     monkeypatch.setattr(engine, 'run_reply_engine', reply)
-    monkeypatch.setattr('jarvis.llm.http.post', lambda *args, **kwargs: pytest.fail('🧠 Guard checks must not contact a model'))
+    monkeypatch.setattr('atlas.llm.http.post', lambda *args, **kwargs: pytest.fail('🧠 Guard checks must not contact a model'))
     with pytest.raises(AssertionError, match='first lookup must actually run'):
         run(MagicMock(), MagicMock())
 
@@ -154,12 +154,12 @@ def test_followup_eval_rejects_setup_without_a_failed_tool_call(monkeypatch):
 @pytest.mark.parametrize('case', CASES)
 def test_memory_tool_eval_rejects_an_unrelated_matching_number(monkeypatch, case):
     import re
-    from jarvis.reply import engine
+    from atlas.reply import engine
 
     run, forecast = load_case(monkeypatch, case)
     value = re.search(r'(\d+)°C', forecast).group(1)
     monkeypatch.setattr(engine, 'run_reply_engine', lambda *, cfg, text, **kwargs:
                         tool_turn(engine, cfg, text, case[3], f'There are {value} reminders for {case[3]}.'))
-    monkeypatch.setattr('jarvis.llm.http.post', lambda *args, **kwargs: pytest.fail('🧠 Guard checks must not contact a model'))
+    monkeypatch.setattr('atlas.llm.http.post', lambda *args, **kwargs: pytest.fail('🧠 Guard checks must not contact a model'))
     with pytest.raises(AssertionError):
         run(MagicMock(), MagicMock())

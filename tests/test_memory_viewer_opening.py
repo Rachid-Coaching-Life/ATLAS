@@ -20,9 +20,9 @@ def viewer(qapp, monkeypatch):
 
 
 def open_from_tray(window):
-    from desktop_app.app import JarvisSystemTray
+    from desktop_app.app import AtlasSystemTray
 
-    JarvisSystemTray.show_memory_viewer(SimpleNamespace(memory_viewer=window))
+    AtlasSystemTray.show_memory_viewer(SimpleNamespace(memory_viewer=window))
 
 
 def test_browser_viewer_opens_without_a_native_window(viewer, monkeypatch):

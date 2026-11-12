@@ -121,36 +121,36 @@ class TestFaceWindowPositioning:
                     assert y == expected_y, f"For screen {screen_right}x{screen_height}"
 
 
-class TestJarvisStateManager:
-    """Tests for JarvisStateManager cross-process state sharing."""
+class TestAtlasStateManager:
+    """Tests for AtlasStateManager cross-process state sharing."""
 
     @pytest.fixture(autouse=True)
     def state_file(self, tmp_path, monkeypatch):
-        from jarvis import activity
-        monkeypatch.setattr(activity, '_get_jarvis_state_file', lambda: str(tmp_path / 'jarvis_state'))
-        monkeypatch.setattr(activity, '_jarvis_state_instance', None)
+        from atlas import activity
+        monkeypatch.setattr(activity, '_get_atlas_state_file', lambda: str(tmp_path / 'atlas_state'))
+        monkeypatch.setattr(activity, '_atlas_state_instance', None)
 
     @pytest.mark.unit
     def test_state_manager_creates_file_if_not_exists(self):
         """State manager should create state file if it doesn't exist."""
         import tempfile
         import os
-        from jarvis import activity
-        from jarvis.activity import JarvisState
+        from atlas import activity
+        from atlas.activity import AtlasState
 
-        state_file = activity._get_jarvis_state_file()
+        state_file = activity._get_atlas_state_file()
 
         # File shouldn't exist before getting state manager
         assert not os.path.exists(state_file)
 
         # Use the actual shared state implementation.
-        sm = activity.get_jarvis_state()
+        sm = activity.get_atlas_state()
 
         # File should now exist
         assert os.path.exists(state_file)
 
         # Default state should be ASLEEP
-        assert sm.state == JarvisState.ASLEEP
+        assert sm.state == AtlasState.ASLEEP
 
     @pytest.mark.unit
     def test_state_manager_always_starts_asleep(self):
@@ -162,23 +162,23 @@ class TestJarvisStateManager:
         """
         import tempfile
         import os
-        from jarvis import activity
-        from jarvis.activity import JarvisState
+        from atlas import activity
+        from atlas.activity import AtlasState
 
-        state_file = activity._get_jarvis_state_file()
+        state_file = activity._get_atlas_state_file()
 
         # Create file with SPEAKING state (leftover from previous session)
         with open(state_file, 'w') as f:
             f.write("speaking")
 
         # Reset singleton to simulate a fresh app launch
-        activity._jarvis_state_instance = None
+        activity._atlas_state_instance = None
 
         # Get state manager - should start ASLEEP, not read stale file
-        sm = activity.get_jarvis_state()
+        sm = activity.get_atlas_state()
 
         # State should be ASLEEP (fresh start), not SPEAKING (stale state)
-        assert sm.state == JarvisState.ASLEEP
+        assert sm.state == AtlasState.ASLEEP
 
     @pytest.mark.unit
     def test_state_manager_file_based_sharing(self):
@@ -190,14 +190,14 @@ class TestJarvisStateManager:
         """
         import tempfile
         import os
-        from jarvis import activity
-        from jarvis.activity import JarvisState
+        from atlas import activity
+        from atlas.activity import AtlasState
 
-        state_file = activity._get_jarvis_state_file()
+        state_file = activity._get_atlas_state_file()
 
         # Get state manager and set state
-        sm = activity.get_jarvis_state()
-        sm.set_state(JarvisState.SPEAKING)
+        sm = activity.get_atlas_state()
+        sm.set_state(AtlasState.SPEAKING)
 
         # Verify file contains correct state (for cross-process sharing)
         with open(state_file, 'r') as f:
@@ -205,34 +205,34 @@ class TestJarvisStateManager:
         assert content == "speaking"
 
         # Verify the same instance reads updated state from file
-        assert sm.state == JarvisState.SPEAKING
+        assert sm.state == AtlasState.SPEAKING
 
         # Simulate external process updating state (daemon writes to file)
         with open(state_file, 'w') as f:
             f.write("thinking")
 
         # Same instance should pick up change from file
-        assert sm.state == JarvisState.THINKING
+        assert sm.state == AtlasState.THINKING
 
     @pytest.mark.unit
     def test_state_manager_handles_invalid_file_content(self):
         """State manager should handle invalid file content gracefully."""
         import tempfile
         import os
-        from jarvis import activity
-        from jarvis.activity import JarvisState
+        from atlas import activity
+        from atlas.activity import AtlasState
 
-        state_file = activity._get_jarvis_state_file()
+        state_file = activity._get_atlas_state_file()
 
         # Create file with invalid content
         with open(state_file, 'w') as f:
             f.write("invalid_state")
 
         # Get state manager - should reinitialize with ASLEEP
-        sm = activity.get_jarvis_state()
+        sm = activity.get_atlas_state()
 
         # State should be ASLEEP (default) since file had invalid content
-        assert sm.state == JarvisState.ASLEEP
+        assert sm.state == AtlasState.ASLEEP
 
         # File should be fixed
         with open(state_file, 'r') as f:

@@ -10,14 +10,14 @@ from pathlib import Path
 
 import pytest
 
-from jarvis.daemon_lock import acquire_daemon_lock, lock_holder_pid, release_daemon_lock
+from atlas.daemon_lock import acquire_daemon_lock, lock_holder_pid, release_daemon_lock
 
 
 @pytest.mark.unit
 def test_second_acquire_in_the_same_process_is_refused(tmp_path):
     # The bundled app runs the daemon on a thread: a second DaemonThread is a
     # second acquire in the SAME process, and must be refused too.
-    path = tmp_path / "jarvis_daemon.lock"
+    path = tmp_path / "atlas_daemon.lock"
     first = acquire_daemon_lock(path)
     assert first is not None
     try:
@@ -28,7 +28,7 @@ def test_second_acquire_in_the_same_process_is_refused(tmp_path):
 
 @pytest.mark.unit
 def test_release_frees_the_lock_and_the_holder_pid_is_recorded(tmp_path):
-    path = tmp_path / "jarvis_daemon.lock"
+    path = tmp_path / "atlas_daemon.lock"
     first = acquire_daemon_lock(path)
     assert lock_holder_pid(path) == os.getpid()
     release_daemon_lock(first)
@@ -40,7 +40,7 @@ def test_release_frees_the_lock_and_the_holder_pid_is_recorded(tmp_path):
 @pytest.mark.unit
 def test_closing_the_handle_releases_it(tmp_path):
     # A crashed daemon's handle is closed by the OS — no stale lock left behind.
-    path = tmp_path / "jarvis_daemon.lock"
+    path = tmp_path / "atlas_daemon.lock"
     first = acquire_daemon_lock(path)
     first.close()
     again = acquire_daemon_lock(path)
@@ -50,8 +50,8 @@ def test_closing_the_handle_releases_it(tmp_path):
 
 @pytest.mark.unit
 def test_second_main_is_refused_without_reviving_a_stopping_daemon(tmp_path, monkeypatch):
-    from jarvis import daemon
-    monkeypatch.setenv("JARVIS_DAEMON_LOCK", str(tmp_path / "jarvis_daemon.lock"))
+    from atlas import daemon
+    monkeypatch.setenv("ATLAS_DAEMON_LOCK", str(tmp_path / "atlas_daemon.lock"))
     ran = []
     monkeypatch.setattr(daemon, "_run_daemon", lambda smoke_test=False: ran.append(smoke_test))
 
@@ -83,7 +83,7 @@ def test_non_contention_lock_errors_are_reported(tmp_path, monkeypatch):
 
 @pytest.mark.unit
 def test_override_directory_is_created(tmp_path, monkeypatch):
-    monkeypatch.setenv("JARVIS_DAEMON_LOCK", str(tmp_path / "nested" / "daemon.lock"))
+    monkeypatch.setenv("ATLAS_DAEMON_LOCK", str(tmp_path / "nested" / "daemon.lock"))
     held = acquire_daemon_lock()
     assert held is not None
     release_daemon_lock(held)
@@ -96,7 +96,7 @@ def test_process_lock_survives_refusal_and_recovers_after_process_death(tmp_path
 import sys
 sys.path.insert(0, sys.argv[2])
 from pathlib import Path
-from jarvis.daemon_lock import acquire_daemon_lock
+from atlas.daemon_lock import acquire_daemon_lock
 held = acquire_daemon_lock(Path(sys.argv[1]))
 assert held is not None
 print("LOCKED", flush=True)
@@ -122,8 +122,8 @@ sys.stdin.read()
 
 @pytest.mark.unit
 def test_exception_in_daemon_releases_lock(tmp_path, monkeypatch):
-    from jarvis import daemon
-    monkeypatch.setenv("JARVIS_DAEMON_LOCK", str(tmp_path / "daemon.lock"))
+    from atlas import daemon
+    monkeypatch.setenv("ATLAS_DAEMON_LOCK", str(tmp_path / "daemon.lock"))
     def fail(smoke_test=False):
         raise RuntimeError("startup failed")
     monkeypatch.setattr(daemon, "_run_daemon", fail)
@@ -136,8 +136,8 @@ def test_exception_in_daemon_releases_lock(tmp_path, monkeypatch):
 
 @pytest.mark.unit
 def test_smoke_initialisation_cannot_revive_active_daemon(tmp_path, monkeypatch):
-    from jarvis import daemon
-    monkeypatch.setenv("JARVIS_DAEMON_LOCK", str(tmp_path / "daemon.lock"))
+    from atlas import daemon
+    monkeypatch.setenv("ATLAS_DAEMON_LOCK", str(tmp_path / "daemon.lock"))
     held = acquire_daemon_lock()
     ran = []
     monkeypatch.setattr(daemon, "_run_daemon", lambda smoke_test=False: ran.append(smoke_test))
@@ -153,7 +153,7 @@ def test_smoke_initialisation_cannot_revive_active_daemon(tmp_path, monkeypatch)
 
 @pytest.mark.unit
 def test_pid_write_failure_releases_ownership(tmp_path, monkeypatch):
-    from jarvis import daemon_lock
+    from atlas import daemon_lock
     path = tmp_path / "daemon.lock"
     fdopen = os.fdopen
     class FailedWriter:

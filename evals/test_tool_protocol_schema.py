@@ -6,9 +6,9 @@ import pytest
 
 from evals.conftest import requires_judge_llm
 from evals.helpers import voice_config, judge_pass_fail
-from jarvis.reply import engine
-from jarvis.tools.registry import BUILTIN_TOOLS
-from jarvis.tools.types import ToolExecutionResult
+from atlas.reply import engine
+from atlas.tools.registry import BUILTIN_TOOLS
+from atlas.tools.types import ToolExecutionResult
 
 pytestmark = [pytest.mark.eval, requires_judge_llm]
 

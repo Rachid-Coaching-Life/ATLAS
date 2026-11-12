@@ -6,19 +6,19 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis.reply import enrichment
+from atlas.reply import enrichment
 
 pytestmark = pytest.mark.unit
 
 
 def load_cases(monkeypatch, result):
-    monkeypatch.setattr('jarvis.llm.http.get', lambda *args, **kwargs: nullcontext(SimpleNamespace(status_code=404)))
+    monkeypatch.setattr('atlas.llm.http.get', lambda *args, **kwargs: nullcontext(SimpleNamespace(status_code=404)))
     monkeypatch.setattr(enrichment, 'digest_memory_for_query', lambda **kwargs: result)
 
     def unexpected_post(*args, **kwargs):
         pytest.fail('🧠 Relevance guard checks must not contact a live model')
 
-    monkeypatch.setattr('jarvis.llm.http.post', unexpected_post)
+    monkeypatch.setattr('atlas.llm.http.post', unexpected_post)
     path = Path(__file__).resolve().parents[1] / 'evals' / 'test_memory_digest_relevance.py'
     return runpy.run_path(str(path))
 

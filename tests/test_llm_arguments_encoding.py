@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 import requests
 
-from jarvis.llm.openai_compatible import OpenAICompatibleBackend
+from atlas.llm.openai_compatible import OpenAICompatibleBackend
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 
@@ -22,7 +22,7 @@ def _response(message):
 @pytest.fixture
 def post(monkeypatch):
     transport = MagicMock(return_value=_response({"role": "assistant", "content": "Done"}))
-    monkeypatch.setattr("jarvis.llm.http.post", transport)
+    monkeypatch.setattr("atlas.llm.http.post", transport)
     return transport
 
 

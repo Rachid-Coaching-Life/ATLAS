@@ -12,8 +12,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("desktop_log_home", "no_
 def test_visible_history_tracks_external_store_changes(qapp, tmp_path, selection, change):
     from PyQt6.QtWidgets import QLabel
     from desktop_app.dictation_history import DictationHistoryWindow
-    from jarvis.dictation import paths
-    from jarvis.dictation.history import DictationHistory
+    from atlas.dictation import paths
+    from atlas.dictation.history import DictationHistory
 
     target = paths.default_history_path() if selection == "default" else tmp_path / "selected.json"
     history = DictationHistory() if selection == "default" else DictationHistory(path=target)
@@ -50,9 +50,9 @@ def test_visible_history_tracks_external_store_changes(qapp, tmp_path, selection
 def test_atomic_replacement_with_identical_size_and_timestamp_refreshes_history(qapp, tmp_path):
     from PyQt6.QtWidgets import QLabel
     from desktop_app.dictation_history import DictationHistoryWindow
-    from jarvis.dictation.history import DictationHistory
+    from atlas.dictation.history import DictationHistory
 
-    from jarvis.dictation import paths
+    from atlas.dictation import paths
     target = paths.default_history_path()
     history = DictationHistory()
     first = "First synthetic dictation"

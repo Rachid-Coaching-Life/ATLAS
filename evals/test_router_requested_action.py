@@ -3,7 +3,7 @@
 import pytest
 
 from evals.tool_routing import requires_judge_llm, route_tools, routing_config
-from jarvis.tools.registry import ToolSpec
+from atlas.tools.registry import ToolSpec
 
 
 @pytest.fixture
@@ -90,14 +90,14 @@ def test_browser_open_completes_through_real_router_and_planner(
 
     from jsonschema import validate
     from jsonschema.exceptions import ValidationError
-    from jarvis.reply.engine import run_reply_engine
-    from jarvis.tools.types import ToolExecutionResult
+    from atlas.reply.engine import run_reply_engine
+    from atlas.tools.types import ToolExecutionResult
     from helpers import assert_not_fallback_reply, assert_not_max_turns_digest
 
     catalogue = configure_mcp_tools(*browser_and_transcript_tools.values())
     mock_config.fast_model = mock_config.llm_chat_model
-    from jarvis.reply import engine
-    from jarvis.llm import get_llm_backend
+    from atlas.reply import engine
+    from atlas.llm import get_llm_backend
 
     original_runner = engine.run_tool_with_retries
     backend = get_llm_backend(mock_config)
@@ -135,9 +135,9 @@ def test_browser_open_completes_through_real_router_and_planner(
             transcript_calls.append(args)
         return ToolExecutionResult(success=False, reply_text=None, error_message='No page or transcript available.')
 
-    monkeypatch.setattr('jarvis.reply.engine.run_tool_with_retries', run_tool)
+    monkeypatch.setattr('atlas.reply.engine.run_tool_with_retries', run_tool)
     monkeypatch.setattr(
-        'jarvis.reply.engine.get_location_context_with_timezone', lambda cfg: ('', None),
+        'atlas.reply.engine.get_location_context_with_timezone', lambda cfg: ('', None),
     )
     reply = run_reply_engine(
         db=eval_db, cfg=mock_config, tts=None, text=query,

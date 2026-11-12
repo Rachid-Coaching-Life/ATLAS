@@ -1,6 +1,6 @@
 """Offline speech guard qualification with explicit local model and voice paths.
 
-Set JARVIS_EVAL_FASTER_WHISPER_MODEL and JARVIS_EVAL_PIPER_VOICE to cached
+Set ATLAS_EVAL_FASTER_WHISPER_MODEL and ATLAS_EVAL_PIPER_VOICE to cached
 local files. This eval never downloads models, records audio or plays sound.
 """
 import os
@@ -16,7 +16,7 @@ pytestmark = pytest.mark.eval
 
 @pytest.fixture(scope='module')
 def local_decoder():
-    model_path = os.environ.get('JARVIS_EVAL_FASTER_WHISPER_MODEL')
+    model_path = os.environ.get('ATLAS_EVAL_FASTER_WHISPER_MODEL')
     if not model_path:
         pytest.skip('Explicit local faster-whisper model required')
     assert Path(model_path).is_dir()
@@ -41,16 +41,16 @@ def test_non_speech_is_removed_before_recognition(monkeypatch, local_decoder, no
 
 
 @pytest.mark.parametrize('spoken,keyword', [
-    ('Jarvis, what time is it?', 'time'),
+    ('ATLAS, what time is it?', 'time'),
     ('Stop speaking.', 'stop'),
     ('Thank you.', 'thank'),
 ])
 def test_short_speech_and_caption_like_real_words_survive(monkeypatch, local_decoder, spoken, keyword):
-    voice_path = os.environ.get('JARVIS_EVAL_PIPER_VOICE')
+    voice_path = os.environ.get('ATLAS_EVAL_PIPER_VOICE')
     assert voice_path and Path(voice_path).is_file(), 'Explicit local Piper voice required'
     from piper import PiperVoice
     from piper.config import SynthesisConfig
-    from jarvis.listening.listener import _resample
+    from atlas.listening.listener import _resample
     voice = PiperVoice.load(voice_path)
     chunks = list(voice.synthesize(spoken, SynthesisConfig(noise_scale=0, noise_w_scale=0)))
     samples = _resample(np.concatenate([chunk.audio_float_array for chunk in chunks]),

@@ -5,8 +5,8 @@ import pytest
 
 from conftest import requires_judge_llm
 from helpers import voice_config
-from jarvis.config import load_settings
-from jarvis.llm import get_llm_backend
+from atlas.config import load_settings
+from atlas.llm import get_llm_backend
 
 
 @requires_judge_llm
@@ -14,7 +14,7 @@ from jarvis.llm import get_llm_backend
                                  'dictation_thinking_enabled'])
 @pytest.mark.parametrize('enabled', [False, True])
 def test_saved_switch_reaches_local_inference(tmp_path, monkeypatch, key, enabled):
-    from jarvis.llm import http
+    from atlas.llm import http
     selected = voice_config()
     path = tmp_path / 'config.json'
     path.write_text(json.dumps({
@@ -23,7 +23,7 @@ def test_saved_switch_reaches_local_inference(tmp_path, monkeypatch, key, enable
         'llm_chat_model': selected.llm_chat_model, 'ollama_chat_model': selected.llm_chat_model,
         key: enabled,
     }), encoding='utf-8')
-    monkeypatch.setenv('JARVIS_CONFIG_PATH', str(path))
+    monkeypatch.setenv('ATLAS_CONFIG_PATH', str(path))
     cfg = load_settings()
     original_post = http.post
     observed = []

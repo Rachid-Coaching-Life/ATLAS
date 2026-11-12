@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis.tools.builtin import weather
+from atlas.tools.builtin import weather
 
 pytestmark = pytest.mark.unit
 
@@ -52,7 +52,7 @@ def test_place_answer_has_generation_room_after_reasoning(monkeypatch, provider)
             else {'choices': [{'message': message}]}
         )
         return response
-    monkeypatch.setattr('jarvis.llm.http.post', post)
+    monkeypatch.setattr('atlas.llm.http.post', post)
 
     assert weather._extract_place_from_user_text('forecast for Washington D.C.', cfg) == raw_place.rstrip('.')
 

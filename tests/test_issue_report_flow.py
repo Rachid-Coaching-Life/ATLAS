@@ -8,14 +8,14 @@ from PyQt6.QtWidgets import QCheckBox, QDialog, QLineEdit, QPlainTextEdit, QPush
 pytestmark = pytest.mark.unit
 
 
-def report_dialog(qapp, monkeypatch, logs='Contact user@example.com\n📝 Heard: hello Jarvis'):
+def report_dialog(qapp, monkeypatch, logs='Contact user@example.com\n📝 Heard: hello ATLAS'):
     from desktop_app.issue_report import IssueReportDialog
     return IssueReportDialog(logs, version=('2.5.0', 'stable'), metadata={'Platform': 'win32'})
 
 
 def fill(dialog):
     dialog.title_input.setText('Voice fails to respond')
-    dialog.problem_input.setPlainText('Jarvis heard the wake word but stayed silent')
+    dialog.problem_input.setPlainText('ATLAS heard the wake word but stayed silent')
 
 
 def test_empty_or_whitespace_details_cannot_open_github(qapp, monkeypatch):
@@ -42,15 +42,15 @@ def test_preview_matches_public_report_and_logs_are_optional(qapp, monkeypatch):
     monkeypatch.setattr('desktop_app.issue_report.webbrowser.open', lambda url: opened.append(url) or True)
     fill(dialog)
     dialog.expected_input.setPlainText('Reply to user@example.com')
-    dialog.steps_input.setPlainText('Say hello Jarvis')
+    dialog.steps_input.setPlainText('Say hello ATLAS')
     dialog.review_button.click()
     dialog.copy_button.click()
     body = qapp.clipboard().text()
     assert 'user@example.com' not in body
     assert '[REDACTED_EMAIL]' in body
     assert '2.5.0 (stable)' in body
-    assert 'Say hello Jarvis' in body
-    assert '📝 Heard: hello Jarvis' in body
+    assert 'Say hello ATLAS' in body
+    assert '📝 Heard: hello ATLAS' in body
     dialog.include_logs.setChecked(False)
     dialog.review_button.click()
     dialog.copy_button.click()
@@ -104,7 +104,7 @@ def test_log_viewer_report_requires_description_before_opening(qapp, monkeypatch
     opened = []
     monkeypatch.setattr(app_module.webbrowser, 'open', lambda url: opened.append(url) or True)
     window = LogViewerWindow()
-    window.log_display.setPlainText('password=secretvalue\n📝 Heard: hello Jarvis')
+    window.log_display.setPlainText('password=secretvalue\n📝 Heard: hello ATLAS')
     from desktop_app.issue_report import IssueReportDialog
     def complete_form(dialog):
         assert not opened
@@ -197,7 +197,7 @@ def test_review_step_shows_full_report_before_browser_action(qapp, monkeypatch):
     dialog.back_button.click()
     qapp.processEvents()
     assert dialog.problem_input.isVisible()
-    assert dialog.problem_input.toPlainText() == 'Jarvis heard the wake word but stayed silent'
+    assert dialog.problem_input.toPlainText() == 'ATLAS heard the wake word but stayed silent'
     assert not dialog.open_button.isVisible()
     dialog.close()
 
@@ -222,12 +222,12 @@ def test_short_report_needs_only_a_problem_and_generates_its_title(qapp, monkeyp
     dialog = report_dialog(qapp, monkeypatch)
     opened = []
     monkeypatch.setattr('desktop_app.issue_report.webbrowser.open', lambda url: opened.append(url) or True)
-    dialog.problem_input.setPlainText('Jarvis stopped answering\nIt happened after the first reply')
+    dialog.problem_input.setPlainText('ATLAS stopped answering\nIt happened after the first reply')
     assert dialog.review_button.isEnabled()
     dialog.review_button.click()
     dialog.open_button.click()
     query = urllib.parse.parse_qs(urllib.parse.urlparse(opened[0]).query)
-    assert query['title'] == ['Jarvis stopped answering']
+    assert query['title'] == ['ATLAS stopped answering']
     assert 'It happened after the first reply' in query['body'][0]
 
 
@@ -238,7 +238,7 @@ def test_review_is_readable_and_troubleshooting_details_start_collapsed(qapp, mo
     dialog.show()
     qapp.processEvents()
     visible = dialog.preview.toPlainText()
-    assert 'Jarvis heard the wake word but stayed silent' in visible
+    assert 'ATLAS heard the wake word but stayed silent' in visible
     assert '**' not in visible
     assert '```' not in visible
     assert '<details>' not in visible
@@ -247,7 +247,7 @@ def test_review_is_readable_and_troubleshooting_details_start_collapsed(qapp, mo
     dialog.details_button.click()
     qapp.processEvents()
     assert dialog.technical_preview.isVisible()
-    assert 'hello Jarvis' in dialog.technical_preview.toPlainText()
+    assert 'hello ATLAS' in dialog.technical_preview.toPlainText()
     assert 'user@example.com' not in dialog.technical_preview.toPlainText()
     dialog.close()
 

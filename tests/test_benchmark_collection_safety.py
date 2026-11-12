@@ -32,7 +32,7 @@ def check(*args, **kwargs):
         class Response:
             status_code = 200
             def json(self):
-                return {'models': [{'name': os.environ['JARVIS_PERF_MODEL']}]}
+                return {'models': [{'name': os.environ['ATLAS_PERF_MODEL']}]}
         return Response()
     return None
 requests.get = check
@@ -41,8 +41,8 @@ def blocked(*args, **kwargs):
     raise AssertionError('Unowned transport forbidden')
 requests.Session.request = blocked
 if os.environ['PROBE_MODE'] == 'available':
-    from jarvis.llm.ollama import OllamaBackend
-    from jarvis.reply import engine
+    from atlas.llm.ollama import OllamaBackend
+    from atlas.reply import engine
     OllamaBackend.direct = lambda *args, **kwargs: 'OK'
     def run_reply_engine(db, cfg, location, query, dialogue):
         return OllamaBackend('http://owned.invalid').direct(cfg.llm_chat_model, 'system', query)
@@ -60,9 +60,9 @@ else:
                PYTEST_DISABLE_PLUGIN_AUTOLOAD='1', PROBE_MODE=mode,
                PYTHONPATH=str(repo / 'src') + os.pathsep + str(repo),
                TMPDIR=str(runtime), TEMP=str(runtime), TMP=str(runtime),
-               JARVIS_CONFIG_PATH=str(config), XDG_CONFIG_HOME=str(tmp_path/'xdg'),
-               JARVIS_PERF_OLLAMA_URL='http://owned-user:owned-secret@owned.invalid', JARVIS_PERF_MODEL='owned-benchmark-model',
-               JARVIS_PERF_RUNS='1', JARVIS_PERF_REPORT_DIR=str(tmp_path/'reports'),
+               ATLAS_CONFIG_PATH=str(config), XDG_CONFIG_HOME=str(tmp_path/'xdg'),
+               ATLAS_PERF_OLLAMA_URL='http://owned-user:owned-secret@owned.invalid', ATLAS_PERF_MODEL='owned-benchmark-model',
+               ATLAS_PERF_RUNS='1', ATLAS_PERF_REPORT_DIR=str(tmp_path/'reports'),
                AVAILABILITY_MARKER=str(marker), NETWORK_MARKER=str(native),
                INI_PATH=str(repo/'pytest.ini'), CONTROL_PATH=str(control),
                PERF_PATH=str(repo/'tests/performance/test_pipeline_timings.py'))

@@ -4,7 +4,7 @@ from evals.helpers import isolated_voice_settings
 from evals.conftest import requires_judge_llm
 
 pytestmark = [pytest.mark.eval, requires_judge_llm]
-from jarvis.reply.planner import resolve_next_tool_call
+from atlas.reply.planner import resolve_next_tool_call
 
 
 @pytest.mark.eval

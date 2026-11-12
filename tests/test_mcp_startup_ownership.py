@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis.tools.external import mcp_client, mcp_runtime
+from atlas.tools.external import mcp_client, mcp_runtime
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures('no_network')]
 

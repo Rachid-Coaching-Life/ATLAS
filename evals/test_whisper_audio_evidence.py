@@ -1,6 +1,6 @@
 """Offline native capture and Whisper qualification with generated audio.
 
-Run with JARVIS_RUN_WHISPER_AUDIO_EVAL=1 on Apple Silicon with cached MLX
+Run with ATLAS_RUN_WHISPER_AUDIO_EVAL=1 on Apple Silicon with cached MLX
 large-v3-turbo and the default Piper voice. No microphone or playback is used.
 """
 
@@ -17,30 +17,30 @@ pytestmark = pytest.mark.eval
 @pytest.fixture(autouse=True)
 def private_audio_runtime(tmp_path, monkeypatch):
     """Qualification uses private settings and face state with local model caches."""
-    from jarvis import activity
+    from atlas import activity
 
-    monkeypatch.setenv("JARVIS_CONFIG_PATH", str(tmp_path / "config.json"))
-    monkeypatch.setattr(activity, "_get_jarvis_state_file", lambda: str(tmp_path / "face-state"))
-    monkeypatch.setattr(activity, "_jarvis_state_instance", None)
+    monkeypatch.setenv("ATLAS_CONFIG_PATH", str(tmp_path / "config.json"))
+    monkeypatch.setattr(activity, "_get_atlas_state_file", lambda: str(tmp_path / "face-state"))
+    monkeypatch.setattr(activity, "_atlas_state_instance", None)
 
 
 @pytest.fixture(scope="module")
 def local_audio_assets():
-    if os.environ.get("JARVIS_RUN_WHISPER_AUDIO_EVAL") != "1":
+    if os.environ.get("ATLAS_RUN_WHISPER_AUDIO_EVAL") != "1":
         pytest.skip("Explicit offline audio qualification required")
     import numpy as np
     from piper import PiperVoice
     from piper.config import SynthesisConfig
     from huggingface_hub import snapshot_download
-    from jarvis.output.tts import PIPER_DEFAULT_VOICE
-    from jarvis.listening.listener import _resample
+    from atlas.output.tts import PIPER_DEFAULT_VOICE
+    from atlas.listening.listener import _resample
 
-    voice_path = Path.home() / ".local/share/jarvis/models/piper" / f"{PIPER_DEFAULT_VOICE}.onnx"
+    voice_path = Path.home() / ".local/share/atlas/models/piper" / f"{PIPER_DEFAULT_VOICE}.onnx"
     assert voice_path.is_file(), "Cache the default local Piper voice before this eval"
     model = snapshot_download("mlx-community/whisper-large-v3-turbo", local_files_only=True)
     voice = PiperVoice.load(voice_path)
     audio = {}
-    for name, text in (("weather", "How is the weather tomorrow, Jarvis?"), ("stop", "Stop speaking.")):
+    for name, text in (("weather", "How is the weather tomorrow, ATLAS?"), ("stop", "Stop speaking.")):
         chunks = list(voice.synthesize(text, SynthesisConfig(noise_scale=0, noise_w_scale=0)))
         audio[name] = _resample(np.concatenate([chunk.audio_float_array for chunk in chunks]),
                                 chunks[0].sample_rate, 16000)
@@ -49,8 +49,8 @@ def local_audio_assets():
 
 def captured_jobs(audio, monkeypatch):
     import numpy as np
-    from jarvis.config import load_settings, get_default_config
-    from jarvis.listening import listener as capture
+    from atlas.config import load_settings, get_default_config
+    from atlas.listening import listener as capture
 
     monkeypatch.setattr(capture, "create_intent_judge", lambda cfg: None)
     cfg = replace(load_settings(), voice_debug=False, sample_rate=16000, vad_enabled=True,
@@ -80,7 +80,7 @@ def captured_jobs(audio, monkeypatch):
 @pytest.mark.parametrize("kind", ["silence", "quiet_noise", "quiet_tone"])
 def test_non_speech_cannot_reach_native_recognition(local_audio_assets, monkeypatch, kind):
     import numpy as np
-    from jarvis.config import get_default_config
+    from atlas.config import get_default_config
 
     level = get_default_config()["voice_min_energy"] / 4
     audio = {
@@ -92,17 +92,17 @@ def test_non_speech_cannot_reach_native_recognition(local_audio_assets, monkeypa
 
 
 @pytest.mark.parametrize("kind,peak_ratio,words", [
-    ("weather", 8, ["how", "is", "the", "weather", "tomorrow", "jarvis"]),
-    ("weather", 4, ["how", "is", "the", "weather", "tomorrow", "jarvis"]),
-    ("weather", 2, ["how", "is", "the", "weather", "tomorrow", "jarvis"]),
-    ("weather", 1.05, ["how", "is", "the", "weather", "tomorrow", "jarvis"]),
+    ("weather", 8, ["how", "is", "the", "weather", "tomorrow", "atlas"]),
+    ("weather", 4, ["how", "is", "the", "weather", "tomorrow", "atlas"]),
+    ("weather", 2, ["how", "is", "the", "weather", "tomorrow", "atlas"]),
+    ("weather", 1.05, ["how", "is", "the", "weather", "tomorrow", "atlas"]),
     ("stop", 8, ["stop", "speaking"]),
     ("stop", 2, ["stop", "speaking"]),
 ])
 def test_native_recognition_preserves_quiet_requests(local_audio_assets, monkeypatch, kind, peak_ratio, words):
     import mlx_whisper
     import numpy as np
-    from jarvis.config import get_default_config
+    from atlas.config import get_default_config
 
     model, audio = local_audio_assets
     samples = audio[kind]
@@ -134,9 +134,9 @@ def local_french_audio(local_audio_assets, tmp_path):
 
 @pytest.mark.parametrize("rejection", ["empty", "echo"])
 def test_native_request_language_survives_rejected_recognition(local_audio_assets, monkeypatch, request, rejection):
-    from jarvis.config import load_settings
-    from jarvis.listening import listener as capture
-    from jarvis.reply import engine
+    from atlas.config import load_settings
+    from atlas.listening import listener as capture
+    from atlas.reply import engine
 
     model, audio = local_audio_assets
     jobs = captured_jobs(audio["weather"], monkeypatch)
@@ -150,7 +150,7 @@ def test_native_request_language_survives_rejected_recognition(local_audio_asset
     obj._run_transcription_worker()
     accepted = obj._transcription_results_q.get_nowait()
     assert re.findall(r"\w+", accepted.text.casefold()) == [
-        "how", "is", "the", "weather", "tomorrow", "jarvis",
+        "how", "is", "the", "weather", "tomorrow", "atlas",
     ]
     assert accepted.language == "en"
     obj._start_thinking_tune = lambda: None

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from jarvis.dictation.history import DictationHistory
+from atlas.dictation.history import DictationHistory
 
 pytestmark = pytest.mark.unit
 
@@ -67,7 +67,7 @@ def test_subprocess_mutations_use_the_previous_committed_history(tmp_path, opera
 @pytest.mark.parametrize("operation", ["add", "delete", "clear"])
 def test_busy_history_does_not_report_a_successful_mutation(tmp_path, operation):
     from filelock import FileLock
-    from jarvis.dictation.history import HistoryUpdateError
+    from atlas.dictation.history import HistoryUpdateError
 
     path = tmp_path / "history.json"
     history = DictationHistory(path=path)
@@ -130,7 +130,7 @@ def test_terminated_writer_releases_history_ownership(tmp_path):
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX symlink contract")
 def test_lock_alias_does_not_modify_an_unrelated_file(tmp_path):
-    from jarvis.dictation.history import HistoryUpdateError
+    from atlas.dictation.history import HistoryUpdateError
 
     path = tmp_path / "history.json"
     unrelated = tmp_path / "unrelated.txt"

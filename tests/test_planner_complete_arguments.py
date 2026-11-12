@@ -4,9 +4,9 @@ import os
 
 import pytest
 from evals.helpers import voice_config
-from jarvis.reply import planner
-from jarvis.tools.base import ToolContext
-from jarvis.tools.builtin.local_files import LocalFilesTool
+from atlas.reply import planner
+from atlas.tools.base import ToolContext
+from atlas.tools.builtin.local_files import LocalFilesTool
 
 pytestmark = pytest.mark.unit
 SCHEMA = [{'type': 'function', 'function': {'name': 'localValue', 'parameters': {

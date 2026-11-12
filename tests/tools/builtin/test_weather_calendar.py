@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from jarvis.tools.builtin.weather import WeatherTool
+from atlas.tools.builtin.weather import WeatherTool
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
 
@@ -29,9 +29,9 @@ def render_weather(payload):
     response = Mock()
     response.json.return_value = payload
     context = SimpleNamespace(cfg=SimpleNamespace(location_enabled=True), user_print=Mock())
-    with patch('jarvis.tools.builtin.weather.get_location_info', return_value={
+    with patch('atlas.tools.builtin.weather.get_location_info', return_value={
         'latitude': 51.5, 'longitude': -0.1, 'city': 'London',
-    }), patch('jarvis.tools.builtin.weather.requests.get', return_value=response):
+    }), patch('atlas.tools.builtin.weather.requests.get', return_value=response):
         result = WeatherTool().run({}, context)
     assert result.success, result.reply_text
     return result.reply_text

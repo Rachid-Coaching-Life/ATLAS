@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from jarvis.reply import enrichment
+from atlas.reply import enrichment
 
 pytestmark = pytest.mark.unit
 

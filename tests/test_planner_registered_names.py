@@ -2,7 +2,7 @@
 
 import pytest
 
-from jarvis.reply.planner import (
+from atlas.reply.planner import (
     plan_has_unresolved_tool_steps,
     resolve_next_tool_call,
     tool_names_in_plan,
@@ -13,7 +13,7 @@ pytestmark = pytest.mark.unit
 
 @pytest.mark.parametrize("name", ["local.files__read", "outil-écriture__ouvrir", "tool+name__run"])
 def test_registered_names_remain_executable_plan_steps(mock_config, monkeypatch, name):
-    from jarvis.reply import planner
+    from atlas.reply import planner
 
     plan = [f"{name} path='/tmp/notes.txt'", "Reply to the user."]
     schema = [{"type": "function", "function": {

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from jarvis.memory.db import Database
+from atlas.memory.db import Database
 
 pytestmark = pytest.mark.unit
 
@@ -25,9 +25,9 @@ def test_meal_range_is_indexed_and_preserves_rows_on_reopen(tmp_path, existing):
     path = tmp_path / 'diary.db'
     diary = Database(str(path))
     try:
-        late = diary.insert_meal('2026-10-09T12:00:00Z', 'jarvis', 'Lunch')
-        early = diary.insert_meal('2026-10-09T08:00:00Z', 'jarvis', 'Breakfast')
-        diary.insert_meal('2026-10-08T08:00:00Z', 'jarvis', 'Yesterday')
+        late = diary.insert_meal('2026-10-09T12:00:00Z', 'atlas', 'Lunch')
+        early = diary.insert_meal('2026-10-09T08:00:00Z', 'atlas', 'Breakfast')
+        diary.insert_meal('2026-10-08T08:00:00Z', 'atlas', 'Yesterday')
         if existing:
             # A diary from before the date index still has its stored records.
             indexes = diary.conn.execute("PRAGMA index_list('meals')").fetchall()
@@ -60,7 +60,7 @@ def test_summary_date_paths_use_existing_unique_index(db):
     assert db.get_conversation_summary(today.isoformat())['id'] == newest
     for sql, params in [
         ('SELECT * FROM conversation_summaries WHERE date_utc >= ? ORDER BY date_utc DESC', (recent,)),
-        ('SELECT * FROM conversation_summaries WHERE date_utc = ? AND source_app = ?', (recent, 'jarvis')),
+        ('SELECT * FROM conversation_summaries WHERE date_utc = ? AND source_app = ?', (recent, 'atlas')),
     ]:
         assert_range_search(query_plan(db.conn, sql, params), 'conversation_summaries')
     indexes = db.conn.execute("PRAGMA index_list('conversation_summaries')").fetchall()

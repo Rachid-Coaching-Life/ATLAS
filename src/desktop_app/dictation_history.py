@@ -19,10 +19,10 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal, QObject, QTimer
 from PyQt6.QtGui import QFont
 
-from jarvis.dictation.history import HistoryUpdateError
-from jarvis.debug import debug_log
+from atlas.dictation.history import HistoryUpdateError
+from atlas.debug import debug_log
 
-from desktop_app.themes import JARVIS_THEME_STYLESHEET, COLORS
+from desktop_app.themes import ATLAS_THEME_STYLESHEET, COLORS
 
 
 # ---------------------------------------------------------------------------
@@ -179,7 +179,7 @@ class DictationHistoryWindow(QMainWindow):
 
         self.setWindowTitle("🎙️ Dictation History")
         self.setGeometry(100, 100, 700, 600)
-        self.setStyleSheet(JARVIS_THEME_STYLESHEET)
+        self.setStyleSheet(ATLAS_THEME_STYLESHEET)
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -285,7 +285,7 @@ class DictationHistoryWindow(QMainWindow):
     def _is_dictation_enabled(self) -> bool:
         """Check whether dictation is enabled in config."""
         try:
-            from jarvis.config import get_config_path, _load_json, get_default_config
+            from atlas.config import get_config_path, _load_json, get_default_config
             config = _load_json(get_config_path()) or {}
             defaults = get_default_config()
             return bool(config.get("dictation_enabled", defaults.get("dictation_enabled", True)))

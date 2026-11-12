@@ -61,4 +61,4 @@ def test_readme_relative_file_links_exist():
 def test_readme_leads_with_voice_assistant_face():
     parser = ScreenshotParser()
     parser.feed((ROOT / 'README.md').read_text())
-    assert parser.images[0]['src'] == 'docs/img/face.png'
+    assert parser.images[0]['src'] == 'src/desktop_app/desktop_assets/atlas_portrait.png'

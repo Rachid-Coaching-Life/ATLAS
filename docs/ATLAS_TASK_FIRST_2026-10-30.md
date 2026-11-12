@@ -18,13 +18,13 @@ la capture seule.
 
 ## Audit du code
 
-1. `src/jarvis/system_prompt.py` imposait encore une personnalité de
+1. `src/atlas/system_prompt.py` imposait encore une personnalité de
    majordome britannique bavard, avec humour et commentaire supplémentaire.
-2. `src/jarvis/reply/engine.py` sait fournir une présentation courte
+2. `src/atlas/reply/engine.py` sait fournir une présentation courte
    sur demande explicite. Le modèle peut néanmoins générer une amorce
    répétitive non sollicitée ; l'identité du prompt pouvait aussi suivre
    un mot d'activation historique.
-3. `src/jarvis/tasks.py` et `src/desktop_app/task_centre.py` possèdent
+3. `src/atlas/tasks.py` et `src/desktop_app/task_centre.py` possèdent
    **déjà** une file de tâches, des accusés de réception, un suivi et une
    annulation. Il faut les rendre accessibles sans un second moteur.
 4. `src/desktop_app/face_widget.py` possède un minuteur de clignement,
@@ -37,9 +37,9 @@ la capture seule.
 
 | Fichier | Modification | Justification |
 |---|---|---|
-| `src/jarvis/system_prompt.py` | Instructions françaises orientées exécution, brèves, sans humour ni auto-présentation récurrente | Usage principal = tâches réelles |
-| `src/jarvis/reply/engine.py` | Identité de l'assistant fixée à ATLAS ; suppression très ciblée d'une présentation répétée placée devant une autre réponse ; clarification si seule la présentation était produite | Réponses plus directes, sans modification des résultats d'outils |
-| `src/jarvis/daemon.py` | Un seul message de présentation en file TTS au **démarrage normal** ; rien durant le smoke test ni par réponse | Séparer la présentation de la réponse opérationnelle |
+| `src/atlas/system_prompt.py` | Instructions françaises orientées exécution, brèves, sans humour ni auto-présentation récurrente | Usage principal = tâches réelles |
+| `src/atlas/reply/engine.py` | Identité de l'assistant fixée à ATLAS ; suppression très ciblée d'une présentation répétée placée devant une autre réponse ; clarification si seule la présentation était produite | Réponses plus directes, sans modification des résultats d'outils |
+| `src/atlas/daemon.py` | Un seul message de présentation en file TTS au **démarrage normal** ; rien durant le smoke test ni par réponse | Séparer la présentation de la réponse opérationnelle |
 | `src/desktop_app/hologram_panel.py` | Nouveau bouton **TÂCHES** (abrégé sur les petites tailles) et signal associé | Accès immédiat aux tâches depuis l'hologramme |
 | `src/desktop_app/app.py` | Connexion du bouton au **centre des tâches existant** | Aucune duplication de file ni de moteur IA |
 | `src/desktop_app/task_centre.py` | Titres et actions visibles francisés et attribués à ATLAS | Interface compréhensible et identité cohérente |
@@ -193,15 +193,15 @@ Commande à saisir dans **TÂCHES** ou **Nouvelle tâche…** :
 **`Diagnostic système`** (et quelques variantes strictement définies
 telles que `État du système`).
 
-- `src/jarvis/tools/builtin/system_status.py` : nouvel outil intégré
+- `src/atlas/tools/builtin/system_status.py` : nouvel outil intégré
   `systemStatus` de **lecture seule** ; il relève un échantillon
   d'utilisation CPU de 0,1 seconde, la RAM utilisée et totale, et la
   capacité libre du volume du profil utilisateur via `psutil`, déjà
   présent dans `requirements.txt`. Le résultat précise ses limites :
   ni température ni GPU, et aucune conclusion sur la santé matérielle.
-- `src/jarvis/tools/registry.py` : publication de l'outil pour le
+- `src/atlas/tools/registry.py` : publication de l'outil pour le
   routage normal, sans ajouter de dépendance.
-- `src/jarvis/tasks.py` : **seulement** pour une commande de statut
+- `src/atlas/tasks.py` : **seulement** pour une commande de statut
   système exacte et non composée, le gestionnaire appelle directement
   le même outil `systemStatus` ; il n'appelle alors ni LLM,
   ni agent de planification. Il conserve les états
@@ -269,7 +269,7 @@ Seuls les **noms** des PDF du premier niveau sont affichés ;
 le contenu des documents n'est pas lu.
 
 Modifications :
-- `src/jarvis/tasks.py` : reconnaissance stricte des
+- `src/atlas/tasks.py` : reconnaissance stricte des
   demandes de PDF et filtrage dans les dossiers déjà autorisés,
   sans nouveau service ou modèle. Les commandes composées,
   destructives ou portant sur d'autres disques ne prennent
@@ -308,7 +308,7 @@ il n'aurait donc pas été sûr d'activer ce mode tel quel pour une tâche
 de recherche directe.
 
 **Modification ciblée :**
-- `src/jarvis/tools/builtin/local_files.py` : nouvelle opération
+- `src/atlas/tools/builtin/local_files.py` : nouvelle opération
   `search` limitée aux PDF. Parcours local en lecture seule avec
   budgets fixes : 120 dossiers, 3 000 entrées, 50 résultats,
   profondeur maximale de 5 niveaux, contrôle de durée à 3 secondes.
@@ -319,7 +319,7 @@ de recherche directe.
   Si une limite est atteinte ou qu'une entrée est inaccessible,
   le résultat mentionne explicitement « Recherche partielle » ;
   les fichiers PDF ne sont pas ouverts ni modifiés.
-- `src/jarvis/tasks.py` : commandes directes exactes telles que
+- `src/atlas/tasks.py` : commandes directes exactes telles que
   « Recherche les PDF dans mes documents et sous-dossiers »,
   « ... dans mes téléchargements et sous-dossiers » ou
   « ... dans mon bureau et sous-dossiers ».
@@ -367,7 +367,7 @@ Exemple de commande à saisir dans **TÂCHES → Nouvelle tâche…** :
 
 `Ouvre le PDF Documents\\Archives\\facture 2026.pdf`
 
-- `src/jarvis/tasks.py` : reconnaissance de la demande exacte
+- `src/atlas/tasks.py` : reconnaissance de la demande exacte
   « Ouvre le PDF … », résolution à partir de
   `Documents`, `Downloads`/Téléchargements ou
   `Desktop`/Bureau. Les chemins absolus, lecteurs externes,
@@ -449,8 +449,8 @@ Modifications :
   transcription simulée, la file, les événements, la réponse TTS,
   la clarification et le refus de tâches ambiguës ou dangereuses.
 
-Fichiers : src/jarvis/listening/listener.py, src/jarvis/daemon.py,
-src/jarvis/tasks.py, src/jarvis/tools/builtin/local_files.py,
+Fichiers : src/atlas/listening/listener.py, src/atlas/daemon.py,
+src/atlas/tasks.py, src/atlas/tools/builtin/local_files.py,
 tests/test_file_inventory.py, tests/test_voice_tasks.py,
 tests/test_atlas_reply_style.py.
 

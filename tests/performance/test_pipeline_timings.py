@@ -30,15 +30,15 @@ from pathlib import Path
 import pytest
 import requests
 
-from jarvis.llm.model_names import missing_ollama_models
+from atlas.llm.model_names import missing_ollama_models
 from tests.performance.timing_recorder import TimingRecorder
 
 
-OLLAMA_URL = os.environ.get("JARVIS_PERF_OLLAMA_URL", "http://localhost:11434")
-PERF_MODEL = os.environ.get("JARVIS_PERF_MODEL", "gemma4:e2b")
-PERF_RUNS = int(os.environ.get("JARVIS_PERF_RUNS", "3"))
+OLLAMA_URL = os.environ.get("ATLAS_PERF_OLLAMA_URL", "http://localhost:11434")
+PERF_MODEL = os.environ.get("ATLAS_PERF_MODEL", "gemma4:e2b")
+PERF_RUNS = int(os.environ.get("ATLAS_PERF_RUNS", "3"))
 PERF_REPORT_DIR = Path(os.environ.get(
-    "JARVIS_PERF_REPORT_DIR",
+    "ATLAS_PERF_REPORT_DIR",
     str(Path(__file__).parent / "reports"),
 ))
 
@@ -161,7 +161,7 @@ def test_micro_benchmark_tiny_prompt():
     every context's total moves with it. Reported separately from the
     pipeline test so hardware drift is obvious in the numbers.
     """
-    from jarvis import llm as _llm
+    from atlas import llm as _llm
 
     title = f"Micro-benchmark: tiny prompt × {PERF_RUNS + 1} on {PERF_MODEL}"
     with _record_benchmark("micro", title) as rec:
@@ -198,9 +198,9 @@ def test_pipeline_timings_by_context():
     Tool routing should cost less than the main chat turn. Enrichment extraction
     uses the same model as routing.
     """
-    from jarvis.memory.db import Database
-    from jarvis.memory.conversation import DialogueMemory
-    from jarvis.reply.engine import run_reply_engine
+    from atlas.memory.db import Database
+    from atlas.memory.conversation import DialogueMemory
+    from atlas.reply.engine import run_reply_engine
 
     cfg = _make_cfg()
 

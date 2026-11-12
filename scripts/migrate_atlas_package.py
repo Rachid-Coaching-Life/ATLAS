@@ -9,7 +9,7 @@ OLD = "jar" + "vis"
 NEW = "atlas"
 ROOTS = ("src/", "tests/", "evals/", "scripts/", "installer/", ".github/")
 SUFFIXES = (".py", ".pyi", ".spec", ".ps1", ".bat", ".sh", ".yml", ".yaml", ".toml", ".ini", ".cfg", ".iss")
-SPECIAL = ("jarvis_desktop.spec", "setup.py", "setup.cfg", "pytest.ini")
+SPECIAL = ("atlas_desktop.spec", "setup.py", "setup.cfg", "pytest.ini")
 DOTTED = re.compile(r"(?<![A-Za-z0-9_./\\\\])" + OLD + r"(?=\.)")
 IMPORT = re.compile(r"(?m)\b(from|import)\s+" + OLD + r"(?=\s|$)")
 PKGPATH = re.compile(r"src[/\\]" + OLD + r"(?=[/\\])")
@@ -27,28 +27,28 @@ def rewrite(path, source):
     if path.endswith(".spec"):
         target = BARE_SPEC.sub(lambda m: m[1] + NEW + m[1], target)
         # Packaging output names belong to the new application, not its data.
-        target = target.replace("name='Jarvis'", "name='ATLAS'")
-        target = target.replace("name='Jarvis.app'", "name='ATLAS.app'")
+        target = target.replace("name='ATLAS'", "name='ATLAS'")
+        target = target.replace("name='ATLAS.app'", "name='ATLAS.app'")
     if path.endswith(".iss"):
         # Only the installer/build contract changes here. Do not touch the
         # application GUID, persistent folders, or user configuration paths.
-        target = target.replace('#define MyAppName "Jarvis"', '#define MyAppName "ATLAS"')
-        target = target.replace('#define MyAppExeName "Jarvis.exe"', '#define MyAppExeName "ATLAS.exe"')
-        target = target.replace('OutputBaseFilename=Jarvis-Setup-x64', 'OutputBaseFilename=ATLAS-Setup-x64')
-        target = target.replace("jarvis_setup.iss", "atlas_setup.iss")
-        target = target.replace("dist" + chr(92) + "Jarvis" + chr(92), "dist" + chr(92) + "ATLAS" + chr(92))
+        target = target.replace('#define MyAppName "ATLAS"', '#define MyAppName "ATLAS"')
+        target = target.replace('#define MyAppExeName "ATLAS.exe"', '#define MyAppExeName "ATLAS.exe"')
+        target = target.replace('OutputBaseFilename=ATLAS-Setup-x64', 'OutputBaseFilename=ATLAS-Setup-x64')
+        target = target.replace("atlas_setup.iss", "atlas_setup.iss")
+        target = target.replace("dist" + chr(92) + "ATLAS" + chr(92), "dist" + chr(92) + "ATLAS" + chr(92))
     # Windows build references must follow the renamed PyInstaller output.
     if path in ("scripts/build_installer.bat", "scripts/test_bundled_app.bat", ".github/workflows/build-desktop.yml"):
-        target = target.replace("jarvis_desktop.spec", "atlas_desktop.spec")
-        target = target.replace("installer\\windows\\jarvis_setup.iss", "installer\\windows\\atlas_setup.iss")
-        target = target.replace("Jarvis-Setup-x64.exe", "ATLAS-Setup-x64.exe")
-        target = target.replace("Jarvis-Windows-x64.zip", "ATLAS-Windows-x64.zip")
-        target = target.replace("Jarvis-Windows", "ATLAS-Windows")
-        target = target.replace("Jarvis.exe", "ATLAS.exe")
-        target = target.replace("dist\\Jarvis\\", "dist\\ATLAS\\")
-        target = target.replace("dist/Jarvis/", "dist/ATLAS/")
-        target = target.replace("Jarvis Desktop (Windows)", "ATLAS Desktop (Windows)")
-        target = target.replace("src\\jarvis\\_version.py", "src\\atlas\\_version.py")
+        target = target.replace("atlas_desktop.spec", "atlas_desktop.spec")
+        target = target.replace("installer\\windows\\atlas_setup.iss", "installer\\windows\\atlas_setup.iss")
+        target = target.replace("ATLAS-Setup-x64.exe", "ATLAS-Setup-x64.exe")
+        target = target.replace("ATLAS-Windows-x64.zip", "ATLAS-Windows-x64.zip")
+        target = target.replace("ATLAS-Windows", "ATLAS-Windows")
+        target = target.replace("ATLAS.exe", "ATLAS.exe")
+        target = target.replace("dist\\ATLAS\\", "dist\\ATLAS\\")
+        target = target.replace("dist/ATLAS/", "dist/ATLAS/")
+        target = target.replace("ATLAS Desktop (Windows)", "ATLAS Desktop (Windows)")
+        target = target.replace("src\\atlas\\_version.py", "src\\atlas\\_version.py")
         if path == "scripts/test_bundled_app.bat":
             target = target.replace("dist" + chr(92) + "ATLAS.exe", "dist" + chr(92) + "ATLAS" + chr(92) + "ATLAS.exe")
     return target
@@ -115,9 +115,9 @@ def main():
         except (UnicodeError, OSError) as e:
             parser.error(f"Cannot inspect {path}: {e}")
         new_path = path.replace("src/" + OLD + "/", "src/" + NEW + "/", 1) if path.startswith("src/" + OLD + "/") else path
-        if path == "jarvis_desktop.spec":
+        if path == "atlas_desktop.spec":
             new_path = "atlas_desktop.spec"
-        elif path == "installer/windows/jarvis_setup.iss":
+        elif path == "installer/windows/atlas_setup.iss":
             new_path = "installer/windows/atlas_setup.iss"
         transformed = rewrite(path, raw)
         if new_path != path or transformed != raw:
@@ -127,10 +127,10 @@ def main():
     # This is intentionally narrow: legacy user-data paths are not renamed.
     blockers = []
     patterns = (
-        re.compile(r"(?<![A-Za-z0-9_])jarvis_desktop[.]spec", re.I),
-        re.compile(r"(?<![A-Za-z0-9_])jarvis_setup[.]iss", re.I),
-        re.compile(r"(?<![A-Za-z0-9_])jarvis[.]exe", re.I),
-        re.compile(r"(?<![A-Za-z0-9_])jarvis[.]daemon", re.I),
+        re.compile(r"(?<![A-Za-z0-9_])atlas_desktop[.]spec", re.I),
+        re.compile(r"(?<![A-Za-z0-9_])atlas_setup[.]iss", re.I),
+        re.compile(r"(?<![A-Za-z0-9_])atlas[.]exe", re.I),
+        re.compile(r"(?<![A-Za-z0-9_])atlas[.]daemon", re.I),
     )
     for old, new, transformed in changes:
         if old == "scripts/migrate_atlas_package.py":

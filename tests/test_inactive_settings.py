@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from jarvis.config import get_default_config, load_settings
+from atlas.config import get_default_config, load_settings
 from desktop_app import settings_window as ui
 
 pytestmark = [pytest.mark.unit, pytest.mark.usefixtures("no_network")]
@@ -23,7 +23,7 @@ def test_loading_does_not_interpret_inactive_values_or_rewrite_them(tmp_path, mo
     original = {"_config_version": 3, "wake_word": "fixture", key: value}
     path.write_text(json.dumps(original), encoding="utf-8")
     before = path.read_bytes()
-    monkeypatch.setenv("JARVIS_CONFIG_PATH", str(path))
+    monkeypatch.setenv("ATLAS_CONFIG_PATH", str(path))
     settings = load_settings()
     assert settings.wake_word == original["wake_word"]
     assert key not in get_default_config()
@@ -56,7 +56,7 @@ def test_active_numeric_settings_are_still_validated(tmp_path, monkeypatch):
     path = tmp_path / "config.json"
     path.write_text(json.dumps({"_config_version": 3, "voice_collect_seconds": "Not a number"}))
     before = path.read_bytes()
-    monkeypatch.setenv("JARVIS_CONFIG_PATH", str(path))
+    monkeypatch.setenv("ATLAS_CONFIG_PATH", str(path))
     with pytest.raises(ValueError):
         load_settings()
     assert path.read_bytes() == before

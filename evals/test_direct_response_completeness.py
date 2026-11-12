@@ -2,7 +2,7 @@
 
 from conftest import requires_judge_llm
 from helpers import voice_config
-from jarvis.llm import get_llm_backend
+from atlas.llm import get_llm_backend
 
 
 @requires_judge_llm

@@ -10,7 +10,7 @@ pytestmark = pytest.mark.unit
 
 @pytest.fixture
 def test_profile(tmp_path, monkeypatch):
-    from jarvis.tools.builtin import local_files
+    from atlas.tools.builtin import local_files
 
     expanduser = local_files.os.path.expanduser
     monkeypatch.setattr(
@@ -23,13 +23,15 @@ def test_profile(tmp_path, monkeypatch):
 
 
 def _voice_fixture(task_manager, monkeypatch):
-    from jarvis.listening.listener import VoiceListener
-    from jarvis.listening.speech_context import SpeechContext
-    from jarvis import activity
+    from atlas.listening.listener import VoiceListener
+    from atlas.listening.state_manager import StateManager
+    from atlas.listening.speech_context import SpeechContext
+    from atlas import activity
 
     listener = object.__new__(VoiceListener)
     listener.db = object()
     listener.cfg = SimpleNamespace(wake_word="atlas", wake_aliases=[])
+    listener.state_manager = StateManager()
     listener.dialogue_memory = None
     listener._task_manager = task_manager
     listener._pending_pdf_clarification = None
@@ -62,7 +64,7 @@ def _voice_fixture(task_manager, monkeypatch):
         staticmethod(lambda *_args, **_kwargs: SimpleNamespace(segments=[])),
     )
     monkeypatch.setattr(
-        activity, "get_jarvis_state",
+        activity, "get_atlas_state",
         lambda: SimpleNamespace(
             acquire_state=lambda *_args, **_kwargs: object(),
             release_state=lambda _owner: True,
@@ -74,9 +76,9 @@ def _voice_fixture(task_manager, monkeypatch):
 def test_live_voice_query_routes_to_real_task_and_speaks_success(
     test_profile, monkeypatch,
 ):
-    from jarvis import tasks
-    from jarvis.listening.listener import VoiceListener
-    from jarvis.reply import engine
+    from atlas import tasks
+    from atlas.listening.listener import VoiceListener
+    from atlas.reply import engine
 
     desktop = test_profile / "Desktop"
     desktop.mkdir()
@@ -117,9 +119,9 @@ def test_live_voice_query_routes_to_real_task_and_speaks_success(
 def test_voice_ambiguity_asks_followup_then_uses_named_folder(
     test_profile, monkeypatch,
 ):
-    from jarvis import tasks
-    from jarvis.listening.listener import VoiceListener
-    from jarvis.reply import engine
+    from atlas import tasks
+    from atlas.listening.listener import VoiceListener
+    from atlas.reply import engine
 
     for folder in ("Documents", "Desktop"):
         directory = test_profile / folder
@@ -160,9 +162,9 @@ def test_voice_ambiguity_asks_followup_then_uses_named_folder(
 def test_non_task_voice_query_keeps_existing_reply_engine(
     test_profile, monkeypatch,
 ):
-    from jarvis import tasks
-    from jarvis.listening.listener import VoiceListener
-    from jarvis.reply import engine
+    from atlas import tasks
+    from atlas.listening.listener import VoiceListener
+    from atlas.reply import engine
 
     requested = []
     def fake_reply(*args, **kwargs):
@@ -189,9 +191,9 @@ def test_non_task_voice_query_keeps_existing_reply_engine(
 def test_voice_destructive_compound_file_request_fails_closed(
     test_profile, monkeypatch,
 ):
-    from jarvis import tasks
-    from jarvis.listening.listener import VoiceListener
-    from jarvis.reply import engine
+    from atlas import tasks
+    from atlas.listening.listener import VoiceListener
+    from atlas.reply import engine
 
     (test_profile / "Desktop").mkdir()
     launches = []
@@ -223,10 +225,10 @@ def test_voice_destructive_compound_file_request_fails_closed(
 def test_incomplete_voice_search_requires_folder_before_opening(
     test_profile, monkeypatch,
 ):
-    from jarvis import tasks
-    from jarvis.listening.listener import VoiceListener
-    from jarvis.tools.builtin import local_files
-    from jarvis.reply import engine
+    from atlas import tasks
+    from atlas.listening.listener import VoiceListener
+    from atlas.tools.builtin import local_files
+    from atlas.reply import engine
 
     docs = test_profile / "Documents"
     desktop = test_profile / "Desktop"

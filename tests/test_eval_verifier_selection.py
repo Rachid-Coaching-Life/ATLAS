@@ -25,7 +25,7 @@ def test_verifier_override_preserves_the_model_under_evaluation(monkeypatch, pro
         response.json.return_value = {'message': {'content': 'PASS'},
             'choices': [{'message': {'content': 'PASS'}}]}
         return response
-    with patch('jarvis.llm.http.post', side_effect=post):
+    with patch('atlas.llm.http.post', side_effect=post):
         verdict = helpers.call_judge_llm('Judge only.', 'Recorded answer.')
     assert verdict == 'PASS'
     assert requests[0]['model'] == ((verifier_model or '').strip() or helpers.JUDGE_MODEL)

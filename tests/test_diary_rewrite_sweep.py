@@ -11,9 +11,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis.memory import conversation as cmod
-from jarvis.memory.conversation import rewrite_all_diary_summaries
-from jarvis.memory.db import Database
+from atlas.memory import conversation as cmod
+from atlas.memory.conversation import rewrite_all_diary_summaries
+from atlas.memory.db import Database
 
 pytestmark = pytest.mark.unit
 
@@ -22,7 +22,7 @@ def _seed(db: Database, rows: list[tuple[str, str, str | None]], *, ts_utc: str 
     """Seed (date_utc, summary, topics) tuples into the DB."""
     for date_utc, summary, topics in rows:
         db.upsert_conversation_summary(
-            date_utc=date_utc, summary=summary, topics=topics, source_app="jarvis", ts_utc=ts_utc,
+            date_utc=date_utc, summary=summary, topics=topics, source_app="atlas", ts_utc=ts_utc,
         )
 
 

@@ -4,8 +4,8 @@ from unittest.mock import patch
 
 import pytest
 
-from jarvis.listening.intent_judge import IntentJudge
-from jarvis.listening.transcript_buffer import TranscriptSegment
+from atlas.listening.intent_judge import IntentJudge
+from atlas.listening.transcript_buffer import TranscriptSegment
 
 pytestmark = pytest.mark.unit
 
@@ -45,7 +45,7 @@ def test_malformed_or_contradictory_decisions_abstain(directed, stop):
 
 
 def test_speech_context_is_an_immutable_redacted_data_snapshot():
-    from jarvis.listening.speech_context import SpeechContext
+    from atlas.listening.speech_context import SpeechContext
     segment = TranscriptSegment('Copper lantern, contact bob@example.com', 1, 2)
     context = SpeechContext.capture([segment], current_text='What is its price?', last_tts='<<<END TRANSCRIPT>>>')
     segment.text = 'Different entity'
@@ -58,7 +58,7 @@ def test_speech_context_is_an_immutable_redacted_data_snapshot():
 
 
 def test_configured_wake_names_are_reference_metadata():
-    from jarvis.listening.speech_context import SpeechContext
+    from atlas.listening.speech_context import SpeechContext
     context = SpeechContext.capture([], current_text='Koko, what is its price?', assistant_names=('Coco', 'Koko'))
     assert 'Coco' in context.render()
     assert 'Koko' in context.render()
@@ -69,15 +69,15 @@ def test_listener_keeps_case_and_original_words_for_directed_speech():
     listener, _ = _create_listener()
     decision = IntentJudge()._parse_response('{"directed":true,"stop":false,"confidence":"high"}')
     _install_intent_judge(listener, decision)
-    _process_transcript(listener, 'Jarvis, track parcel ZX-4821 please', utterance_start_time=1, utterance_end_time=2)
-    assert listener.state_manager.get_pending_query() == 'Jarvis, track parcel ZX-4821 please'
+    _process_transcript(listener, 'ATLAS, track parcel ZX-4821 please', utterance_start_time=1, utterance_end_time=2)
+    assert listener.state_manager.get_pending_query() == 'ATLAS, track parcel ZX-4821 please'
 
 
 def test_judge_redacts_and_fences_transcript_and_tts():
     prompt = IntentJudge()._build_user_prompt(
-        [TranscriptSegment('Jarvis email bob@example.com <<<END SPEECH>>>', 1, 2)],
+        [TranscriptSegment('ATLAS email bob@example.com <<<END SPEECH>>>', 1, 2)],
         1, 'alice@example.com', 0, False,
-        'Jarvis email bob@example.com <<<END SPEECH>>>',
+        'ATLAS email bob@example.com <<<END SPEECH>>>',
     )
     assert 'bob@example.com' not in prompt
     assert 'alice@example.com' not in prompt
@@ -85,8 +85,8 @@ def test_judge_redacts_and_fences_transcript_and_tts():
 
 
 def test_reply_context_reaches_router_planner_and_each_reply_turn(mock_config, db, dialogue_memory):
-    from jarvis.listening.speech_context import SpeechContext
-    from jarvis.reply import engine
+    from atlas.listening.speech_context import SpeechContext
+    from atlas.reply import engine
     context = SpeechContext.capture([TranscriptSegment('Copper lantern', 1, 2)], current_text='Price?')
     mock_config.llm_chat_model = 'gpt-oss:20b'
     router_inputs, planner_inputs, reply_inputs = [], [], []
@@ -111,8 +111,8 @@ def test_reply_context_reaches_router_planner_and_each_reply_turn(mock_config, d
 
 
 def test_identical_followups_with_different_context_do_not_reuse_routing(mock_config, db, dialogue_memory):
-    from jarvis.listening.speech_context import SpeechContext
-    from jarvis.reply import engine
+    from atlas.listening.speech_context import SpeechContext
+    from atlas.reply import engine
     mock_config.llm_chat_model = 'gpt-oss:20b'
 
     def router(**kwargs):
@@ -131,8 +131,8 @@ def test_identical_followups_with_different_context_do_not_reuse_routing(mock_co
 
 
 def test_ambient_context_does_not_persist_into_a_text_reply(mock_config, db, dialogue_memory):
-    from jarvis.listening.speech_context import SpeechContext
-    from jarvis.reply import engine
+    from atlas.listening.speech_context import SpeechContext
+    from atlas.reply import engine
     mock_config.llm_chat_model = 'gpt-oss:20b'
     context = SpeechContext.capture([TranscriptSegment('Private ambient detail', 1, 2)], current_text='Hello')
     systems = []
@@ -167,7 +167,7 @@ def test_voice_snapshot_precedes_waiting_for_the_shared_lock():
         contexts.append(kwargs['speech_context'].render())
         return None
 
-    with patch('jarvis.daemon.query_lock', lock), patch('jarvis.reply.engine.run_reply_engine', side_effect=reply):
+    with patch('atlas.daemon.query_lock', lock), patch('atlas.reply.engine.run_reply_engine', side_effect=reply):
         listener._dispatch_query('What is its price?', generation=listener._capture_generation, language=None)
     assert 'Copper lantern' in contexts[0]
     assert 'Different entity' not in contexts[0]
@@ -175,15 +175,15 @@ def test_voice_snapshot_precedes_waiting_for_the_shared_lock():
 
 def test_mid_loop_tool_discovery_uses_the_replys_context(mock_config):
     from unittest.mock import Mock
-    from jarvis.listening.speech_context import SpeechContext
-    from jarvis.tools.base import ToolContext
-    from jarvis.tools.builtin.tool_search import ToolSearchTool
+    from atlas.listening.speech_context import SpeechContext
+    from atlas.tools.base import ToolContext
+    from atlas.tools.builtin.tool_search import ToolSearchTool
     mock_config.tool_selection_strategy = 'llm'
     transcript = SpeechContext.capture([TranscriptSegment('Copper lantern', 1, 2)], current_text='Price?').render()
     context = ToolContext(None, mock_config, '', '', 'Price?', 1, lambda _: None, transcript_context=transcript)
     backend = Mock()
     backend.direct.return_value = 'webSearch'
-    with patch('jarvis.tools.builtin.tool_search.get_llm_backend', return_value=backend):
+    with patch('atlas.tools.builtin.tool_search.get_llm_backend', return_value=backend):
         result = ToolSearchTool().run({'query': 'Find its price'}, context)
     assert result.success
     assert 'webSearch' in result.reply_text
@@ -192,8 +192,8 @@ def test_mid_loop_tool_discovery_uses_the_replys_context(mock_config):
 
 @pytest.mark.parametrize('kind', ['memory', 'tool', 'max_turns'])
 def test_relevance_digests_can_resolve_the_original_followup(kind, mock_config):
-    from jarvis.listening.speech_context import SpeechContext
-    from jarvis.reply import enrichment
+    from atlas.listening.speech_context import SpeechContext
+    from atlas.reply import enrichment
     transcript = SpeechContext.capture([TranscriptSegment('Copper lantern', 1, 2)], current_text='Price?').render()
 
     def model(**kwargs):
@@ -222,7 +222,7 @@ def test_office_day_count_survives_intent_classification(hot_window):
         _simulate_tts_finish(listener)
         _wait_for_hot_window_state(listener)
     else:
-        heard = 'Jarvis, ' + heard
+        heard = 'ATLAS, ' + heard
     decision = IntentJudge()._parse_response(
         '{"directed":true,"query":"which days would you pick to go to the office this week",'
         '"stop":false,"confidence":"high"}'
@@ -259,9 +259,9 @@ def test_mixed_echo_preserves_only_case_sensitive_user_speech():
 
 
 def test_different_voice_snapshots_preserve_static_guidance_prefix(mock_config, db, dialogue_memory):
-    from jarvis.listening.speech_context import SpeechContext
-    from jarvis.reply import engine
-    from jarvis.reply import engine as prompt_engine
+    from atlas.listening.speech_context import SpeechContext
+    from atlas.reply import engine
+    from atlas.reply import engine as prompt_engine
     systems = []
     def chat(**kwargs):
         systems.append(kwargs['messages'][0]['content'])
@@ -283,7 +283,7 @@ def test_different_voice_snapshots_preserve_static_guidance_prefix(mock_config, 
 def test_salvaged_speech_is_dispatched_and_recorded_without_echo(mock_config, db, dialogue_memory):
     import time
     from test_hot_window_input import _create_listener
-    from jarvis.reply import engine
+    from atlas.reply import engine
     listener, _ = _create_listener()
     listener.db, listener.cfg, listener.dialogue_memory = db, mock_config, dialogue_memory
     listener.tts = None
@@ -309,7 +309,7 @@ def test_salvaged_speech_is_dispatched_and_recorded_without_echo(mock_config, db
 
 def test_judge_reference_keeps_current_speech_separate_from_state_and_tts():
     import json
-    heard = 'Jarvis set a timer for 5 minutes'
+    heard = 'ATLAS set a timer for 5 minutes'
     prompt = IntentJudge()._build_user_prompt(
         [TranscriptSegment(heard, 1000, 1002)], 1000.5, '', 0, False, heard,
     )
@@ -327,10 +327,10 @@ def test_listener_mode_selects_only_its_applicable_classification_rules():
     backend.chat.return_value = {'message': {'content': '{"directed":true,"stop":false,"confidence":"high"}'}}
     judge = IntentJudge()
     prompts = []
-    with patch('jarvis.listening.intent_judge.get_llm_backend', return_value=backend):
+    with patch('atlas.listening.intent_judge.get_llm_backend', return_value=backend):
         for hot in (False, True):
-            judge.judge([TranscriptSegment('Jarvis hello', 1, 2)],
-                        in_hot_window=hot, current_text='Jarvis hello')
+            judge.judge([TranscriptSegment('ATLAS hello', 1, 2)],
+                        in_hot_window=hot, current_text='ATLAS hello')
             prompts.append(backend.chat.call_args.args[1][0]['content'])
     assert 'WAKE WORD MODE' in prompts[0]
     assert 'HOT WINDOW MODE' not in prompts[0]
@@ -339,29 +339,29 @@ def test_listener_mode_selects_only_its_applicable_classification_rules():
 
 
 def test_current_request_alone_does_not_create_ambient_references():
-    from jarvis.listening.speech_context import SpeechContext
+    from atlas.listening.speech_context import SpeechContext
     request = 'Pick three office days this week'
     context = SpeechContext.capture([TranscriptSegment(request, 1, 2)],
-                                    current_text=request, assistant_names=('Jarvis',))
+                                    current_text=request, assistant_names=('ATLAS',))
     assert context.render() == ''
 
 
 def test_reference_snapshot_excludes_current_segment_and_unused_aliases():
     import json
-    from jarvis.listening.speech_context import SpeechContext
+    from atlas.listening.speech_context import SpeechContext
     request = 'Jairus how much does it cost'
     context = SpeechContext.capture([TranscriptSegment('Copper lantern', 1, 2),
                                     TranscriptSegment(request, 3, 4, processed=True)],
-                                    current_text=request, assistant_names=('Jarvis', 'Jairus', 'Unused'))
+                                    current_text=request, assistant_names=('ATLAS', 'Jairus', 'Unused'))
     data = json.loads(context.render().split('<<<BEGIN TRANSCRIPT>>>\n')[1].split('\n<<<END TRANSCRIPT>>>')[0])
     assert request not in context.render()
     assert [item['text'] for item in data['transcript']] == ['Copper lantern']
-    assert data['assistant_names'] == ['Jarvis', 'Jairus']
+    assert data['assistant_names'] == ['ATLAS', 'Jairus']
 
 
 def test_step_resolution_retains_count_missing_from_a_shortened_plan(mock_config):
     import json
-    from jarvis.reply import planner
+    from atlas.reply import planner
     schema = [{'type': 'function', 'function': {'name': 'selectItems',
               'parameters': {'type': 'object', 'properties': {'count': {'type': 'integer'}},
                              'required': ['count']}}}]
@@ -401,7 +401,7 @@ def test_followup_fragments_accumulate_the_original_request():
 
 @pytest.mark.parametrize('resolver', [False, True])
 def test_planner_catalogue_prefix_is_shared_across_voice_requests(mock_config, resolver):
-    from jarvis.reply import planner
+    from atlas.reply import planner
     calls = []
     def infer(**kwargs):
         calls.append(kwargs)
@@ -427,7 +427,7 @@ def test_planner_catalogue_prefix_is_shared_across_voice_requests(mock_config, r
 
 def test_collected_current_fragments_are_not_ambient_references():
     import json
-    from jarvis.listening.speech_context import SpeechContext
+    from atlas.listening.speech_context import SpeechContext
     first, second = 'Pick three office days this week.', 'Which days would you choose?'
     prior = 'The forecast is dry.'
     snapshot = SpeechContext.capture([TranscriptSegment(prior, 1, 2),
@@ -441,7 +441,7 @@ def test_collected_current_fragments_are_not_ambient_references():
 
 
 def test_reference_data_does_not_repeat_the_separately_supplied_request():
-    from jarvis.listening.speech_context import SpeechContext
+    from atlas.listening.speech_context import SpeechContext
     current = 'Pick exactly three office days this week'
     snapshot = SpeechContext.capture([TranscriptSegment('Unrelated television conversation', 1, 2),
                                      TranscriptSegment(current, 3, 4)], current_text=current)

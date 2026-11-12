@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from jarvis.utils.time_context import format_time_context
+from atlas.utils.time_context import format_time_context
 
 pytestmark = pytest.mark.unit
 

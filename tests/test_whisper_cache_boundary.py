@@ -1,7 +1,7 @@
 """Automatic speech recovery deletes only the configured Hub model cache."""
 import pytest
 
-from jarvis.listening.listener import _clear_corrupted_whisper_cache
+from atlas.listening.listener import _clear_corrupted_whisper_cache
 
 pytestmark = pytest.mark.unit
 
