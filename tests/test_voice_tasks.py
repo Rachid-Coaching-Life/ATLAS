@@ -24,12 +24,14 @@ def test_profile(tmp_path, monkeypatch):
 
 def _voice_fixture(task_manager, monkeypatch):
     from atlas.listening.listener import VoiceListener
+    from atlas.listening.state_manager import StateManager
     from atlas.listening.speech_context import SpeechContext
     from atlas import activity
 
     listener = object.__new__(VoiceListener)
     listener.db = object()
     listener.cfg = SimpleNamespace(wake_word="atlas", wake_aliases=[])
+    listener.state_manager = StateManager()
     listener.dialogue_memory = None
     listener._task_manager = task_manager
     listener._pending_pdf_clarification = None

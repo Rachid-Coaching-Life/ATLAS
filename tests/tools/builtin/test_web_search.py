@@ -1193,6 +1193,7 @@ class TestLanguagePlumbingEndToEnd:
         """Voice query dispatch carries the detected language to the reply engine."""
         from contextlib import nullcontext
         from atlas.listening.listener import VoiceListener
+        from atlas.listening.state_manager import StateManager
 
         listener = VoiceListener.__new__(VoiceListener)
         listener.db = object()
@@ -1200,6 +1201,7 @@ class TestLanguagePlumbingEndToEnd:
         from atlas.listening.transcript_buffer import TranscriptBuffer
         from atlas.listening.echo_detection import EchoDetector
         listener.cfg = SimpleNamespace(wake_word="atlas", wake_aliases=[])
+        listener.state_manager = StateManager()
         listener._buffer_duration = 120.0
         listener._transcript_buffer = TranscriptBuffer()
         listener.echo_detector = EchoDetector()
