@@ -243,7 +243,7 @@ def test_windows_cmd_launch_and_exit_code(tmp_path, layout, exit_code, launcher_
         encoding='utf-8',
     )
     env = os.environ.copy()
-    env['PATH'] = str(Path(sys.executable).parent) + os.pathsep + str(Path(env['SystemRoot']) / 'System32')
+    env['PATH'] = str(Path(sys.executable).parent) + os.pathsep + str(Path(env['SYSTEMROOT']) / 'System32')
     env['PYTHONUTF8'] = '1'
     if launcher_kind == 'python':
         assert shutil.which('py', path=env['PATH']) is None
