@@ -70,6 +70,12 @@ La synthèse française avec l'exécutable officiel Windows, le timbre personnel
 la latence sur Ryzen et l'alignement sur le périphérique audio restent non
 validés. Aucun enregistrement ni profil privé n'est nécessaire aux tests.
 
-### Correctif d'interruption Windows, à valider par GitHub Actions
+## Validation du véritable modèle français sans empreinte privée (CI Windows)
 
-La CI Windows du commit `75ca2d0` montrait encore 5 échecs sur 28, y compris après `shutdown()` et `close()` du socket : le décodage `http.client.HTTPResponse` pouvait rester en lecture bloquante. Le remplacement ciblé utilise un lecteur HTTP/1.1 local borné, avec sondage du socket toutes les 200 ms et décodage `Content-Length`/`Transfer-Encoding: chunked`. Le nouveau contrôle doit passer sous Windows avant toute validation. Aucune bibliothèque supplémentaire, aucun WAV privé dans la CI.
+Le job Windows vérifie maintenant le binaire officiel et tente une génération réelle avec le modèle compact `french` et la voix publique `estelle` provenant du dépôt public `kyutai/pocket-tts-without-voice-cloning`. Il inspecte le WAV (mono PCM16, fréquence, durée plausible, présence d'un signal non silencieux), puis répète une génération avec `HF_ENDPOINT` pointant vers une boucle locale inaccessible pour examiner la réutilisation du cache hors connexion. Les deux sorties WAV restent temporaires sur le runner et ne sont pas publiées.
+
+**Attention aux conclusions :** ce contrôle public peut prouver que l'exécutable Windows exécute le modèle français, mais jamais que le modèle **avec clonage** est accessible, que la voix privée est fidèlement reproduite, ni que le GTR7 atteint une faible latence. Les résultats de cette CI doivent être inspectés avant d'annoncer quoi que ce soit. Ce job peut échouer pour des causes d'accès distant ou de téléchargement, à distinguer d'une incompatibilité audio.
+
+Le code du moteur ATLAS, son profil vocal et le moteur Piper par défaut ne sont pas modifiés par cette étape.
+
+Le contrôle Windows du vrai modèle est exécuté même si des tests synthétiques précédents échouent, afin de distinguer une régression de l'adaptateur d'une incompatibilité du moteur français public. Les étapes CLI et génération restent non-validées tant que leurs résultats ne sont pas consultés.

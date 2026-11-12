@@ -86,6 +86,7 @@ jobs:
         run: |
           python -m pytest -q tests/test_pocket_tts_bridge.py tests/test_pocket_tts_reliability.py
       - name: Check official Pocket TTS Windows executable CLI (no model or voice)
+        if: success() || failure()
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -107,6 +108,48 @@ jobs:
             if (-not $serveHelp.Contains($flag)) { throw "Pocket TTS CLI missing required flag: $flag" }
           }
           Write-Output 'Verified release SHA256 and local serve CLI arguments; no weights loaded.'
+      - name: Generate real French WAV on Windows with public Estelle (no personal voice)
+        if: success() || failure()
+        shell: pwsh
+        timeout-minutes: 12
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $folder = Join-Path $env:RUNNER_TEMP 'pocket-tts-official'
+          $binary = Get-ChildItem -Path $folder -Recurse -File -Filter 'pocket-tts.exe' | Select-Object -First 1
+          if ($null -eq $binary) { throw 'Verified Pocket TTS executable is missing' }
+          $online = Join-Path $env:RUNNER_TEMP 'atlas-public-french-online.wav'
+          $offline = Join-Path $env:RUNNER_TEMP 'atlas-public-french-offline.wav'
+          $env:HF_TOKEN = ''
+          $env:HUGGING_FACE_HUB_TOKEN = ''
+          $env:HF_ENDPOINT = 'https://huggingface.co'
+          & $binary.FullName generate --language french --voice estelle --text 'Bonjour, je suis Atlas et je vérifie ma synthèse vocale française.' --output-path $online
+          if ($LASTEXITCODE -ne 0) { throw 'Public French model failed to generate speech on Windows' }
+          # Reuse only the public model and Estelle voice already cached; deny remote HF.
+          $env:HF_ENDPOINT = 'http://127.0.0.1:9'
+          $env:HF_HUB_OFFLINE = '1'
+          & $binary.FullName generate --language french --voice estelle --text 'Bonjour, voici une deuxième phrase française sans accès distant.' --output-path $offline
+          if ($LASTEXITCODE -ne 0) { throw 'Cached public French model failed offline on Windows' }
+          $env:ATLAS_PUBLIC_TTS_ONLINE = $online
+          $env:ATLAS_PUBLIC_TTS_OFFLINE = $offline
+          @'
+          import array
+          import os
+          import wave
+          for name in ('ATLAS_PUBLIC_TTS_ONLINE', 'ATLAS_PUBLIC_TTS_OFFLINE'):
+              with wave.open(os.environ[name], 'rb') as wav:
+                  assert wav.getnchannels() == 1, 'unexpected channel count'
+                  assert wav.getsampwidth() == 2, 'not 16-bit PCM'
+                  assert 8000 <= wav.getframerate() <= 48000, 'unexpected sample rate'
+                  assert 0.2 <= wav.getnframes() / wav.getframerate() <= 40, 'implausible audio duration'
+                  pcm = wav.readframes(wav.getnframes())
+                  assert len(pcm) == wav.getnframes() * 2, 'truncated PCM'
+              samples = array.array('h')
+              samples.frombytes(pcm)
+              assert max(map(abs, samples)) > 50, 'silence instead of generated speech'
+              print('Verified public French audio structure and non-silent PCM: ' + name)
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw 'Public French WAV structural validation failed' }
+          # Artifacts stay on the temporary runner and are never uploaded.
 
 
   daemon-lock:
