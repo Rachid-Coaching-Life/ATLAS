@@ -862,6 +862,13 @@ class VoiceListener(threading.Thread):
         if (self.state_manager.is_collecting()
                 and not received_during_tts
                 and not active_tts_overlapped):
+            # Earlier follow-up acceptance leaves the hot-window state. A later
+            # TTS echo chunk must not be appended to the ongoing user request.
+            tts_reference = self.echo_detector._last_tts_text if same_tts_context else ""
+            if (tts_reference and self.echo_detector.is_hot_window_echo(
+                    text_lower, tts_reference)):
+                debug_log("rejected TTS echo during active query collection", "voice")
+                return
             self._transcript_buffer.mark_segment_processed(text_lower)
             self.state_manager.add_to_collection(accepted_text, language=language)
             debug_log("wake follow-up added directly to active collection", "voice")
