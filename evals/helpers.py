@@ -56,11 +56,22 @@ def _requested_judge_provider() -> str:
 # because a handful of evals (e.g. `TestMalformedResponseAfterTools` itself)
 # are specifically asserting the fallback fires and must NOT use this helper.
 
-FALLBACK_REPLY_PHRASES = (
+# These fragments are emitted by engine.py and must stay source-pinned.
+ENGINE_FALLBACK_PHRASES = (
+    "je n'ai pas réussi à traiter votre demande",
+    "je n'ai pas pu effectuer cette action",
+    "je n'ai pas de réponse fiable",
+)
+
+# Model output can still contain old English fallbacks, even though ATLAS
+# no longer hard-codes them as replies. Keep them detectable as failures.
+MODEL_ENGLISH_FALLBACK_PHRASES = (
     "i had trouble understanding that request",
     "i had trouble processing that",
     "sorry, i had trouble",
 )
+
+FALLBACK_REPLY_PHRASES = ENGINE_FALLBACK_PHRASES + MODEL_ENGLISH_FALLBACK_PHRASES
 
 
 def is_fallback_reply(response: Optional[str]) -> bool:
@@ -68,7 +79,7 @@ def is_fallback_reply(response: Optional[str]) -> bool:
     fallback reply — i.e. the user got a shrug instead of an answer."""
     if not response:
         return False
-    lowered = response.lower()
+    lowered = response.casefold().replace("’", "'").replace("‘", "'")
     return any(phrase in lowered for phrase in FALLBACK_REPLY_PHRASES)
 
 

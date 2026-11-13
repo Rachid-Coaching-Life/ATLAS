@@ -862,10 +862,33 @@ class VoiceListener(threading.Thread):
         if (self.state_manager.is_collecting()
                 and not received_during_tts
                 and not active_tts_overlapped):
-            self._transcript_buffer.mark_segment_processed(text_lower)
-            self.state_manager.add_to_collection(accepted_text, language=language)
-            debug_log("wake follow-up added directly to active collection", "voice")
-            return
+            # Earlier follow-up acceptance leaves the hot-window state. A later
+            # TTS echo chunk must not be appended to the ongoing user request.
+            tts_reference = self.echo_detector._last_tts_text if same_tts_context else ""
+            if (tts_reference and self.echo_detector.is_hot_window_echo(
+                    text_lower, tts_reference)):
+                debug_log("rejected TTS echo during active query collection", "voice")
+                return
+            # An explicit fresh address starts a new request even while a
+            # previous multi-segment command is still being collected.
+            wake_word = getattr(self.cfg, "wake_word", "atlas")
+            wake_aliases = getattr(self.cfg, "wake_aliases", []) or []
+            if is_explicit_wake_address(accepted_text, wake_word, wake_aliases):
+                self._transcript_buffer.mark_segment_processed(text_lower)
+                self.state_manager.start_collection(accepted_text, language=language)
+                self._start_thinking_tune()
+                debug_log("explicit readdress replaced pending voice collection", "voice")
+                return
+
+            # An assistant-name mention needs the ordinary intent gate. Only
+            # an unaddressed continuation may bypass it while collecting.
+            if not is_wake_word_detected(
+                    text_lower, wake_word, wake_aliases,
+                    float(getattr(self.cfg, "wake_fuzzy_ratio", 0.78))):
+                self._transcript_buffer.mark_segment_processed(text_lower)
+                self.state_manager.add_to_collection(accepted_text, language=language)
+                debug_log("wake follow-up added directly to active collection", "voice")
+                return
 
         # Intent judge — the single decision-maker for all post-TTS input.
         # Gets full transcript context, last TTS text, and hot window state.
@@ -885,11 +908,12 @@ class VoiceListener(threading.Thread):
             utterance_start_time, utterance_end_time
         )
 
-        # A clean follow-up inside the active hot window is already addressed
-        # to ATLAS. Avoid a synchronous LLM judge on the listening thread.
+        # Accept a clean hot-window follow-up directly only without an available
+        # intent judge; otherwise let the judge determine whether it is addressed to ATLAS.
         # The echo guards above still run first; keep a final text echo check.
         if (could_be_hot_window and not received_during_tts
                 and not active_tts_overlapped
+                and (self._intent_judge is None or not self._intent_judge.available)
                 and not self.echo_detector.is_hot_window_echo(
                     text_lower,
                     (self.echo_detector._last_tts_text or "") if same_tts_context else "",
@@ -1613,12 +1637,16 @@ class VoiceListener(threading.Thread):
             and pending.endswith((".", "?", "!"))
             and not pending.endswith("...")
         )
+        # A final French "et" explicitly introduces an unfinished clause.
+        # Do not apply the short silence timeout to that pending continuation.
+        waiting_for_continuation = pending.casefold().endswith(" et")
         if idle_and_drained and pending and complete_sentence:
             timed_out = self.state_manager.check_collection_timeout(
                 silence_override_sec=0.7,
             )
         elif (idle_and_drained and len(pending.split()) >= 3
-              and not pending.endswith("...")):
+              and not pending.endswith("...")
+              and not waiting_for_continuation):
             # Unpunctuated Whisper output is common in voice commands.
             # A slightly longer pause protects multipart utterances.
             timed_out = self.state_manager.check_collection_timeout(

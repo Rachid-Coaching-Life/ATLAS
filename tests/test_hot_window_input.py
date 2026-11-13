@@ -1248,12 +1248,60 @@ class TestEchoCaughtBeforeBeepAndIntentJudge:
         listener.state_manager.stop()
 
     @patch("builtins.print")
-    def test_multiple_echo_chunks_do_not_stack_window_extensions(self, _print):
-        """Multiple echo chunks should not extend the hot window repeatedly.
+    def test_recognised_echo_is_not_appended_during_active_collection(self, _print):
+        """Reject a later TTS echo without swallowing a genuine query continuation."""
+        listener, _ = _create_listener(echo_tolerance=0.02, hot_window_seconds=3.0)
+        tts_text = "Tbilisi is a must-see. For breathtaking scenery explore Svaneti."
+        listener.echo_detector.track_tts_start(tts_text)
+        _simulate_tts_finish(listener)
+        _wait_for_hot_window_state(listener)
+        _install_intent_judge(listener, _make_judgment(directed=True))
 
-        Real scenario: TTS response is split into 2+ Whisper chunks. Each
-        previously reset the timer, creating a window of N*hot_window_seconds.
-        Now echo is caught early without any timer reset.
+        _process_transcript(
+            listener, "Merci, parle-moi de Paris demain", utterance_energy=0.01,
+        )
+        initial = "Merci, parle-moi de Paris demain"
+        assert _accepted_query(listener) == initial
+
+        echoed = "For breathtaking scenery you should explore Steneti"
+        assert listener.echo_detector.is_hot_window_echo(echoed, tts_text)
+        _process_transcript(listener, echoed, utterance_energy=0.01)
+        assert _accepted_query(listener) == initial
+
+        _process_transcript(listener, "et samedi aussi", utterance_energy=0.01)
+        assert _accepted_query(listener) == initial + " et samedi aussi"
+        listener.state_manager.stop()
+
+    @patch("builtins.print")
+    def test_ambiguous_tts_like_speech_uses_available_intent_judge(self, _print):
+        """A TTS-like utterance with new words is not automatically a pure echo."""
+        listener, _ = _create_listener(echo_tolerance=0.02, hot_window_seconds=3.0)
+        tts_text = "Tbilisi is a must-see. For breathtaking scenery explore Svaneti."
+        listener.echo_detector.track_tts_start(tts_text)
+        _simulate_tts_finish(listener)
+        _wait_for_hot_window_state(listener)
+        judge = _install_intent_judge(
+            listener, _make_judgment(directed=False, confidence="high")
+        )
+
+        ambiguous = "Tbilisi is a must-see especially the colourful old town"
+        assert not listener.echo_detector.is_hot_window_echo(ambiguous, tts_text)
+        _process_transcript(listener, ambiguous, utterance_energy=0.01)
+        assert judge.judge.call_count == 1
+        assert _accepted_query(listener) == ""
+
+        recognisable_echo = "For breathtaking scenery you should explore Steneti"
+        assert listener.echo_detector.is_hot_window_echo(recognisable_echo, tts_text)
+        _process_transcript(listener, recognisable_echo, utterance_energy=0.01)
+        assert _accepted_query(listener) == ""
+        listener.state_manager.stop()
+
+    @patch("builtins.print")
+    def test_multiple_echo_chunks_do_not_stack_window_extensions(self, _print):
+        """Recognisable TTS echo fragments never reset the original window.
+
+        A transcript with additional words not spoken by TTS is ambiguous;
+        this timing test must use fragments actually matching the TTS source.
         """
         listener, _ = _create_listener(echo_tolerance=0.02, hot_window_seconds=0.10)
         tts_text = "Tbilisi is a must-see. For breathtaking scenery explore Svaneti."
@@ -1262,15 +1310,15 @@ class TestEchoCaughtBeforeBeepAndIntentJudge:
         _simulate_tts_finish(listener)
         _wait_for_hot_window_state(listener)
 
-        # First echo chunk
-        _process_transcript(listener,
-            "Tbilisi is a must-see especially the colourful old town",
-            utterance_energy=0.01)
+        # Exact short TTS fragment: contiguous-token echo.
+        first_echo = "Tbilisi is a must-see"
+        assert listener.echo_detector.is_hot_window_echo(first_echo, tts_text)
+        _process_transcript(listener, first_echo, utterance_energy=0.01)
 
-        # Second echo chunk
-        _process_transcript(listener,
-            "For breathtaking scenery you should explore Steneti",
-            utterance_energy=0.01)
+        # Longer fragment with a transcription error, still a recognisable echo.
+        second_echo = "For breathtaking scenery you should explore Steneti"
+        assert listener.echo_detector.is_hot_window_echo(second_echo, tts_text)
+        _process_transcript(listener, second_echo, utterance_energy=0.01)
 
         # Both should be rejected
         assert _accepted_query(listener) == ""

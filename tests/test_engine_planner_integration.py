@@ -811,8 +811,17 @@ def test_unexecuted_action_can_return_a_clarification_or_blocker(monkeypatch, mo
     assert reply == next(iter(envelope.values()))
 
 
+def test_unexecuted_action_reply_is_french():
+    from atlas.reply import engine
+    assert engine._UNEXECUTED_ACTION_REPLY == (
+        "Je n'ai pas pu effectuer cette action. "
+        "Veuillez réessayer ou préciser les informations manquantes."
+    )
+
+
 @pytest.mark.parametrize('response', [
-    'I deleted the meal.', '{"question":[]}', '{"question":""}',
+    'I deleted the meal.', "C'est fait, j'ai supprimé le repas.",
+    '{"question":[]}', '{"question":""}',
     '{"question":"Which record?","blocker":"Unavailable"}',
     '{"question":"Which record?","question":"Deleted"}',
     '[["question","Which record?"]]',
@@ -826,7 +835,7 @@ def test_unexecuted_action_does_not_deliver_repeated_completion_claims(monkeypat
     monkeypatch.setattr(engine, '_resolve_plan_step', lambda **kwargs: None)
     monkeypatch.setattr(engine, 'chat_with_messages', lambda **kwargs: _assistant_content(response))
     reply = engine.run_reply_engine(db, mock_config, None, 'Delete the recorded meal.', dialogue_memory)
-    assert reply == "I couldn't execute the requested action. Please try again or provide the missing details."
+    assert reply == engine._UNEXECUTED_ACTION_REPLY
 
 
 def test_discovery_without_execution_cannot_confirm_a_planned_action(monkeypatch, mock_config, db, dialogue_memory):
@@ -847,7 +856,7 @@ def test_discovery_without_execution_cannot_confirm_a_planned_action(monkeypatch
     monkeypatch.setattr(engine, 'run_tool_with_retries', lambda *args, **kwargs: ToolExecutionResult(
         success=True, reply_text='The deletion tool is available.'))
     reply = engine.run_reply_engine(db, mock_config, None, 'Delete the recorded meal.', dialogue_memory)
-    assert reply == "I couldn't execute the requested action. Please try again or provide the missing details."
+    assert reply == engine._UNEXECUTED_ACTION_REPLY
 
 
 def test_exhausted_recovery_without_execution_cannot_deliver_digest_completion(monkeypatch, mock_config, db, dialogue_memory):
@@ -865,4 +874,4 @@ def test_exhausted_recovery_without_execution_cannot_deliver_digest_completion(m
         success=True, reply_text='The deletion tool is available.'))
     monkeypatch.setattr(engine, 'digest_loop_for_max_turns', lambda **kwargs: 'I deleted the meal.')
     reply = engine.run_reply_engine(db, mock_config, None, 'Delete the recorded meal.', dialogue_memory)
-    assert reply == "I couldn't execute the requested action. Please try again or provide the missing details."
+    assert reply == engine._UNEXECUTED_ACTION_REPLY

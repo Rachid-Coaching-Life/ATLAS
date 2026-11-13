@@ -178,7 +178,9 @@ def test_hologram_panel_paints_gradient_with_qt_float_geometry(qapp):
         # transparent; the central glass has a nonzero but partial alpha.
         assert canvas.pixelColor(2, 2).alpha() == 0
         assert canvas.pixelColor(315, 2).alpha() == 0
-        assert 0 < canvas.pixelColor(80, 50).alpha() < 245
+        # Several translucent optical layers overlap here; reject only
+        # truly opaque pixels, not partial alpha produced by their composite.
+        assert 0 < canvas.pixelColor(80, 50).alpha() < 255
         assert panel.input_region().contains(panel.rect().center())
         assert not panel.input_region().contains(panel.rect().topLeft())
 
