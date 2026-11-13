@@ -15,8 +15,10 @@ import pytest
 _ROOT = Path(__file__).resolve().parent.parent
 
 from evals.helpers import (
+    ENGINE_FALLBACK_PHRASES,
     FALLBACK_REPLY_PHRASES,
     MAX_TURNS_DIGEST_PHRASES,
+    MODEL_ENGLISH_FALLBACK_PHRASES,
     assert_not_fallback_reply,
     assert_not_max_turns_digest,
     is_fallback_reply,
@@ -43,6 +45,9 @@ class TestIsFallbackReply:
             "sorry, i had trouble performing the web search.",
             # Case-insensitive match.
             "I HAD TROUBLE UNDERSTANDING THAT REQUEST.",
+            "Je n'ai pas réussi à traiter votre demande. Pouvez-vous réessayer ?",
+            "Je n’ai pas pu effectuer cette action. Veuillez réessayer.",
+            "Je n'ai pas de réponse fiable. Pouvez-vous préciser votre demande ?",
         ],
     )
     def test_canned_fallbacks_are_flagged(self, reply):
@@ -58,6 +63,7 @@ class TestIsFallbackReply:
             "I found three results: Annie Lennox, Lulu, and Shirley Manson.",
             "Sure — I opened YouTube for you.",
             "I don't have that information, but I can search for it.",
+            "Le dossier contient trois documents, dont le rapport de juin.",
         ],
     )
     def test_real_replies_are_not_flagged(self, reply):
@@ -67,16 +73,21 @@ class TestIsFallbackReply:
 
 
 class TestFallbackPhrasesAgainstEngineSource:
-    """Pin the helper's phrase list against the actual canned strings in
+    """Pin only the actual engine fallback phrases against canned strings in
     the reply engine. If someone changes a fallback string in
     ``engine.py`` without updating the helper, this test fails and the
     eval suite doesn't silently revert to "fallback looks like success".
     """
 
+    def test_model_fallbacks_remain_detectable_without_source_pin(self):
+        assert set(FALLBACK_REPLY_PHRASES) == (
+            set(ENGINE_FALLBACK_PHRASES) | set(MODEL_ENGLISH_FALLBACK_PHRASES)
+        )
+
     def test_every_phrase_appears_in_engine_source(self):
         engine_src = (_ROOT / "src" / "atlas" / "reply" / "engine.py").read_text(encoding="utf-8")
         engine_src_lower = engine_src.lower()
-        for phrase in FALLBACK_REPLY_PHRASES:
+        for phrase in ENGINE_FALLBACK_PHRASES:
             assert phrase in engine_src_lower, (
                 f"Fallback phrase {phrase!r} no longer appears in "
                 f"engine.py. Either the engine's canned reply changed "
