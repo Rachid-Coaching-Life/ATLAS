@@ -1,5 +1,6 @@
 """Only accepted query segments choose the reply's locale."""
 from dataclasses import replace
+from threading import Event
 from types import SimpleNamespace
 
 import pytest
@@ -51,15 +52,38 @@ def test_pending_reply_language_tracks_accepted_request(mock_config, monkeypatch
     expected = following if kind in ("accepted", "unknown") else first
     assert obj.state_manager.get_pending_query() == expected.text
     observed = []
+    reply_received = Event()
 
     def reply(*args, language, **kwargs):
         observed.append((args[3], language))
+        reply_received.set()
         return None
 
     monkeypatch.setattr(engine, "run_reply_engine", reply)
     clock["now"] += 100
     obj._check_query_timeout()
+    assert reply_received.wait(timeout=5), "Voice dispatch did not reach the reply engine"
     assert observed == [(expected.text, expected.language)]
+
+
+def test_continuation_without_wake_name_is_appended_while_collecting(mock_config, monkeypatch):
+    """Fragmented commands remain usable without invoking the intent judge."""
+    from atlas.listening import listener as module
+
+    monkeypatch.setattr(module, "create_intent_judge", lambda cfg: None)
+    obj = module.VoiceListener(None, mock_config, None, None)
+    obj.state_manager.start_collection("ATLAS, ouvre le dossier", language="fr")
+
+    obj._process_transcript(
+        "et classe les documents", language="fr",
+        generation=obj._capture_generation, captured_during_tts=False,
+        captured_tts_start_time=0,
+    )
+    assert obj.state_manager.get_pending_query() == (
+        "ATLAS, ouvre le dossier et classe les documents"
+    )
+    assert obj.state_manager.clear_collection().language == "fr"
+    obj.stop()
 
 
 def test_collection_snapshot_retains_only_accepted_segment_metadata():
